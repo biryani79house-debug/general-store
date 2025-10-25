@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Kirana Store Management API
 
 A backend for managing a local Kirana store's products, sales, and purchases, including WhatsApp order simulation.
@@ -53,3 +54,6 @@ SECRET_KEY_JWT=your-secret-key
 Once deployed, visit `/docs` for interactive API documentation.
 
 ## Update 10/19/2025
+=======
+# general-store
+>>>>>>> b842841e19989e7c09906a11eafccb78cfb072a1
