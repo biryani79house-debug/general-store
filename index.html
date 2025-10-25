@@ -2321,6 +2321,7 @@ function backToHome() {
             const categoryDropdown = document.getElementById('product-category');
             const categoryId = categoryDropdown.value;
             const categoryName = categoryDropdown.options[categoryDropdown.selectedIndex]?.textContent || '';
+            const stock = 0; // Default initial stock to 0
 
             // Validation
             if (!name) {
@@ -2361,9 +2362,7 @@ function backToHome() {
                     name: name,
                     purchase_price: purchasePrice,
                     selling_price: sellingPrice,
-                    unit_type: unitType,
-                    category_id: parseInt(categoryId),
-                    category: categoryName  // Add category name for database storage
+                    unit_type: unitType
                 };
 
                 const result = await createProduct(productData);
@@ -3938,6 +3937,8 @@ function backToHome() {
                 purchase: 'Purchase',
                 create_product: 'Create Product',
                 delete_product: 'Delete Product',
+                create_category: 'Create Category',
+                delete_category: 'Delete Category',
                 sales_ledger: 'Sales Ledger',
                 purchase_ledger: 'Purchase Ledger',
                 stock_ledger: 'Stock Ledger',
@@ -4225,6 +4226,22 @@ function backToHome() {
                     icon: '➕',
                     title: 'Create Product',
                     description: 'Add new products to your store inventory',
+                    bgClass: 'glass-effect text-white rounded-xl shadow-lg card-hover border border-white border-opacity-20'
+                },
+                {
+                    permission: 'create_category',
+                    page: 'create-category',
+                    icon: '📂',
+                    title: 'Create Category',
+                    description: 'Create and manage product categories',
+                    bgClass: 'glass-effect text-white rounded-xl shadow-lg card-hover border border-white border-opacity-20'
+                },
+                {
+                    permission: 'delete_category',
+                    page: 'delete-category',
+                    icon: '🗂️',
+                    title: 'Delete Category',
+                    description: 'Delete product categories',
                     bgClass: 'glass-effect text-white rounded-xl shadow-lg card-hover border border-white border-opacity-20'
                 },
                 {

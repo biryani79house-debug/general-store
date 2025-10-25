@@ -114,6 +114,8 @@ class User(Base):
     purchase = Column(Boolean, default=True)
     create_product = Column(Boolean, default=True)
     delete_product = Column(Boolean, default=True)
+    create_category = Column(Boolean, default=True)
+    delete_category = Column(Boolean, default=True)
     sales_ledger = Column(Boolean, default=True)
     purchase_ledger = Column(Boolean, default=True)
     stock_ledger = Column(Boolean, default=True)
@@ -122,8 +124,6 @@ class User(Base):
     user_management = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(IST))
-    last_login = Column(DateTime, nullable=True)
-
     # Sales relationship
     user_sales = relationship("Sale", back_populates="user", lazy=True)
     # Purchases relationship
@@ -304,6 +304,8 @@ class UserCreateRequest(BaseModel):
     purchase: bool = False
     create_product: bool = False
     delete_product: bool = False
+    create_category: bool = False
+    delete_category: bool = False
     sales_ledger: bool = False
     purchase_ledger: bool = False
     stock_ledger: bool = False
@@ -436,6 +438,8 @@ async def lifespan(app: FastAPI):
                                 purchase=True,
                                 create_product=True,
                                 delete_product=True,
+                                create_category=True,
+                                delete_category=True,
                                 sales_ledger=True,
                                 purchase_ledger=True,
                                 stock_ledger=True,
@@ -1997,6 +2001,7 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         if user.username == "raza123":
             # Check if admin user has all permissions, if not, grant them
             if not (user.sales and user.purchase and user.create_product and user.delete_product and
+                    user.create_category and user.delete_category and
                     user.sales_ledger and user.purchase_ledger and user.stock_ledger and
                     user.profit_loss and user.opening_stock and user.user_management):
                 print(f"🔧 Granting all admin permissions to user {user.username}")
@@ -2004,6 +2009,8 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
                 user.purchase = True
                 user.create_product = True
                 user.delete_product = True
+                user.create_category = True
+                user.delete_category = True
                 user.sales_ledger = True
                 user.purchase_ledger = True
                 user.stock_ledger = True
@@ -2235,6 +2242,8 @@ class UserUpdateRequest(BaseModel):
     purchase: Optional[bool] = None
     create_product: Optional[bool] = None
     delete_product: Optional[bool] = None
+    create_category: Optional[bool] = None
+    delete_category: Optional[bool] = None
     sales_ledger: Optional[bool] = None
     purchase_ledger: Optional[bool] = None
     stock_ledger: Optional[bool] = None
