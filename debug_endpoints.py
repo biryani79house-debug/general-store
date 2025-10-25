@@ -29,11 +29,48 @@ def main():
             print(f"❌ Health endpoint failed: {response.status_code}")
             return
 
-        # Step 2: Login as default admin
-        print("\n2. Testing login as default admin...")
+        # Step 1.5: Test basic POST request to see if method is allowed
+        print("\n1.5. Testing POST method availability...")
+        response = session.post(f"{BASE_URL}/health", json={})
+        if response.status_code == 405:
+            print("❌ POST method not allowed on server")
+            print("   This suggests a Railway configuration issue")
+        else:
+            print("✅ POST methods are allowed")
+
+        # Step 2: Try registering new user first
+        print("\n2. Testing user registration...")
+        register_data = {
+            "username": "testuser",
+            "password": "test123",
+            "email": "test@example.com"
+        }
+        response = session.post(f"{BASE_URL}/auth/register", json=register_data)
+
+        if response.status_code == 201:
+            print("✅ User registration successful")
+            user_data = register_data
+            print(f"   Created user: {register_data['username']}")
+        elif response.status_code == 200 and "username" in response.text:
+            print("⚠️ Registration returned user object (may already exist)")
+            user_data = register_data
+            print("   Proceeding with this user for login")
+        elif response.status_code == 400 and "already exists" in response.text.lower():
+            print("✅ User already exists, proceeding with default admin")
+            user_data = {
+                "username": "raza123",
+                "password": "123456"
+            }
+        else:
+            print(f"❌ Registration failed: {response.status_code}")
+            print(f"   Response: {response.text}")
+            return
+
+        # Step 3: Login
+        print(f"\n3. Testing login as {user_data['username']}...")
         login_data = {
-            "username": "raza123",
-            "password": "admin123"
+            "username": user_data["username"],
+            "password": user_data["password"]
         }
         response = session.post(f"{BASE_URL}/auth/login", json=login_data)
 
