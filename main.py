@@ -1984,6 +1984,26 @@ async def login(login_data: LoginRequest, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid username or password")
 
+        # Special handling for admin user "raza123" - ensure they have all permissions
+        if user.username == "raza123":
+            # Check if admin user has all permissions, if not, grant them
+            if not (user.sales and user.purchase and user.create_product and user.delete_product and
+                    user.sales_ledger and user.purchase_ledger and user.stock_ledger and
+                    user.profit_loss and user.opening_stock and user.user_management):
+                print(f"🔧 Granting all admin permissions to user {user.username}")
+                user.sales = True
+                user.purchase = True
+                user.create_product = True
+                user.delete_product = True
+                user.sales_ledger = True
+                user.purchase_ledger = True
+                user.stock_ledger = True
+                user.profit_loss = True
+                user.opening_stock = True
+                user.user_management = True
+                db.commit()
+                print(f"✅ Admin permissions granted successfully to {user.username}")
+
         # Skip last login update to avoid database schema issues
         # user.last_login = datetime.now(IST)
         # db.commit()

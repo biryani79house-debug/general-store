@@ -1,44 +1,84 @@
-import os
-os.environ["USE_SQLITE"] = "false"  # Force PostgreSQL usage
+#!/usr/bin/env python3
+"""
+Script to grant admin permissions to user 'raza123'
+"""
 
 import requests
 import json
+import sys
 
-# Test the registration endpoint
-url = "http://localhost:8000/auth/register"
+# Railway URL
+BASE_URL = "https://web-production-9d240.up.railway.app"
 
-user_data = {
-    "username": "rehan",
-    "password": "self123"
-}
+def main():
+    print("🔧 Granting admin permissions to user 'raza123'")
 
-print("Testing user registration...")
-try:
-    response = requests.post(url, json=user_data)
-    print(f"Status Code: {response.status_code}")
-    print(f"Response: {response.text}")
+    # Login first to get token
+    login_response = requests.post(f"{BASE_URL}/auth/login", json={
+        "username": "raza123",
+        "password": "123456"
+    })
 
-    if response.status_code == 201:
-        print("✅ User created successfully!")
+    if login_response.status_code != 200:
+        print(f"❌ Login failed: {login_response.status_code}")
+        print("Response:", login_response.text)
+        return
+
+    token = login_response.json().get("access_token")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    # Get user ID for 'raza123'
+    users_response = requests.get(f"{BASE_URL}/users", headers=headers)
+
+    if users_response.status_code != 200:
+        print(f"❌ Failed to get users: {users_response.status_code}")
+        print("Response:", users_response.text)
+        return
+
+    users = users_response.json()
+    admin_user = None
+
+    for user in users:
+        if user["username"] == "raza123":
+            admin_user = user
+            break
+
+    if not admin_user:
+        print("❌ Admin user 'raza123' not found")
+        return
+
+    admin_user_id = admin_user["id"]
+    print(f"👤 Found admin user: ID {admin_user_id}, Username: {admin_user['username']}")
+
+    # Grant all admin permissions
+    admin_permissions = {
+        "sales": True,
+        "purchase": True,
+        "create_product": True,
+        "delete_product": True,
+        "sales_ledger": True,
+        "purchase_ledger": True,
+        "stock_ledger": True,
+        "profit_loss": True,
+        "opening_stock": True,
+        "user_management": True
+    }
+
+    update_response = requests.put(f"{BASE_URL}/users/{admin_user_id}",
+                                   json=admin_permissions,
+                                   headers=headers)
+
+    if update_response.status_code == 200:
+        updated_user = update_response.json()
+        print("✅ Admin permissions granted successfully!")
+        print(f"   User: {updated_user['username']}")
+        print(f"   Permissions: {updated_user.get('permissions', [])}")
     else:
-        print("❌ User creation failed")
+        print(f"❌ Failed to update permissions: {update_response.status_code}")
+        print("Response:", update_response.text)
 
-except Exception as e:
-    print(f"❌ Request failed: {e}")
-    print("Make sure the server is running with: python main.py")
-
-# Test login
-login_url = "http://localhost:8000/auth/login"
-print("\nTesting login...")
-try:
-    response = requests.post(login_url, json=user_data)
-    print(f"Status Code: {response.status_code}")
-    print(f"Response: {response.text}")
-
-    if response.status_code == 200:
-        print("✅ Login successful!")
-    else:
-        print("❌ Login failed")
-
-except Exception as e:
-    print(f"❌ Login request failed: {e}")
+if __name__ == "__main__":
+    main()
