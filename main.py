@@ -258,6 +258,7 @@ class SalesLedgerEntry(BaseModel):
     date: datetime
     product_id: int
     product_name: str
+    product_category: Optional[str] = None
     quantity: int
     unit_price: float
     total_amount: float
@@ -693,10 +694,12 @@ def get_products_stock_snapshot(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
     product_id: Optional[int] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db)
+    
 ):
     """
-    Get product stock snapshot with date filtering.
+    Get product stock snapshot with date filtering and category filtering.
     Always shows purchase prices for inventory valuation.
     Without date filters: current stock as of now
     With date filters: stock as of the specified date/end of date range
@@ -730,6 +733,10 @@ def get_products_stock_snapshot(
         # Filter by product if specified
         if product_id:
             query = query.filter(Product.id == product_id)
+
+        # Filter by category if provided
+        if category:
+            query = query.filter(Product.category == category)
 
         products = query.all()
 
@@ -1100,11 +1107,13 @@ def get_purchase_ledger(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     product_id: Optional[int] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
     """
     Get complete purchase ledger with all purchase details.
+    Supports filtering by date range, product, and category.
     Simplified to query purchases directly like the download endpoint.
     """
     try:
@@ -1122,6 +1131,10 @@ def get_purchase_ledger(
             query = query.filter(Purchase.purchase_date <= end_dt)
         if product_id:
             query = query.filter(Purchase.product_id == product_id)
+
+        # Filter by category if provided
+        if category:
+            query = query.filter(Purchase.product.has(Product.category == category))
 
         purchases = query.order_by(Purchase.purchase_date.desc()).all()
         print(f"✅ Found {len(purchases)} purchase records")
@@ -1156,11 +1169,13 @@ def get_sales_ledger(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     product_id: Optional[int] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
     """
     Get complete sales ledger with all sales details.
+    Supports filtering by date range, product, and category.
     Simplified to query sales directly like the download endpoint.
     """
     try:
@@ -1179,6 +1194,10 @@ def get_sales_ledger(
         if product_id:
             query = query.filter(Sale.product_id == product_id)
 
+        # Filter by category if provided
+        if category:
+            query = query.filter(Sale.product.has(Product.category == category))
+
         sales = query.order_by(Sale.sale_date.desc()).all()
         print(f"✅ Found {len(sales)} sales records")
 
@@ -1191,6 +1210,7 @@ def get_sales_ledger(
                 date=sale.sale_date,
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
+                product_category=sale.product.category if sale.product else None,
                 quantity=sale.quantity,
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
@@ -2620,12 +2640,13 @@ def get_profit_loss_data(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     product_id: Optional[int] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
     check_permission(Permission.PROFIT_LOSS, db, username)
     """
-    Get complete profit & loss analysis with date/product filters.
+    Get complete profit & loss analysis with date/product/category filters.
     Calculates profit/loss based on sales vs purchases + opening/closing stock adjustments.
     """
     try:
@@ -2650,6 +2671,12 @@ def get_profit_loss_data(
             sales_query = sales_query.filter(Sale.product_id == product_id)
             purchases_query = purchases_query.filter(Purchase.product_id == product_id)
             products_query = products_query.filter(Product.id == product_id)
+
+        # Apply category filter
+        if category:
+            sales_query = sales_query.filter(Sale.product.has(Product.category == category))
+            purchases_query = purchases_query.filter(Purchase.product.has(Product.category == category))
+            products_query = products_query.filter(Product.category == category)
 
         sales = sales_query.all()
         purchases = purchases_query.all()
