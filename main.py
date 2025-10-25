@@ -374,145 +374,150 @@ async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
         print("Database tables created.")
 
-        # Seed with sample data if no products exist
+        # Test database connection first
         db = SessionLocal()
+        db.execute(text("SELECT 1"))
+
+        # Check if the new columns exist by trying to query them
         try:
-            # Test database connection first
-            db.execute(text("SELECT 1"))
+            # Try to access the new columns to see if they exist
+            db.query(Product.purchase_price, Product.selling_price, Product.unit_type).first()
+            print("✅ New database schema detected")
 
-            # Check if the new columns exist by trying to query them
+            product_count = db.query(Product).count()
+            if product_count == 0:
+                print("Seeding database with sample products...")
+                sample_products = [
+                    Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", category="Fruits", stock=50),
+                    Product(name="Banana", purchase_price=40.00, selling_price=50.00, unit_type="kgs", category="Fruits", stock=30),
+                    Product(name="Orange", purchase_price=60.00, selling_price=80.00, unit_type="kgs", category="Fruits", stock=25),
+                    Product(name="Milk", purchase_price=50.00, selling_price=65.00, unit_type="ltr", category="Dairy", stock=20),
+                    Product(name="Bread", purchase_price=30.00, selling_price=40.00, unit_type="pcs", category="Bakery", stock=15),
+                    Product(name="Eggs", purchase_price=70.00, selling_price=90.00, unit_type="pcs", category="Meat & Fish", stock=40),
+                    Product(name="Rice", purchase_price=100.00, selling_price=120.00, unit_type="kgs", category="Groceries", stock=60),
+                    Product(name="Sugar", purchase_price=45.00, selling_price=55.00, unit_type="kgs", category="Groceries", stock=35),
+                ]
+                db.add_all(sample_products)
+                db.commit()
+                print("✅ Sample products added to database.")
+            else:
+                print(f"Database already contains {product_count} products.")
+
+        except Exception as column_error:
+            print(f"⚠️ Schema mismatch detected: {column_error}")
+            print("🔄 Attempting to update database schema...")
+
+            # For PostgreSQL/Render, use a safer approach
             try:
-                # Try to access the new columns to see if they exist
-                db.query(Product.purchase_price, Product.selling_price, Product.unit_type).first()
-                print("✅ New database schema detected")
+                # First, try to add the missing column without dropping tables
+                try:
+                    # Check if created_at column exists
+                    result = db.execute(text("SELECT created_at FROM products LIMIT 1"))
+                    print("✅ created_at column already exists")
+                except Exception:
+                    print("📝 Adding created_at column to products table...")
+                    # Add the missing column
+                    db.execute(text("ALTER TABLE products ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+                    print("✅ created_at column added successfully")
 
+                # Update existing records with current timestamp if they don't have created_at
+                try:
+                    db.execute(text("UPDATE products SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+                    db.commit()
+                    print("✅ Existing records updated with creation timestamps")
+                except Exception as update_error:
+                    print(f"⚠️ Could not update existing records: {update_error}")
+                    # This is not critical, so we'll continue
+
+                # Check if category column exists, if not add it
+                try:
+                    db.execute(text("ALTER TABLE products ADD COLUMN category STRING"))
+                    print("✅ category column added to products table")
+                except Exception:
+                    print("✅ category column already exists")
+
+                print("✅ Database schema updated successfully")
+
+                # Check if we need sample data
                 product_count = db.query(Product).count()
                 if product_count == 0:
-                    print("No products found in database. You can create products through the web interface.")
-                    print("To add sample products, use the 'Create Product' page in the application.")
+                    # Create default admin user if no users exist
+                    user_count = db.query(User).count()
+                    if user_count == 0:
+                        default_password = "admin123"
+                        hashed_password = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
+
+                        default_admin = User(
+                            username="raza123",
+                            email="admin@kirana.store",
+                            password_hash=hashed_password.decode('utf-8'),
+                            # New permission system - give all permissions to default admin
+                            sales=True,
+                            purchase=True,
+                            create_product=True,
+                            delete_product=True,
+                            create_category=True,
+                            delete_category=True,
+                            sales_ledger=True,
+                            purchase_ledger=True,
+                            stock_ledger=True,
+                            profit_loss=True,
+                            opening_stock=True,
+                            user_management=True,
+                            is_active=True
+                        )
+                        db.add(default_admin)
+                        db.commit()
+                        print(f"✅ Default admin user created: username=raza123, password={default_password}")
+                        print("⚠️  PLEASE CHANGE THE DEFAULT PASSWORD AFTER FIRST LOGIN!")
+
+                    print("Seeding database with sample products...")
+                    sample_products = [
+                        Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", category="Fruits", stock=50),
+                        Product(name="Banana", purchase_price=40.00, selling_price=50.00, unit_type="kgs", category="Fruits", stock=30),
+                        Product(name="Orange", purchase_price=60.00, selling_price=80.00, unit_type="kgs", category="Fruits", stock=25),
+                        Product(name="Milk", purchase_price=50.00, selling_price=65.00, unit_type="ltr", category="Dairy", stock=20),
+                        Product(name="Bread", purchase_price=30.00, selling_price=40.00, unit_type="pcs", category="Bakery", stock=15),
+                        Product(name="Eggs", purchase_price=70.00, selling_price=90.00, unit_type="pcs", category="Meat & Fish", stock=40),
+                        Product(name="Rice", purchase_price=100.00, selling_price=120.00, unit_type="kgs", category="Groceries", stock=60),
+                        Product(name="Sugar", purchase_price=45.00, selling_price=55.00, unit_type="kgs", category="Groceries", stock=35),
+                    ]
+                    db.add_all(sample_products)
+                    db.commit()
+                    print("✅ Sample products added to database.")
                 else:
                     print(f"Database already contains {product_count} products.")
 
-            except Exception as column_error:
-                print(f"⚠️ Schema mismatch detected: {column_error}")
-                print("🔄 Attempting to update database schema...")
+            except Exception as update_error:
+                print(f"❌ Failed to update schema: {update_error}")
+                print("🔄 Falling back to table recreation method...")
 
-                # For PostgreSQL/Render, use a safer approach
                 try:
-                    # First, try to add the missing column without dropping tables
-                    try:
-                        # Check if created_at column exists
-                        result = db.execute(text("SELECT created_at FROM products LIMIT 1"))
-                        print("✅ created_at column already exists")
-                    except Exception:
-                        print("📝 Adding created_at column to products table...")
-                        # Add the missing column
-                        db.execute(text("ALTER TABLE products ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
-                        print("✅ created_at column added successfully")
+                    # As a last resort, try the drop/create method
+                    Base.metadata.drop_all(bind=engine)
+                    Base.metadata.create_all(bind=engine)
+                    print("✅ Database schema recreated successfully")
 
-                    # Update existing records with current timestamp if they don't have created_at
-                    try:
-                        db.execute(text("UPDATE products SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
-                        db.commit()
-                        print("✅ Existing records updated with creation timestamps")
-                    except Exception as update_error:
-                        print(f"⚠️ Could not update existing records: {update_error}")
-                        # This is not critical, so we'll continue
+                    # Now add sample data
+                    sample_products = [
+                        Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", category="Fruits", stock=50),
+                        Product(name="Banana", purchase_price=40.00, selling_price=50.00, unit_type="kgs", category="Fruits", stock=30),
+                        Product(name="Orange", purchase_price=60.00, selling_price=80.00, unit_type="kgs", category="Fruits", stock=25),
+                        Product(name="Milk", purchase_price=50.00, selling_price=65.00, unit_type="ltr", category="Dairy", stock=20),
+                        Product(name="Bread", purchase_price=30.00, selling_price=40.00, unit_type="pcs", category="Bakery", stock=15),
+                        Product(name="Eggs", purchase_price=70.00, selling_price=90.00, unit_type="pcs", category="Meat & Fish", stock=40),
+                        Product(name="Rice", purchase_price=100.00, selling_price=120.00, unit_type="kgs", category="Groceries", stock=60),
+                        Product(name="Sugar", purchase_price=45.00, selling_price=55.00, unit_type="kgs", category="Groceries", stock=35),
+                    ]
+                    db.add_all(sample_products)
+                    db.commit()
+                    print("✅ Sample products added to database.")
 
-                    # Check if category column exists, if not add it
-                    try:
-                        db.execute(text("ALTER TABLE products ADD COLUMN category STRING"))
-                        print("✅ category column added to products table")
-                    except Exception:
-                        print("✅ category column already exists")
+                except Exception as final_error:
+                    print(f"❌ Failed to recreate schema: {final_error}")
+                    print("Please check your DATABASE_URL and ensure the database is accessible")
 
-                    print("✅ Database schema updated successfully")
-
-                    # Check if we need sample data
-                    product_count = db.query(Product).count()
-                    if product_count == 0:
-                        # Create default admin user if no users exist
-                        user_count = db.query(User).count()
-                        if user_count == 0:
-                            default_password = "admin123"
-                            hashed_password = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
-
-                            default_admin = User(
-                                username="raza123",
-                                email="admin@kirana.store",
-                                password_hash=hashed_password.decode('utf-8'),
-                                # New permission system - give all permissions to default admin
-                                sales=True,
-                                purchase=True,
-                                create_product=True,
-                                delete_product=True,
-                                create_category=True,
-                                delete_category=True,
-                                sales_ledger=True,
-                                purchase_ledger=True,
-                                stock_ledger=True,
-                                profit_loss=True,
-                                opening_stock=True,
-                                user_management=True,
-                                is_active=True
-                            )
-                            db.add(default_admin)
-                            db.commit()
-                            print(f"✅ Default admin user created: username=raza123, password={default_password}")
-                            print("⚠️  PLEASE CHANGE THE DEFAULT PASSWORD AFTER FIRST LOGIN!")
-
-                        print("Seeding database with sample products...")
-                        sample_products = [
-                            Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", stock=50),
-                            Product(name="Banana", purchase_price=40.00, selling_price=50.00, unit_type="kgs", stock=30),
-                            Product(name="Orange", purchase_price=60.00, selling_price=80.00, unit_type="kgs", stock=25),
-                            Product(name="Milk", purchase_price=50.00, selling_price=65.00, unit_type="ltr", stock=20),
-                            Product(name="Bread", purchase_price=30.00, selling_price=40.00, unit_type="pcs", stock=15),
-                            Product(name="Eggs", purchase_price=70.00, selling_price=90.00, unit_type="pcs", stock=40),
-                            Product(name="Rice", purchase_price=100.00, selling_price=120.00, unit_type="kgs", stock=60),
-                            Product(name="Sugar", purchase_price=45.00, selling_price=55.00, unit_type="kgs", stock=35),
-                        ]
-                        db.add_all(sample_products)
-                        db.commit()
-                        print("✅ Sample products added to database.")
-                    else:
-                        print(f"Database already contains {product_count} products.")
-
-                except Exception as update_error:
-                    print(f"❌ Failed to update schema: {update_error}")
-                    print("🔄 Falling back to table recreation method...")
-
-                    try:
-                        # As a last resort, try the drop/create method
-                        Base.metadata.drop_all(bind=engine)
-                        Base.metadata.create_all(bind=engine)
-                        print("✅ Database schema recreated successfully")
-
-                        # Now add sample data
-                        sample_products = [
-                            Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", stock=50),
-                            Product(name="Banana", purchase_price=40.00, selling_price=50.00, unit_type="kgs", stock=30),
-                            Product(name="Orange", purchase_price=60.00, selling_price=80.00, unit_type="kgs", stock=25),
-                            Product(name="Milk", purchase_price=50.00, selling_price=65.00, unit_type="ltr", stock=20),
-                            Product(name="Bread", purchase_price=30.00, selling_price=40.00, unit_type="pcs", stock=15),
-                            Product(name="Eggs", purchase_price=70.00, selling_price=90.00, unit_type="pcs", stock=40),
-                            Product(name="Rice", purchase_price=100.00, selling_price=120.00, unit_type="kgs", stock=60),
-                            Product(name="Sugar", purchase_price=45.00, selling_price=55.00, unit_type="kgs", stock=35),
-                        ]
-                        db.add_all(sample_products)
-                        db.commit()
-                        print("✅ Sample products added to database.")
-
-                    except Exception as final_error:
-                        print(f"❌ Failed to recreate schema: {final_error}")
-                        print("Please check your DATABASE_URL and ensure the database is accessible")
-
-        except Exception as e:
-            print(f"Database initialization error: {e}")
-            # Don't fail the entire app if seeding fails
-            pass
-        finally:
-            db.close()
+        db.close()
 
     except Exception as e:
         print(f"❌ Critical database error: {e}")
@@ -2738,7 +2743,7 @@ def create_user_endpoint(
     current_user: str = Depends(verify_token)
 ):
     check_permission(Permission.USER_MANAGEMENT, db, current_user)
-    # ... use the existing create_user logic ...
+    return create_user(UserCreateRequest(username=username, password=password, email=email, sales=True, purchase=True), db, current_user)
 
 @app.get("/users", response_model=List[UserResponse])
 async def get_users(db: Session = Depends(get_db), username: str = Depends(verify_token)):
