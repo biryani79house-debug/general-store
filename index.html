@@ -225,7 +225,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
                             <input type="password" id="password" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your password" required>
                         </div>
-                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                        <button type="submit" id="login-submit-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
                             Login
                         </button>
                 </form>
@@ -355,6 +355,13 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Selling Price (₹)</label>
                         <input type="number" id="product-selling-price" class="w-full p-2 border border-gray-300 rounded-lg" step="0.01" min="0.01" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <select id="product-category" class="w-full p-2 border border-gray-300 rounded-lg" required>
+                            <option value="">Select Category</option>
+                        </select>
+                        <div class="text-xs text-gray-500 mt-1">Don't see your category? Ask admin to create one.</div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
@@ -1136,15 +1143,19 @@
 
         async function handleLogin(e) {
             e.preventDefault();
+            console.log('🔐 Starting login process');
 
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
 
             // Basic validation
             if (!username || !password) {
+                console.log('❌ Validation failed: missing username or password');
                 showNotification('❌ Please enter both username and password');
                 return;
             }
+
+            console.log(`🔐 Attempting login for user: ${username}`);
 
             const submitBtn = document.getElementById('login-submit-btn');
             const originalText = submitBtn.textContent;
@@ -1173,27 +1184,35 @@
                     console.log('✅ Login successful:', result);
 
                     // Store token and user info
-                    localStorage.setItem('authToken', result.access_token);
-                    localStorage.setItem('currentUser', JSON.stringify(result.user));
-                    currentUser = result.user;
+                    if (result && result.access_token && result.user) {
+                        localStorage.setItem('authToken', result.access_token);
+                        localStorage.setItem('currentUser', JSON.stringify(result.user));
+                        currentUser = result.user;
 
-                    showNotification(`✅ Welcome back, ${result.user.username}!`);
+                        // Clear login form before showing notification
+                        const usernameField = document.getElementById('username');
+                        const passwordField = document.getElementById('password');
+                        if (usernameField) usernameField.value = '';
+                        if (passwordField) passwordField.value = '';
 
-                    // Clear login form
-                    const usernameField = document.getElementById('username');
-                    const passwordField = document.getElementById('password');
-                    if (usernameField) usernameField.value = '';
-                    if (passwordField) passwordField.value = '';
+                        // Show success notification
+                        const username = (result.user && result.user.username) ? result.user.username : 'user';
+                        showNotification(`✅ Welcome back, ${username}!`);
 
-                    // Hide login page and show main app
-                    document.getElementById('page-login').classList.remove('active');
-                    document.getElementById('page-homes').classList.add('active');
+                        // Hide login page and show main app
+                        const loginPage = document.getElementById('page-login');
+                        const homePage = document.getElementById('page-homes');
+                        if (loginPage) loginPage.classList.remove('active');
+                        if (homePage) homePage.classList.add('active');
 
-                    // Show user controls in header
-                    showUserControls(result.user);
+                        // Show user controls in header
+                        showUserControls(result.user);
 
-                    // Load home page buttons based on user permissions
-                    loadHomePageButtons();
+                        // Load home page buttons based on user permissions
+                        loadHomePageButtons();
+                    } else {
+                        showNotification('❌ Invalid response from server');
+                    }
 
                 } else {
                     let errorMessage = 'Login failed';
@@ -1219,12 +1238,20 @@
         }
 
         function showUserControls(user) {
+            // Ensure DOM is ready before manipulating elements
+            if (!document.body) {
+                console.warn('DOM not ready for showUserControls:', user);
+                return;
+            }
+
             const userControls = document.getElementById('user-controls');
             const welcomeMessage = document.getElementById('welcome-message');
 
-            if (userControls && welcomeMessage) {
-                welcomeMessage.textContent = `Welcome, ${user.username}!`;
+            if (userControls) {
                 userControls.classList.remove('hidden');
+            }
+            if (welcomeMessage && user && user.username) {
+                welcomeMessage.textContent = `Welcome, ${user.username}!`;
             }
         }
 
@@ -1306,6 +1333,12 @@
         }
 
         function showNotification(message) {
+            // Ensure DOM is ready before creating notification
+            if (!document.body) {
+                console.warn('DOM not ready for notification:', message);
+                return;
+            }
+
             const existingNotification = document.querySelector('.notification');
             if (existingNotification) existingNotification.remove();
 
@@ -1316,7 +1349,9 @@
             document.body.appendChild(notification);
 
             setTimeout(() => {
-                notification.remove();
+                if (notification.parentNode) {
+                    notification.remove();
+                }
             }, 3000);
         }
 
@@ -1895,6 +1930,7 @@ function backToHome() {
 
         // ===== CREATE PRODUCT PAGE FUNCTIONS =====
         async function loadCreatePage() {
+            await loadCategoriesDropdown();
             await loadExistingProducts();
         }
 
@@ -1936,6 +1972,47 @@ function backToHome() {
             } catch (error) {
                 console.error('Error loading products:', error);
                 productsEl.innerHTML = '<p class="text-red-500 text-center">Error loading products</p>';
+            }
+        }
+
+        // ===== CATEGORY MANAGEMENT FUNCTIONS =====
+        let categories = [];
+
+        async function loadCategoriesDropdown(dropdownId = 'product-category') {
+            const dropdown = document.getElementById(dropdownId);
+            if (!dropdown) {
+                console.error(`Dropdown with ID '${dropdownId}' not found`);
+                return;
+            }
+
+            try {
+                // For now, load from mock data - in a real app this would be from API
+                if (categories.length === 0) {
+                    // Mock categories - replace with API call later
+                    categories = [
+                        {id: 1, name: 'Groceries'},
+                        {id: 2, name: 'Vegetables'},
+                        {id: 3, name: 'Fruits'},
+                        {id: 4, name: 'Dairy'},
+                        {id: 5, name: 'Beverages'},
+                        {id: 6, name: 'Snacks'},
+                        {id: 7, name: 'Household'},
+                        {id: 8, name: 'Personal Care'}
+                    ];
+                }
+
+                dropdown.innerHTML = '<option value="">Select Category</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    dropdown.appendChild(option);
+                });
+
+                console.log(`✅ Loaded ${categories.length} categories into dropdown`);
+            } catch (error) {
+                console.error('Error loading categories for dropdown:', error);
+                dropdown.innerHTML = '<option value="">Error loading categories</option>';
             }
         }
 
@@ -2113,6 +2190,7 @@ function backToHome() {
             const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
             const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
             const unitType = document.getElementById('product-unit-type').value;
+            const categoryId = document.getElementById('product-category').value;
 
             // Validation
             if (!name) {
@@ -2135,6 +2213,11 @@ function backToHome() {
                 return;
             }
 
+            if (!categoryId) {
+                showNotification('❌ Please select a category');
+                return;
+            }
+
             // Disable submit button to prevent double submission
             const submitBtn = document.getElementById('create-product-form').querySelector('button[type="submit"]');
             const originalText = submitBtn.textContent;
@@ -2142,13 +2225,14 @@ function backToHome() {
             submitBtn.disabled = true;
 
             try {
-                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType });
+                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, categoryId });
 
                 const productData = {
                     name: name,
                     purchase_price: purchasePrice,
                     selling_price: sellingPrice,
-                    unit_type: unitType
+                    unit_type: unitType,
+                    category_id: parseInt(categoryId)
                 };
 
                 const result = await createProduct(productData);
@@ -2160,6 +2244,7 @@ function backToHome() {
                 document.getElementById('product-purchase-price').value = '';
                 document.getElementById('product-selling-price').value = '';
                 document.getElementById('product-unit-type').value = '';
+                document.getElementById('product-category').value = '';
 
                 // Refresh existing products list
                 await loadExistingProducts();
@@ -2171,8 +2256,6 @@ function backToHome() {
                 // Reset button
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
-           ۀ
-        }
 }
 
         async function handlePurchase(e) {
@@ -2243,6 +2326,7 @@ function backToHome() {
                 console.error('❌ Error recording purchase:', error);
                 showNotification(`❌ Failed to record purchase: ${error.message}`);
             } finally {
+                // Reset button
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
             }
@@ -4393,6 +4477,7 @@ page = pages.homes; // Alias for backward compatibility
                 deleteUsersBtn.addEventListener('click', loadDeleteUsersSection);
             }
         }
+    }
     </script>
 </body>
 </html>
