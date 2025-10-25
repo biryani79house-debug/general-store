@@ -214,56 +214,21 @@
                 </div>
 
                 <!-- Login Form -->
-                <form id="login-form" class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                        <input type="text" id="login-username" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter your username" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <input type="password" id="login-password" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter your password" required>
-                    </div>
-                    <button type="submit" id="login-submit-btn" class="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-colors">
-                        Sign In
-                    </button>
-                </form>
-
-                <!-- Registration Link -->
-                <div class="mt-6 text-center">
-                    <button id="show-register-btn" class="text-blue-500 hover:text-blue-600 text-sm">
-                        Don't have an account? Register here
-                    </button>
-                </div>
-
-                <!-- Registration Form (Hidden by default) -->
-                <div id="register-form" class="mt-8 hidden">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Create Account</h2>
-                    <form id="registration-form" class="space-y-4">
+                <div id="login-form">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Login</h2>
+                    <form id="loginForm" class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                            <input type="text" id="register-username" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Choose a username" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input type="email" id="register-email" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="your@email.com" required>
+                            <input type="text" id="username" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your username" required>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                            <input type="password" id="register-password" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Choose a password" required>
+                            <input type="password" id="password" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" placeholder="Enter your password" required>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                            <input type="password" id="register-confirm-password" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Confirm your password" required>
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="submit" id="register-submit-btn" class="flex-1 bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
-                                Register
-                            </button>
-                            <button type="button" id="back-to-login-btn" class="flex-1 bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">
-                                Back
-                            </button>
-                        </div>
-                    </form>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                            Login
+                        </button>
+                </form>
                 </div>
 
                 <!-- Login Status Messages -->
@@ -1167,23 +1132,13 @@
             };
         }
 
-        function showRegistrationForm() {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('register-form').classList.remove('hidden');
-            document.getElementById('show-register-btn').classList.add('hidden');
-        }
 
-        function hideRegistrationForm() {
-            document.getElementById('login-form').classList.remove('hidden');
-            document.getElementById('register-form').classList.add('hidden');
-            document.getElementById('show-register-btn').classList.remove('hidden');
-        }
 
         async function handleLogin(e) {
             e.preventDefault();
 
-            const username = document.getElementById('login-username').value.trim();
-            const password = document.getElementById('login-password').value;
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
 
             // Basic validation
             if (!username || !password) {
@@ -1225,8 +1180,10 @@
                     showNotification(`✅ Welcome back, ${result.user.username}!`);
 
                     // Clear login form
-                    document.getElementById('login-username').value = '';
-                    document.getElementById('login-password').value = '';
+                    const usernameField = document.getElementById('username');
+                    const passwordField = document.getElementById('password');
+                    if (usernameField) usernameField.value = '';
+                    if (passwordField) passwordField.value = '';
 
                     // Hide login page and show main app
                     document.getElementById('page-login').classList.remove('active');
@@ -1287,80 +1244,7 @@
             showNotification('👋 Logged out successfully!');
         }
 
-        async function handleRegistration(e) {
-            e.preventDefault();
 
-            const username = document.getElementById('register-username').value.trim();
-            const email = document.getElementById('register-email').value.trim();
-            const password = document.getElementById('register-password').value;
-            const confirmPassword = document.getElementById('register-confirm-password').value;
-
-            // Basic validation
-            if (!username || !email || !password || !confirmPassword) {
-                showNotification('❌ Please fill in all fields');
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                showNotification('❌ Passwords do not match');
-                return;
-            }
-
-            if (password.length < 6) {
-                showNotification('❌ Password must be at least 6 characters long');
-                return;
-            }
-
-            try {
-                console.log('📝 Attempting to register user:', username);
-
-                const response = await fetch(`${backendURL}/auth/register`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true'
-                    },
-                    body: JSON.stringify({
-                        username: username,
-                        password: password
-                    })
-                });
-
-                console.log(`📊 Registration response status: ${response.status}`);
-
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('✅ User registered successfully:', result);
-
-                    showNotification('✅ Registration successful! Please login with your credentials.');
-
-                    // Clear form
-                    document.getElementById('register-username').value = '';
-                    document.getElementById('register-email').value = '';
-                    document.getElementById('register-password').value = '';
-                    document.getElementById('register-confirm-password').value = '';
-
-                    // Switch back to login form
-                    hideRegistrationForm();
-
-                } else {
-                    let errorMessage = 'Registration failed';
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.detail || errorData.message || errorMessage;
-                    } catch (parseError) {
-                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
-                    }
-
-                    console.error('❌ Registration failed:', errorMessage);
-                    showNotification(`❌ ${errorMessage}`);
-                }
-
-            } catch (error) {
-                console.error('❌ Network error during registration:', error);
-                showNotification('❌ Network error. Please check your connection and try again.');
-            }
-        }
 
         function formatDateTime(dateString) {
             if (!dateString) {
@@ -4362,28 +4246,10 @@ page = pages.homes; // Alias for backward compatibility
                 });
             }
 
-            // Show registration form button
-            const showRegisterBtn = document.getElementById('show-register-btn');
-            if (showRegisterBtn) {
-                showRegisterBtn.addEventListener('click', showRegistrationForm);
-            }
-
-            // Back to login button
-            const backToLoginBtn = document.getElementById('back-to-login-btn');
-            if (backToLoginBtn) {
-                backToLoginBtn.addEventListener('click', hideRegistrationForm);
-            }
-
             // Login form submission
-            const loginForm = document.getElementById('login-form');
+            const loginForm = document.getElementById('loginForm');
             if (loginForm) {
                 loginForm.addEventListener('submit', handleLogin);
-            }
-
-            // Registration form submission
-            const registrationForm = document.getElementById('registration-form');
-            if (registrationForm) {
-                registrationForm.addEventListener('submit', handleRegistration);
             }
 
             // Back to home button
