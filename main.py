@@ -138,6 +138,7 @@ class Product(Base):
     purchase_price = Column(Float, nullable=False)  # Cost price when buying from supplier
     selling_price = Column(Float, nullable=False)   # Selling price to customers
     unit_type = Column(String, nullable=False)      # Unit type: kgs, ltr, or pcs
+    category = Column(String, nullable=True)        # Category name (optional)
     stock = Column(Float, default=0)                # Current stock level (changes with sales/purchases)
     initial_stock = Column(Float, default=0)        # Initial stock when product was created (immutable)
     created_at = Column(DateTime, default=lambda: datetime.now(IST))
@@ -176,6 +177,7 @@ class ProductBase(BaseModel):
     unit_type: str = Field(..., description="Unit type: kgs, ltr, or pcs")
 
 class ProductCreate(ProductBase):
+    category: Optional[str] = Field(None, description="Product category")
     stock: int = Field(0, ge=0, description="Initial stock level")
 
 class ProductUpdate(BaseModel):
@@ -406,6 +408,13 @@ async def lifespan(app: FastAPI):
                     except Exception as update_error:
                         print(f"⚠️ Could not update existing records: {update_error}")
                         # This is not critical, so we'll continue
+
+                    # Check if category column exists, if not add it
+                    try:
+                        db.execute(text("ALTER TABLE products ADD COLUMN category STRING"))
+                        print("✅ category column added to products table")
+                    except Exception:
+                        print("✅ category column already exists")
 
                     print("✅ Database schema updated successfully")
 

@@ -358,10 +358,17 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                        <select id="product-category" class="w-full p-2 border border-gray-300 rounded-lg" required>
-                            <option value="">Select Category</option>
-                        </select>
-                        <div class="text-xs text-gray-500 mt-1">Don't see your category? Ask admin to create one.</div>
+                        <div class="flex gap-2 mb-2">
+                            <select id="product-category" class="flex-1 p-2 border border-gray-300 rounded-lg" required>
+                                <option value="">Select Category</option>
+                            </select>
+                            <button type="button" id="add-category-btn" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm">
+                                ➕ Add
+                            </button>
+                            <button type="button" id="delete-category-btn" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm" style="display: none;">
+                                🗑️ Delete
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Unit Type</label>
@@ -2016,6 +2023,127 @@ function backToHome() {
             }
         }
 
+        function showAddCategoryModal() {
+            const existingModal = document.querySelector('.category-modal');
+            if (existingModal) existingModal.remove();
+
+            const modal = document.createElement('div');
+            modal.className = 'category-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-800">Add New Category</h3>
+                        <button onclick="closeCategoryModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                            <input type="text" id="new-category-name" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter category name" required>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="addNewCategory()" class="flex-1 bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+                                Add Category
+                            </button>
+                            <button onclick="closeCategoryModal()" class="flex-1 bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            document.getElementById('new-category-name').focus();
+        }
+
+        function closeCategoryModal() {
+            const modal = document.querySelector('.category-modal');
+            if (modal) modal.remove();
+        }
+
+        async function addNewCategory() {
+            const categoryName = document.getElementById('new-category-name').value.trim();
+
+            if (!categoryName) {
+                showNotification('❌ Category name is required');
+                return;
+            }
+
+            if (categoryName.length < 2) {
+                showNotification('❌ Category name must be at least 2 characters long');
+                return;
+            }
+
+            // Check if category already exists
+            const exists = categories.some(cat => cat.name.toLowerCase() === categoryName.toLowerCase());
+            if (exists) {
+                showNotification('❌ Category already exists');
+                return;
+            }
+
+            // Add new category to the mock array
+            const newCategory = {
+                id: categories.length + 1,
+                name: categoryName
+            };
+
+            // In a real app, this would be a POST request to the API
+            categories.push(newCategory);
+
+            // Update category dropdown
+            await loadCategoriesDropdown();
+
+            // Close modal and show success
+            closeCategoryModal();
+            showNotification(`✅ Category "${categoryName}" added successfully!`);
+
+            // Refresh the dropdown to show the new category
+            const dropdown = document.getElementById('product-category');
+            if (dropdown) {
+                // Set the newly added category as selected
+                setTimeout(() => {
+                    dropdown.value = newCategory.id.toString();
+                    // Trigger change event to show delete button
+                    dropdown.dispatchEvent(new Event('change'));
+                }, 100);
+            }
+        }
+
+        async function deleteSelectedCategory() {
+            const dropdown = document.getElementById('product-category');
+            const selectedValue = dropdown.value;
+            const selectedOption = dropdown.options[dropdown.selectedIndex];
+
+            if (!selectedValue || selectedValue === "") {
+                showNotification('❌ Please select a category to delete');
+                return;
+            }
+
+            const categoryName = selectedOption.textContent;
+
+            if (!confirm(`Are you sure you want to delete the category "${categoryName}"? This will affect all products under this category.`)) {
+                return;
+            }
+
+            // Remove from mock array
+            const categoryId = parseInt(selectedValue);
+            const index = categories.findIndex(cat => cat.id === categoryId);
+            if (index > -1) {
+                categories.splice(index, 1);
+            }
+
+            // In a real app, this would be a DELETE request to the API
+            // For now, just update the UI
+
+            // Update category dropdown
+            await loadCategoriesDropdown();
+
+            // Hide delete button
+            document.getElementById('delete-category-btn').style.display = 'none';
+
+            showNotification(`✅ Category "${categoryName}" deleted successfully!`);
+        }
+
         async function createProduct(productData) {
             console.log('➕ Creating product:', productData);
 
@@ -2190,7 +2318,9 @@ function backToHome() {
             const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
             const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
             const unitType = document.getElementById('product-unit-type').value;
-            const categoryId = document.getElementById('product-category').value;
+            const categoryDropdown = document.getElementById('product-category');
+            const categoryId = categoryDropdown.value;
+            const categoryName = categoryDropdown.options[categoryDropdown.selectedIndex]?.textContent || '';
 
             // Validation
             if (!name) {
@@ -2213,7 +2343,7 @@ function backToHome() {
                 return;
             }
 
-            if (!categoryId) {
+            if (!categoryId || !categoryName) {
                 showNotification('❌ Please select a category');
                 return;
             }
@@ -2225,14 +2355,15 @@ function backToHome() {
             submitBtn.disabled = true;
 
             try {
-                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, categoryId });
+                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, categoryId, categoryName });
 
                 const productData = {
                     name: name,
                     purchase_price: purchasePrice,
                     selling_price: sellingPrice,
                     unit_type: unitType,
-                    category_id: parseInt(categoryId)
+                    category_id: parseInt(categoryId),
+                    category: categoryName  // Add category name for database storage
                 };
 
                 const result = await createProduct(productData);
@@ -4489,6 +4620,29 @@ function backToHome() {
             const deleteUsersBtn = document.getElementById('delete-users-btn');
             if (deleteUsersBtn) {
                 deleteUsersBtn.addEventListener('click', loadDeleteUsersSection);
+            }
+
+            // Category management buttons
+            const addCategoryBtn = document.getElementById('add-category-btn');
+            if (addCategoryBtn) {
+                addCategoryBtn.addEventListener('click', showAddCategoryModal);
+            }
+
+            const deleteCategoryBtn = document.getElementById('delete-category-btn');
+            if (deleteCategoryBtn) {
+                deleteCategoryBtn.addEventListener('click', deleteSelectedCategory);
+            }
+
+            // Category dropdown change event
+            const categoryDropdown = document.getElementById('product-category');
+            if (categoryDropdown) {
+                categoryDropdown.addEventListener('change', function() {
+                    const selectedValue = this.value;
+                    const deleteBtn = document.getElementById('delete-category-btn');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = selectedValue && selectedValue !== "" ? "block" : "none";
+                    }
+                });
             }
         }
     
