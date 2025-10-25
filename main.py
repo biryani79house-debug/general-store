@@ -522,7 +522,8 @@ origins = [
     "https://kirana-store-backend.onrender.com",
     "https://kirana-store-maoc.onrender.com",
     "https://kirana-store-docker.onrender.com",
-    "https://kirana-store-backend-production.up.railway.app",  # Add Railway production backend
+    "https://kirana-store-backend-production.up.railway.app",
+    "https://web-production-9d240.up.railway.app/",  # Add Railway production backend
     "https://*.railway.app",  # Allow all Railway domains
     "*"
 ]
