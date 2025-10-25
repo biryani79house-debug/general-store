@@ -169,6 +169,14 @@ class Purchase(Base):
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
+class Category(Base):
+    """Category table for organizing products"""
+    __tablename__ = "categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(IST))
+
 # --- Pydantic Models for API Requests/Responses ---
 class ProductBase(BaseModel):
     name: str
@@ -1800,6 +1808,67 @@ def download_profit_loss(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error generating profit & loss CSV: {str(e)}")
 
+
+# --- CATEGORY MANAGEMENT ENDPOINTS ---
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+@app.get("/categories", response_model=List[CategoryResponse])
+async def get_categories(db: Session = Depends(get_db)):
+    """Get all categories"""
+    categories = db.query(Category).all()
+    return categories
+
+@app.post("/categories/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_category(
+    name: str,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """Create a new category"""
+    check_permission(Permission.CREATE_CATEGORY, db, username)
+
+    # Check if category already exists
+    existing_category = db.query(Category).filter(Category.name.ilike(name)).first()
+    if existing_category:
+        raise HTTPException(status_code=400, detail="Category with this name already exists")
+
+    new_category = Category(name=name)
+    db.add(new_category)
+    db.commit()
+    db.refresh(new_category)
+    return new_category
+
+@app.delete("/categories/{category_id}", status_code=status.HTTP_200_OK)
+async def delete_category(
+    category_id: int,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """Delete a category if it's not being used by any products"""
+    check_permission(Permission.DELETE_CATEGORY, db, username)
+
+    # Check if category exists
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Check if any products use this category
+    products_using_category = db.query(Product).filter(Product.category.ilike(category.name)).count()
+    if products_using_category > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete category '{category.name}' because it is used by {products_using_category} product(s)"
+        )
+
+    # Delete the category
+    db.delete(category)
+    db.commit()
+
+    return {"status": "success", "message": f"Category '{category.name}' deleted successfully"}
 
 # --- SMS Endpoint ---
 @app.post("/sms")
