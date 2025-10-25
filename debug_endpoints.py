@@ -9,7 +9,7 @@ import json
 import sys
 
 # Configuration
-BASE_URL = "https://kirana-store-backend-production.up.railway.app"
+BASE_URL = "https://web-production-9d240.up.railway.app"
 # BASE_URL = "http://localhost:8000"  # For local testing
 
 def main():
@@ -57,9 +57,10 @@ def main():
             print("   Proceeding with this user for login")
         elif response.status_code == 400 and "already exists" in response.text.lower():
             print("✅ User already exists, proceeding with default admin")
+            # Test if it actually exists and then force use our known user
             user_data = {
-                "username": "raza123",
-                "password": "123456"
+                "username": "testuser",
+                "password": "test123"
             }
         else:
             print(f"❌ Registration failed: {response.status_code}")
