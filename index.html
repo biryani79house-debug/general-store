@@ -2655,13 +2655,14 @@ function backToHome() {
         async function deleteCategoryFromPage() {
             const dropdown = document.getElementById('delete-category-dropdown');
             const selectedValue = dropdown.value;
-            const selectedOption = dropdown.options[dropdown.selectedIndex];
 
             if (!selectedValue || selectedValue === "") {
                 showNotification('❌ Please select a category to delete');
                 return;
             }
 
+            const categoryId = parseInt(selectedValue);
+            const selectedOption = dropdown.options[dropdown.selectedIndex];
             const categoryName = selectedOption.textContent;
 
             if (!confirm(`Are you sure you want to delete the category "${categoryName}"? This will affect all products under this category.`)) {
@@ -2669,25 +2670,45 @@ function backToHome() {
             }
 
             try {
-                // Remove from categories array
-                const categoryId = parseInt(selectedValue);
+                console.log('🗑️ Deleting category on backend:', categoryId, categoryName);
+
+                // Make DELETE request to backend API
+                const deleteResponse = await fetch(`${backendURL}/categories/${categoryId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                console.log('🗑️ Delete response:', deleteResponse.status);
+
+                if (!deleteResponse.ok) {
+                    let errorMessage = 'Failed to delete category';
+                    try {
+                        const errorData = await deleteResponse.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = `Server error: ${deleteResponse.status} ${deleteResponse.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const result = await deleteResponse.json();
+                console.log('✅ Category deleted from backend:', result);
+
+                // Update local arrays and UI
                 const index = categories.findIndex(cat => cat.id === categoryId);
                 if (index > -1) {
                     categories.splice(index, 1);
                 }
 
-                // Update all category dropdowns
-                await loadCategoriesDropdown();
+                // Refresh dropdowns and categories list
                 await loadCategoriesForDeletion();
-
-                // Refresh categories list
                 await loadExistingCategories();
 
                 showNotification(`✅ Category "${categoryName}" deleted successfully!`);
 
             } catch (error) {
                 console.error('❌ Error deleting category:', error);
-                showNotification('❌ Error deleting category. Please try again.');
+                showNotification(`❌ Failed to delete category: ${error.message}`);
             }
         }
 
