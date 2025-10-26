@@ -691,7 +691,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
-                        <select id="sales-category-filter" class="w-full p-2 border border-gray-300 rounded-lg">
+                        <select id="sales-ledger-category-filter" class="w-full p-2 border border-gray-300 rounded-lg">
                             <option value="">All Categories</option>
                         </select>
                     </div>
@@ -3131,8 +3131,8 @@ function backToHome() {
                 allSalesData = await response.json();
                 console.log('✅ Sales data received:', allSalesData);
 
-                await loadProductDropdownForFilter('sales-product-filter');
-                await loadCategoriesDropdownForFilter('sales-category-filter');
+            await loadProductDropdownForFilter('sales-product-filter');
+            await loadCategoriesDropdownForFilter('sales-ledger-category-filter');
 
                 displayFilteredSalesData(allSalesData);
 
@@ -3261,7 +3261,7 @@ function backToHome() {
             const dateFrom = document.getElementById('sales-date-from').value;
             const dateTo = document.getElementById('sales-date-to').value;
             const productId = document.getElementById('sales-product-filter').value;
-            const categoryId = document.getElementById('sales-category-filter').value;
+            const categoryId = document.getElementById('sales-ledger-category-filter').value;
 
             let filteredData = allSalesData;
 
@@ -3304,7 +3304,7 @@ function backToHome() {
             document.getElementById('sales-date-from').value = '';
             document.getElementById('sales-date-to').value = '';
             document.getElementById('sales-product-filter').value = '';
-            document.getElementById('sales-category-filter').value = '';
+            document.getElementById('sales-ledger-category-filter').value = '';
             displayFilteredSalesData(allSalesData);
         }
 
@@ -3923,45 +3923,61 @@ function backToHome() {
             const categoryId = document.getElementById('opening-stock-category-filter').value;
 
             console.log('🔍 filter values - productId:', productId, 'categoryId:', categoryId);
-            console.log('📋 Available categories:', categories);
-            console.log('📦 Filtered category ID:', categoryId);
 
             let filteredData = allOpeningStockData;
-
-            console.log('🔍 Raw allOpeningStockData items:', allOpeningStockData.map(item => ({
-                name: item.name,
-                category_id: item.category_id,
-                id: item.id
-            })));
 
             // Filter by product if selected
             if (productId) {
                 filteredData = filteredData.filter(item => item.id == productId);
             }
 
-            // Filter by category if selected - use category name matching
-            if (categoryId) {
+            // Handle category filtering - use same logic as profit & loss page
+            if (categoryId && categories) {
                 const selectedCategory = categories.find(cat => cat.id == categoryId);
-                console.log('🔍 Found selected category:', selectedCategory);
-
                 if (selectedCategory) {
-                    console.log('🎯 Filtering by category name:', selectedCategory.name);
+                    console.log('🗂️ Applying category filter for:', selectedCategory.name);
 
-                    // Log before filtering
-                    console.log('📊 Data before category filter:', filteredData.length, 'items');
+                    // First fetch products for this category to get their names
+                    fetch(`${backendURL}/products?category=${encodeURIComponent(selectedCategory.name)}`, {
+                        headers: getAuthHeaders()
+                    })
+                    .then(response => response.json())
+                    .then(filteredProducts => {
+                        console.log('📦 Filtered products for category:', filteredProducts.length, 'products');
 
-                    filteredData = filteredData.filter(item => {
-                        const matches = item.category_name == selectedCategory.name;
-                        console.log(`🔍 Checking item "${item.name}": category_name=${item.category_name}, selected=${selectedCategory.name}, matches=${matches}`);
-                        return matches;
+                        if (filteredProducts.length === 0) {
+                            // No products in this category, show empty results
+                            displayOpeningStockData([], selectedCategory.name);
+                            return;
+                        }
+
+                        // Get product names that belong to this category
+                        const productNamesInCategory = new Set(filteredProducts.map(p => p.name));
+                        console.log('🏷️ Product names in category:', Array.from(productNamesInCategory));
+
+                        // Filter opening stock data by product names in this category
+                        const categoryFilteredData = allOpeningStockData.filter(item => productNamesInCategory.has(item.name));
+
+                        console.log('📊 Category filtered data:', categoryFilteredData.length, 'items');
+
+                        if (productId) {
+                            // If a specific product is also selected, further filter the category products
+                            const finalFilteredData = categoryFilteredData.filter(item => item.id == productId);
+                            displayOpeningStockData(finalFilteredData, selectedCategory.name);
+                        } else {
+                            displayOpeningStockData(categoryFilteredData, selectedCategory.name);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error filtering products by category:', error);
+                        // Continue without filtered products - use empty array which is handled gracefully
+                        displayOpeningStockData([], selectedCategory.name);
                     });
-
-                    console.log('📊 Data after category filter:', filteredData.length, 'items');
-                } else {
-                    console.log('❌ No category found with ID:', categoryId);
+                    return; // Exit early since category filtering is async
                 }
             }
 
+            // For non-category filtering or when category is not selected
             const selectedCategoryName = categoryId ? categories.find(cat => cat.id == categoryId)?.name : null;
             displayOpeningStockData(filteredData, selectedCategoryName);
         }
