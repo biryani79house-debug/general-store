@@ -1904,27 +1904,60 @@ async def delete_category(
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
-    """Delete a category if it's not being used by any products"""
+    """Delete a category if it's not being used by any products and renumber remaining categories"""
     check_permission(Permission.DELETE_CATEGORY, db, username)
 
-    # Check if category exists
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    try:
+        # Check if category exists
+        category = db.query(Category).filter(Category.id == category_id).first()
+        if not category:
+            raise HTTPException(status_code=404, detail="Category not found")
 
-    # Check if any products use this category
-    products_using_category = db.query(Product).filter(Product.category.ilike(category.name)).count()
-    if products_using_category > 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete category '{category.name}' because it is used by {products_using_category} product(s)"
-        )
+        # Check if any products use this category
+        products_using_category = db.query(Product).filter(Product.category.ilike(category.name)).count()
+        if products_using_category > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot delete category '{category.name}' because it is used by {products_using_category} product(s)"
+            )
 
-    # Delete the category
-    db.delete(category)
-    db.commit()
+        # Get category name for response
+        category_name = category.name
 
-    return {"status": "success", "message": f"Category '{category.name}' deleted successfully"}
+        # Delete the category
+        db.delete(category)
+        db.flush()  # Don't commit yet, we need to renumber
+
+        # Renumber all categories with ID > deleted category ID
+        categories_to_renumber = db.query(Category).filter(Category.id > category_id).order_by(Category.id).all()
+
+        for cat in categories_to_renumber:
+            old_id = cat.id
+            new_id = old_id - 1
+            # Update category ID
+            db.execute(text("UPDATE categories SET id = :new_id WHERE id = :old_id"), {"new_id": new_id, "old_id": old_id})
+            # Update foreign key references in products table (by category name, since products reference by name)
+            # Note: Since products store category as text name, we don't need to update foreign keys for categories
+
+        # Commit all changes
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Category '{category_name}' deleted successfully. Categories have been renumbered to maintain serial order.",
+            "category_id": category_id,
+            "renumbered_categories": len(categories_to_renumber)
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting category {category_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting category: {str(e)}")
 
 # --- SMS Endpoint ---
 @app.post("/sms")
