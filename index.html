@@ -2931,6 +2931,7 @@ function backToHome() {
                 const dateFrom = document.getElementById('stock-date-from').value;
                 const dateTo = document.getElementById('stock-date-to').value;
                 const productId = document.getElementById('stock-product-filter').value;
+                const categoryId = document.getElementById('stock-category-filter').value;
 
                 let stockData = [];
 
@@ -2944,6 +2945,9 @@ function backToHome() {
                 }
                 if (productId && productId.trim() !== '') {
                     params.append('product_id', productId);
+                }
+                if (categoryId && categoryId.trim() !== '') {
+                    params.append('category', categories.find(cat => cat.id == categoryId)?.name || categoryId);
                 }
 
                 const url = `${backendURL}/products/stock-snapshot${params.toString() ? '?' + params.toString() : ''}`;
