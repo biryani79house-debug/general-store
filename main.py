@@ -1936,15 +1936,24 @@ async def delete_category(
             new_id = old_id - 1
             # Update category ID
             db.execute(text("UPDATE categories SET id = :new_id WHERE id = :old_id"), {"new_id": new_id, "old_id": old_id})
-            # Update foreign key references in products table (by category name, since products reference by name)
-            # Note: Since products store category as text name, we don't need to update foreign keys for categories
+
+        # Reset the autoincrement sequence to continue from max_id + 1
+        max_id = db.query(Category.id).order_by(Category.id.desc()).first()
+        if max_id:
+            # For SQLite: reset autoincrement sequence
+            if USE_SQLITE:
+                db.execute(text("DELETE FROM sqlite_sequence WHERE name='categories'"))
+                db.execute(text("INSERT INTO sqlite_sequence (name, seq) VALUES ('categories', :max_id)"), {"max_id": max_id[0]})
+            else:
+                # For PostgreSQL: alter sequence
+                db.execute(text("SELECT setval('categories_id_seq', :max_id)"), {"max_id": max_id[0]})
 
         # Commit all changes
         db.commit()
 
         return {
             "status": "success",
-            "message": f"Category '{category_name}' deleted successfully. Categories have been renumbered to maintain serial order.",
+            "message": f"Category '{category_name}' deleted successfully. Categories have been renumbered and sequence reset to maintain continuous IDs.",
             "category_id": category_id,
             "renumbered_categories": len(categories_to_renumber)
         }
