@@ -582,10 +582,20 @@ async def options_handler(path: str):
 
 # --- API Endpoint to serve products to the frontend ---
 @app.get("/products")
-async def get_products(db: Session = Depends(get_db)):
-    """Returns the list of real products from database for the frontend to display."""
+async def get_products(category: Optional[str] = None, db: Session = Depends(get_db)):
+    """Returns the list of real products from database for the frontend to display.
+
+    Supports optional category filtering for the sales page.
+    """
     try:
-        db_products = db.query(Product).all()
+        query = db.query(Product)
+
+        # Apply category filter if provided
+        if category:
+            query = query.filter(Product.category == category)
+            print(f"🔍 Filtering products by category: {category}")
+
+        db_products = query.all()
         print(f"📦 Found {len(db_products)} products in database")
 
         frontend_products = []

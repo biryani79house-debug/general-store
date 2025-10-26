@@ -267,6 +267,15 @@
     <div id="page-sales" class="page sales-bg">
         <main class="max-w-md p-4 space-y-4">
             <h2 class="text-xl font-semibold text-gray-700">Products</h2>
+
+            <!-- Category Filter -->
+            <div class="bg-white p-3 rounded-lg shadow-sm">
+                <label for="sales-category-filter" class="block text-sm font-medium text-gray-700 mb-1">Filter by Category</label>
+                <select id="sales-category-filter" class="w-full p-2 border border-gray-300 rounded-lg bg-white">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
             <div id="product-list" class="grid grid-cols-2 gap-4">
                 <div class="text-center py-8">
                     <p class="text-gray-500">Loading products...</p>
@@ -1561,11 +1570,12 @@ function backToHome() {
         }
 
         // ===== SALES PAGE FUNCTIONS =====
-        async function fetchProducts() {
-            console.log(`🔍 Fetching from: ${backendURL}/products`);
+        async function fetchProducts(category = null, url = null) {
+            const fetchUrl = url || `${backendURL}/products`;
+            console.log(`🔍 Fetching products from: ${fetchUrl}`);
 
             try {
-                const response = await fetch(`${backendURL}/products`, {
+                const response = await fetch(fetchUrl, {
                     headers: getAuthHeaders()
                 });
 
@@ -1582,12 +1592,50 @@ function backToHome() {
                     throw new Error("No products received");
                 }
 
-                renderProducts();
+                renderProducts(category);
                 showCartButton();
 
             } catch (error) {
                 console.error("💥 Fetch error:", error);
                 loadMockProducts();
+            }
+        }
+
+        async function loadSalesCategoriesFilter() {
+            console.log('🔄 Loading categories for sales filter...');
+            try {
+                const response = await fetch(`${backendURL}/categories`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const categories = await response.json();
+                const filterDropdown = document.getElementById('sales-category-filter');
+
+                filterDropdown.innerHTML = '<option value="">All Categories</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    filterDropdown.appendChild(option);
+                });
+
+                console.log(`✅ Loaded ${categories.length} categories into sales filter`);
+
+                // Add event listener for category filter
+                filterDropdown.addEventListener('change', function() {
+                    const selectedCategory = this.value;
+                    renderProducts(selectedCategory);
+                });
+
+            } catch (error) {
+                console.error('Error loading categories for sales filter:', error);
+                // Fallback to some default categories
+                const filterDropdown = document.getElementById('sales-category-filter');
+                filterDropdown.innerHTML = '<option value="">All Categories</option><option value="groceries">Groceries</option><option value="vegetables">Vegetables</option><option value="fruits">Fruits</option>';
             }
         }
 
@@ -1617,14 +1665,42 @@ function backToHome() {
             return `https://loremflickr.com/400/400/${cleanName}`;
         }
 
-        function renderProducts() {
+        function renderProducts(selectedCategory = null) {
             const productListEl = document.getElementById('product-list');
             if (!products || products.length === 0) {
                 productListEl.innerHTML = '<p class="text-center text-gray-500">No products available</p>';
                 return;
             }
 
-            productListEl.innerHTML = products.map(product => {
+            // Filter products by category if a category is selected
+            let filteredProducts = products;
+            if (selectedCategory && selectedCategory !== 'null' && selectedCategory !== '') {
+                // Note: Since products don't have category info, we'll load all and filter after
+                // In production, the backend should filter this
+                fetch(`${backendURL}/products?category=${selectedCategory}`, {
+                    headers: getAuthHeaders()
+                })
+                .then(response => response.json())
+                .then(filteredProductsData => {
+                    if (filteredProductsData.length === 0) {
+                        productListEl.innerHTML = '<p class="text-center text-gray-500">No products found in this category</p>';
+                        return;
+                    }
+                    renderProductsHelper(filteredProductsData, productListEl);
+                })
+                .catch(error => {
+                    console.error('Error filtering products by category:', error);
+                    // Fallback to showing all products
+                    renderProductsHelper(products, productListEl);
+                });
+                return;
+            }
+
+            renderProductsHelper(filteredProducts, productListEl);
+        }
+
+        function renderProductsHelper(productsToRender, productListEl) {
+            productListEl.innerHTML = productsToRender.map(product => {
                 const isOutOfStock = product.stock <= 0;
                 const buttonClass = isOutOfStock
                     ? "w-full bg-gray-400 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-not-allowed"
@@ -4820,6 +4896,7 @@ function backToHome() {
         function loadPageData(pageName) {
             switch(pageName) {
                 case 'sales':
+                    loadSalesCategoriesFilter();
                     fetchProducts();
                     break;
                 case 'purchase':
