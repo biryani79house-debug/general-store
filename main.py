@@ -590,9 +590,9 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
     try:
         query = db.query(Product)
 
-        # Apply category filter if provided
+        # Apply category filter if provided (case-insensitive)
         if category:
-            query = query.filter(Product.category == category)
+            query = query.filter(Product.category.ilike(category))
             print(f"🔍 Filtering products by category: {category}")
 
         db_products = query.all()
@@ -744,9 +744,9 @@ def get_products_stock_snapshot(
         if product_id:
             query = query.filter(Product.id == product_id)
 
-        # Filter by category if provided
+        # Filter by category if provided (case-insensitive)
         if category:
-            query = query.filter(Product.category == category)
+            query = query.filter(Product.category.ilike(category))
 
         products = query.all()
 
@@ -1142,9 +1142,9 @@ def get_purchase_ledger(
         if product_id:
             query = query.filter(Purchase.product_id == product_id)
 
-        # Filter by category if provided
+        # Filter by category if provided (case-insensitive)
         if category:
-            query = query.filter(Purchase.product.has(Product.category == category))
+            query = query.filter(Purchase.product.has(Product.category.ilike(category)))
 
         purchases = query.order_by(Purchase.purchase_date.desc()).all()
         print(f"✅ Found {len(purchases)} purchase records")
@@ -1204,9 +1204,9 @@ def get_sales_ledger(
         if product_id:
             query = query.filter(Sale.product_id == product_id)
 
-        # Filter by category if provided
+        # Filter by category if provided (case-insensitive)
         if category:
-            query = query.filter(Sale.product.has(Product.category == category))
+            query = query.filter(Sale.product.has(Product.category.ilike(category)))
 
         sales = query.order_by(Sale.sale_date.desc()).all()
         print(f"✅ Found {len(sales)} sales records")
@@ -2684,9 +2684,9 @@ def get_profit_loss_data(
 
         # Apply category filter
         if category:
-            sales_query = sales_query.filter(Sale.product.has(Product.category == category))
-            purchases_query = purchases_query.filter(Purchase.product.has(Product.category == category))
-            products_query = products_query.filter(Product.category == category)
+            sales_query = sales_query.filter(Sale.product.has(Product.category.ilike(category)))
+            purchases_query = purchases_query.filter(Purchase.product.has(Product.category.ilike(category)))
+            products_query = products_query.filter(Product.category.ilike(category))
 
         sales = sales_query.all()
         purchases = purchases_query.all()

@@ -3545,6 +3545,15 @@ function backToHome() {
         }
 
         async function calculateAndDisplayProfitLoss(salesData, purchasesData, productsData, dateFrom = null, dateTo = null) {
+            // If productsData is provided (e.g., for category filtering), filter sales and purchases to only include these products
+            let filteredSalesData = salesData;
+            let filteredPurchasesData = purchasesData;
+
+            if (productsData && productsData.length > 0) {
+                const allowedProductIds = new Set(productsData.map(p => p.id));
+                filteredSalesData = salesData.filter(sale => allowedProductIds.has(sale.product_id));
+                filteredPurchasesData = purchasesData.filter(purchase => allowedProductIds.has(purchase.product_id));
+            }
             const tableBodyEl = document.getElementById('profit-loss-table-body');
             const totalSalesEl = document.getElementById('total-sales');
             const totalPurchasesEl = document.getElementById('total-purchases');
@@ -3781,64 +3790,47 @@ function backToHome() {
             }
 
             // Handle category filtering
-            if (categoryId) {
+            if (categoryId && categories) {
                 const selectedCategory = categories.find(cat => cat.id == categoryId);
                 if (selectedCategory) {
-                    fetch(`${backendURL}/products`, {
+                    console.log('🗂️ Applying category filter for:', selectedCategory.name);
+
+                    // First fetch products for this category to get their IDs
+                    fetch(`${backendURL}/products?category=${encodeURIComponent(selectedCategory.name)}`, {
                         headers: getAuthHeaders()
                     })
                     .then(response => response.json())
-                    .then(productsData => {
-                        // Create product-to-category mapping
-                        const productToCategoryMap = new Map();
-                        productsData.forEach(product => {
-                            productToCategoryMap.set(product.name.toLowerCase(), product.category_id || product.category || null);
-                        });
+                    .then(filteredProducts => {
+                        console.log('📦 Filtered products for category:', filteredProducts.length, 'products');
 
-                        // Filter sales and purchases by category
-                        filteredSales = filteredSales.filter(sale => {
-                            const productName = sale.product_name?.toLowerCase() || '';
-                            const productCategoryId = productToCategoryMap.get(productName);
-                            const saleCategory = categories.find(cat => cat.id == productCategoryId);
-                            return saleCategory && saleCategory.name === selectedCategory.name;
-                        });
-
-                        filteredPurchases = filteredPurchases.filter(purchase => {
-                            const productName = purchase.product_name?.toLowerCase() || '';
-                            const productCategoryId = productToCategoryMap.get(productName);
-                            const purchaseCategory = categories.find(cat => cat.id == productCategoryId);
-                            return purchaseCategory && purchaseCategory.name === selectedCategory.name;
-                        });
-
-                        if (productId) {
-                            productsData = productsData.filter(product => product.id == productId);
+                        if (filteredProducts.length === 0) {
+                            // No products in this category, show empty results
+                            calculateAndDisplayProfitLoss([], [], [], dateFrom, dateTo);
+                            return;
                         }
 
-                        productsData = productsData.filter(product => {
-                            const productName = product.name?.toLowerCase() || '';
-                            const productCategoryId = productToCategoryMap.get(productName);
-                            const productCategory = categories.find(cat => cat.id == productCategoryId);
-                            return productCategory && productCategory.name === selectedCategory.name;
-                        });
+                        // Get product IDs that belong to this category
+                        const productIdsInCategory = new Set(filteredProducts.map(p => p.id));
+                        console.log('🏷️ Product IDs in category:', Array.from(productIdsInCategory));
 
-                        calculateAndDisplayProfitLoss(filteredSales, filteredPurchases, productsData, dateFrom, dateTo);
+                        // Filter sales and purchases by product IDs in this category
+                        const categoryFilteredSales = filteredSales.filter(sale => productIdsInCategory.has(sale.product_id));
+                        const categoryFilteredPurchases = filteredPurchases.filter(purchase => productIdsInCategory.has(purchase.product_id));
+
+                        console.log('📊 Category filtered sales:', categoryFilteredSales.length, 'records');
+                        console.log('📊 Category filtered purchases:', categoryFilteredPurchases.length, 'records');
+
+                        if (productId) {
+                            // If a specific product is also selected, further filter the category products
+                            filteredProducts = filteredProducts.filter(product => product.id == productId);
+                        }
+
+                        calculateAndDisplayProfitLoss(categoryFilteredSales, categoryFilteredPurchases, filteredProducts, dateFrom, dateTo);
                     })
                     .catch(error => {
-                        console.error('Error filtering profit/loss by category:', error);
-                        // Continue without category filter
-                        fetch(`${backendURL}/products`, {
-                            headers: getAuthHeaders()
-                        })
-                        .then(response => response.json())
-                        .then(productsData => {
-                            if (productId) {
-                                productsData = productsData.filter(product => product.id == productId);
-                            }
-                            calculateAndDisplayProfitLoss(filteredSales, filteredPurchases, productsData, dateFrom, dateTo);
-                        })
-                        .catch(error2 => {
-                            console.error('Error fetching products for fallback calculation:', error2);
-                        });
+                        console.error('Error filtering products by category:', error);
+                        // Continue without filtered products - use empty array which is handled gracefully
+                        calculateAndDisplayProfitLoss(filteredSales, filteredPurchases, [], dateFrom, dateTo);
                     });
                     return; // Exit early since category filtering is async
                 }
@@ -3863,6 +3855,7 @@ function backToHome() {
             document.getElementById('pl-date-from').value = '';
             document.getElementById('pl-date-to').value = '';
             document.getElementById('pl-product-filter').value = '';
+            document.getElementById('pl-category-filter').value = '';
 
             fetch(`${backendURL}/products`, {
                 headers: getAuthHeaders()
