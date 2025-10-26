@@ -1601,43 +1601,46 @@ function backToHome() {
             }
         }
 
-        async function loadSalesCategoriesFilter() {
-            console.log('🔄 Loading categories for sales filter...');
-            try {
-                const response = await fetch(`${backendURL}/categories`, {
-                    headers: getAuthHeaders()
-                });
+    async function loadSalesCategoriesFilter() {
+        console.log('🔄 Loading categories for sales filter...');
+        try {
+            const response = await fetch(`${backendURL}/categories`, {
+                headers: getAuthHeaders()
+            });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const categories = await response.json();
-                const filterDropdown = document.getElementById('sales-category-filter');
-
-                filterDropdown.innerHTML = '<option value="">All Categories</option>';
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    dropdown.appendChild(option);
-                });
-
-                console.log(`✅ Loaded ${categories.length} categories into sales filter`);
-
-                // Add event listener for category filter
-                filterDropdown.addEventListener('change', function() {
-                    const selectedCategory = this.value;
-                    renderProducts(selectedCategory);
-                });
-
-            } catch (error) {
-                console.error('Error loading categories for sales filter:', error);
-                // Fallback to some default categories
-                const filterDropdown = document.getElementById('sales-category-filter');
-                filterDropdown.innerHTML = '<option value="">All Categories</option><option value="groceries">Groceries</option><option value="vegetables">Vegetables</option><option value="fruits">Fruits</option>';
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const categories = await response.json();
+            const filterDropdown = document.getElementById('sales-category-filter');
+
+            // Store categories for later use when filtering
+            window.availableCategories = categories;
+
+            filterDropdown.innerHTML = '<option value="">All Categories</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.name.toLowerCase(); // Use category name as value
+                option.textContent = category.name;
+                filterDropdown.appendChild(option);
+            });
+
+            console.log(`✅ Loaded ${categories.length} categories into sales filter`);
+
+            // Add event listener for category filter
+            filterDropdown.addEventListener('change', function() {
+                const selectedCategoryName = this.value;
+                renderProducts(selectedCategoryName);
+            });
+
+        } catch (error) {
+            console.error('Error loading categories for sales filter:', error);
+            // Fallback to some default categories
+            const filterDropdown = document.getElementById('sales-category-filter');
+            filterDropdown.innerHTML = '<option value="">All Categories</option><option value="groceries">Groceries</option><option value="vegetables">Vegetables</option><option value="fruits">Fruits</option>';
         }
+    }
 
         function loadMockProducts() {
             console.log('🔄 Loading mock products');
@@ -3129,7 +3132,9 @@ function backToHome() {
                 console.log('✅ Sales data received:', allSalesData);
 
             await loadProductDropdownForFilter('sales-product-filter');
+            console.log('🔄 Loading sales ledger category filter...');
             await loadCategoriesDropdownForFilter('sales-ledger-category-filter');
+            console.log('✅ Sales ledger category filter loaded');
 
                 displayFilteredSalesData(allSalesData);
 
