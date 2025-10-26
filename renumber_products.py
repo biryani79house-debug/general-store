@@ -39,19 +39,32 @@ try:
     print("Sales references:", sales_refs)
     print("Purchase references:", purchase_refs)
 
-    # Now renumber - Create new products and migrate references
-    print("\n⚡ Starting renumbering...")
+    # Now renumber - Make all product IDs consecutive starting from 1
+    print("\n⚡ Starting consecutive renumbering...")
 
-    # First, get data for current products
+    # Get all current products ordered by ID
+    all_products = db.execute(text("SELECT id, name, stock FROM products ORDER BY id")).fetchall()
+    old_ids = [product[0] for product in all_products]
+
+    # Create mapping from old ID to new consecutive ID
+    old_to_new = {}
+    for new_id, old_id in enumerate(old_ids, start=1):
+        old_to_new[old_id] = new_id
+
+    print(f"📋 Renumbering mapping: {old_to_new}")
+
+    if len(old_to_new) == 0:
+        print("❌ No products found to renumber!")
+        sys.exit(1)
+
+    # Get data for all current products
     product_data = {}
-    old_to_new = {10: 1, 11: 2, 12: 3}
-
-    for old_id in old_to_new.keys():
-        product = db.execute(text("SELECT name, purchase_price, selling_price, unit_type, stock, initial_stock, created_at FROM products WHERE id = :id"), {"id": old_id}).first()
+    for old_id in old_ids:
+        product = db.execute(text("SELECT name, purchase_price, selling_price, unit_type, stock, initial_stock, created_at, category FROM products WHERE id = :id"), {"id": old_id}).first()
         if product:
             product_data[old_id] = product
 
-    print("Found product data for:", list(product_data.keys()))
+    print(f"Found product data for {len(product_data)} products")
 
     # Temporarily disable foreign key checks by dropping them
     db.execute(text("ALTER TABLE purchases DROP CONSTRAINT purchases_product_id_fkey;"))
@@ -71,9 +84,11 @@ try:
         db.execute(text("UPDATE products SET id = :new_id WHERE id = :old_id"), {"new_id": new_id, "old_id": old_id})
         print(f"✅ Updated product ID from {old_id} to {new_id}")
 
-    # Reset sequence to start from 4
-    db.execute(text("ALTER SEQUENCE products_id_seq RESTART WITH 4;"))
-    print("✅ PostgreSQL sequence reset to 4")
+    # Reset sequence to start from max_id + 1
+    max_id = max(old_to_new.values())
+    next_id = max_id + 1
+    db.execute(text("ALTER SEQUENCE products_id_seq RESTART WITH :next_id"), {"next_id": next_id})
+    print(f"✅ PostgreSQL sequence reset to {next_id}")
 
     # Recreate foreign key constraints
     db.execute(text("ALTER TABLE purchases ADD CONSTRAINT purchases_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(id);"))
