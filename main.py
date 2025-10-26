@@ -609,7 +609,8 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 "selling_price": float(product.selling_price),
                 "unit_type": str(product.unit_type),  # Ensure it's returned as string
                 "imageUrl": "",  # Let frontend generate dynamic images
-                "stock": product.stock
+                "stock": product.stock,
+                "category": product.category  # Include category for filtering
             })
 
         print("✅ Successfully formatted products for frontend")

@@ -23,11 +23,11 @@ def debug_categories():
         r = requests.get(f'http://localhost:8001/products?category={cat}', headers=headers)
         if r.status_code == 200:
             products = r.json()
-            print(f'{cat}: {len(products)} products')
+            print(f'{cat.upper()}: {len(products) if isinstance(products, list) else " -"}')
             for p in products:
                 name = p.get('name', 'unknown')
-                print(f'  - {name}')
-        print()
+                print(f'  - {name} ! FOUND IN {cat.upper()}')
+            print()
 
     # Also check all categories from the database
     print('Available categories in system:')

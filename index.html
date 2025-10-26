@@ -3545,6 +3545,49 @@ function backToHome() {
         }
 
         async function calculateAndDisplayProfitLoss(salesData, purchasesData, productsData, dateFrom = null, dateTo = null) {
+            // Check if no products found for filters
+            if (!productsData || productsData.length === 0) {
+                const tableBodyEl = document.getElementById('profit-loss-table-body');
+                const totalSalesEl = document.getElementById('total-sales');
+                const totalPurchasesEl = document.getElementById('total-purchases');
+                const grossProfitEl = document.getElementById('gross-profit');
+                const profitMarginEl = document.getElementById('profit-margin');
+                const overallStatusEl = document.getElementById('overall-status');
+
+                tableBodyEl.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="border border-gray-200 px-4 py-4 text-center text-gray-500">
+                            No products found for the selected filters. Try adjusting your category or date filters.
+                        </td>
+                    </tr>
+                `;
+
+                totalSalesEl.textContent = '₹0.00';
+                totalPurchasesEl.textContent = '₹0.00';
+                grossProfitEl.textContent = '₹0.00';
+                profitMarginEl.textContent = '0%';
+
+                overallStatusEl.className = 'mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-200';
+                overallStatusEl.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">ℹ️</span>
+                        <div>
+                            <h4 class="font-semibold text-yellow-800">No Products Found</h4>
+                            <p class="text-sm text-yellow-700">No products match your current filters. Try adjusting your category or date filters.</p>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('total-opening-stock-footer').textContent = '₹0.00';
+                document.getElementById('total-purchases-footer').textContent = '₹0.00';
+                document.getElementById('total-sales-footer').textContent = '₹0.00';
+                document.getElementById('total-closing-stock-footer').textContent = '₹0.00';
+                document.getElementById('total-profit-footer').textContent = '₹0.00';
+                document.getElementById('total-margin-footer').textContent = '0%';
+
+                return;
+            }
+
             // If productsData is provided (e.g., for category filtering), filter sales and purchases to only include these products
             let filteredSalesData = salesData;
             let filteredPurchasesData = purchasesData;
@@ -3869,7 +3912,7 @@ function backToHome() {
             });
         }
 
-        // ===== OPENING STOCK PAGE FUNCTIONS =====
+    // ===== OPENING STOCK PAGE FUNCTIONS =====
         let allOpeningStockData = [];
 
         function applyOpeningStockFilters() {
@@ -3899,18 +3942,28 @@ function backToHome() {
             // Filter by category if selected - use category name matching
             if (categoryId) {
                 const selectedCategory = categories.find(cat => cat.id == categoryId);
+                console.log('🔍 Found selected category:', selectedCategory);
+
                 if (selectedCategory) {
-                    // Filter products where the category name matches
-                    // Note: openingStock data has category field as string (not category_id)
+                    console.log('🎯 Filtering by category name:', selectedCategory.name);
+
+                    // Log before filtering
+                    console.log('📊 Data before category filter:', filteredData.length, 'items');
+
                     filteredData = filteredData.filter(item => {
-                        // The openingStock data stores category as name string, not ID
-                        // We need to match by name instead
-                        return item.category && item.category.toLowerCase() === selectedCategory.name.toLowerCase();
+                        const matches = item.category_name == selectedCategory.name;
+                        console.log(`🔍 Checking item "${item.name}": category_name=${item.category_name}, selected=${selectedCategory.name}, matches=${matches}`);
+                        return matches;
                     });
+
+                    console.log('📊 Data after category filter:', filteredData.length, 'items');
+                } else {
+                    console.log('❌ No category found with ID:', categoryId);
                 }
             }
 
-            displayOpeningStockData(filteredData);
+            const selectedCategoryName = categoryId ? categories.find(cat => cat.id == categoryId)?.name : null;
+            displayOpeningStockData(filteredData, selectedCategoryName);
         }
 
         function clearOpeningStockFilters() {
@@ -3961,19 +4014,27 @@ function backToHome() {
                 console.log('📦 Opening stock data received:', openingStockData.length, 'items');
                 console.log('🏷️ Categories available:', categories);
 
-                // Create a mapping of product names to category IDs
-                const productToCategoryMap = new Map();
+                // Debug: Log actual product data structure
+                console.log('🔍 Products received:');
                 productsData.forEach(product => {
-                    productToCategoryMap.set(product.name.toLowerCase(), product.category_id || product.category || null);
+                    console.log(`  - Product "${product.name}": ID=${product.id}, Category='${product.category}'`);
                 });
 
-                // Add category_id to opening stock data
+                // Create a mapping of product names to category names
+                const productToCategoryMap = new Map();
+                productsData.forEach(product => {
+                    let categoryName = product.category || null; // Use category directly from API
+                    productToCategoryMap.set(product.name.toLowerCase(), categoryName);
+                    console.log(`  - Mapped "${product.name}" to category: ${categoryName}`);
+                });
+
+                // Add category_name to opening stock data
                 const openingStockWithCategories = openingStockData.map(item => {
                     const itemName = item.name?.toLowerCase() || '';
-                    const mappedCategoryId = productToCategoryMap.get(itemName);
+                    const mappedCategoryName = productToCategoryMap.get(itemName);
                     return {
                         ...item,
-                        category_id: mappedCategoryId || null
+                        category_name: mappedCategoryName || null
                     };
                 });
 
@@ -3994,7 +4055,7 @@ function backToHome() {
             }
         }
 
-        function displayOpeningStockData(products) {
+        function displayOpeningStockData(products, selectedCategoryName = null) {
             const tableBodyEl = document.getElementById('opening-stock-table-body');
             const totalProductsEl = document.getElementById('total-opening-products');
             const totalStockEl = document.getElementById('total-opening-stock');
@@ -4002,10 +4063,13 @@ function backToHome() {
             const avgAgeEl = document.getElementById('avg-stock-age');
 
             if (products.length === 0) {
+                const message = selectedCategoryName ?
+                    `No products found in category "${selectedCategoryName}"` :
+                    'No products found';
                 tableBodyEl.innerHTML = `
                     <tr>
                         <td colspan="9" class="border border-gray-200 px-4 py-4 text-center text-gray-500">
-                            No products found
+                            ${message}
                         </td>
                     </tr>
                 `;

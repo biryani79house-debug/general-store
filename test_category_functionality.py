@@ -6,6 +6,9 @@ import json
 def test_category_filter():
     print('🧪 Testing Category Filtering Functionality\n')
 
+    # Initialize test variables
+    lowercase_category_works = False
+
     # Test 1: Categories endpoint
     print('🏷️  Test 1: Categories endpoint...')
     try:
@@ -173,6 +176,10 @@ def test_category_filter():
             return False
     else:
         print('❌ Could not test Groceries category')
+        return False
+
+    # Define lowercase_category_works based on groceries test
+    lowercase_category_works = groceries_response.status_code == 200 and len(groceries_products) > 0
 
     print(f'\n📊 Summary: Categories with products: {categories_with_products}')
     if 'Groceries' in categories_with_products:
