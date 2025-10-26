@@ -66,6 +66,8 @@ class Permission(enum.Enum):
     PURCHASE = "purchase"
     CREATE_PRODUCT = "create_product"
     DELETE_PRODUCT = "delete_product"
+    CREATE_CATEGORY = "create_category"
+    DELETE_CATEGORY = "delete_category"
     SALES_LEDGER = "sales_ledger"
     PURCHASE_LEDGER = "purchase_ledger"
     STOCK_LEDGER = "stock_ledger"
