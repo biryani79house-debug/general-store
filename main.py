@@ -1864,6 +1864,9 @@ def download_profit_loss(
 
 # --- CATEGORY MANAGEMENT ENDPOINTS ---
 
+class CategoryCreate(BaseModel):
+    name: str = Field(..., description="Category name")
+
 class CategoryResponse(BaseModel):
     id: int
     name: str
@@ -1877,7 +1880,7 @@ async def get_categories(db: Session = Depends(get_db)):
 
 @app.post("/categories/", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_category(
-    name: str,
+    category: CategoryCreate,
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
@@ -1885,11 +1888,11 @@ async def create_category(
     check_permission(Permission.CREATE_CATEGORY, db, username)
 
     # Check if category already exists
-    existing_category = db.query(Category).filter(Category.name.ilike(name)).first()
+    existing_category = db.query(Category).filter(Category.name.ilike(category.name)).first()
     if existing_category:
         raise HTTPException(status_code=400, detail="Category with this name already exists")
 
-    new_category = Category(name=name)
+    new_category = Category(name=category.name)
     db.add(new_category)
     db.commit()
     db.refresh(new_category)

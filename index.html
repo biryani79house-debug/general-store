@@ -2613,32 +2613,42 @@ function backToHome() {
                 return;
             }
 
-            // Check if category already exists
-            if (categories.some(cat => cat.name.toLowerCase() === categoryName.toLowerCase())) {
-                showNotification('❌ Category already exists');
-                return;
-            }
-
             try {
-                // Add new category to the array
-                const newCategory = {
-                    id: categories.length + 1,
-                    name: categoryName
-                };
-                categories.push(newCategory);
+                // Send POST request to backend to create category
+                console.log('📦 Creating category on backend:', categoryName);
+                const createResponse = await fetch(`${backendURL}/categories/`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ name: categoryName })
+                });
 
-                // Update category dropdowns in the entire app
-                await loadCategoriesDropdown();
+                console.log('📊 Backend response:', createResponse.status);
 
-                // Clear input and refresh categories list
+                if (!createResponse.ok) {
+                    let errorMessage = 'Failed to create category';
+                    try {
+                        const errorData = await createResponse.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = `Server error: ${createResponse.status} ${createResponse.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const result = await createResponse.json();
+                console.log('✅ Category created on backend:', result);
+
+                // Clear input field
                 document.getElementById('category-name-input').value = '';
+
+                // Refresh categories from backend to get the real data
                 await loadExistingCategories();
 
                 showNotification(`✅ Category "${categoryName}" created successfully!`);
 
             } catch (error) {
                 console.error('❌ Error creating category:', error);
-                showNotification('❌ Error creating category. Please try again.');
+                showNotification(`❌ Failed to create category: ${error.message}`);
             }
         }
 
@@ -2719,26 +2729,41 @@ function backToHome() {
                 return;
             }
 
-            if (categories.length === 0) {
-                // Load mock categories if not already loaded
-                categories = [
-                    {id: 1, name: 'Groceries'},
-                    {id: 2, name: 'Vegetables'},
-                    {id: 3, name: 'Fruits'},
-                    {id: 4, name: 'Dairy'},
-                    {id: 5, name: 'Beverages'},
-                    {id: 6, name: 'Snacks'},
-                    {id: 7, name: 'Household'},
-                    {id: 8, name: 'Personal Care'}
-                ];
-            }
+            // Clear loading state
+            container.innerHTML = '<p class="text-gray-500">Loading categories...</p>';
 
-            container.innerHTML = categories.map(category => `
-                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div class="font-medium">${category.name}</div>
-                    <div class="text-sm text-gray-500">ID: ${category.id}</div>
-                </div>
-            `).join('');
+            try {
+                // Fetch categories from backend API instead of using hardcoded data
+                const response = await fetch(`${backendURL}/categories`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                categories = await response.json();
+                console.log(`✅ Fetched ${categories.length} categories from API`);
+
+                // Display categories
+                container.innerHTML = categories.map(category => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div class="font-medium">${category.name}</div>
+                        <div class="text-sm text-gray-500">ID: ${category.id}</div>
+                    </div>
+                `).join('');
+
+                if (categories.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center">No categories found. Be the first to create one!</p>';
+                }
+
+            } catch (error) {
+                console.error('❌ Error loading categories:', error);
+                container.innerHTML = '<p class="text-red-500 text-center">Error loading categories. Please try refreshing the page.</p>';
+
+                // Fallback to empty categories array
+                categories = [];
+            }
         }
 
         async function handlePurchase(e) {
