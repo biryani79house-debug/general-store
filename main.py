@@ -628,12 +628,27 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
 @app.post("/products/", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 def create_product(product: ProductCreate, db: Session = Depends(get_db), username: str = Depends(verify_token)):
     check_permission(Permission.CREATE_PRODUCT, db, username)
+
+    # Handle category creation if provided and doesn't exist
+    if hasattr(product, 'category') and product.category:
+        # Check if category exists (case-insensitive)
+        existing_category = db.query(Category).filter(Category.name.ilike(product.category)).first()
+        if not existing_category:
+            # Create new category automatically
+            new_category = Category(name=product.category)
+            db.add(new_category)
+            db.flush()  # Get the ID but don't commit yet
+            print(f"🆕 Auto-created category: '{product.category}' (ID: {new_category.id})")
+        else:
+            print(f"📁 Using existing category: '{existing_category.name}' (ID: {existing_category.id})")
+
     # Create product with initial stock set to current stock (which defaults to 0)
     db_product = Product(
         name=product.name,
         purchase_price=product.purchase_price,
         selling_price=product.selling_price,
         unit_type=product.unit_type,
+        category=product.category if hasattr(product, 'category') and product.category else None,
         stock=product.stock,  # Set to provided initial stock
         initial_stock=product.stock  # Set initial stock to provided value
     )

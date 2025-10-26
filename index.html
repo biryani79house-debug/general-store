@@ -1620,7 +1620,7 @@ function backToHome() {
                     const option = document.createElement('option');
                     option.value = category.id;
                     option.textContent = category.name;
-                    filterDropdown.appendChild(option);
+                    dropdown.appendChild(option);
                 });
 
                 console.log(`✅ Loaded ${categories.length} categories into sales filter`);
@@ -1712,9 +1712,6 @@ function backToHome() {
 
                 return `
                     <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105 ${isOutOfStock ? 'opacity-70' : ''}">
-                        <img src="${imageUrl}" alt="${product.name}"
-                             class="w-full h-28 object-cover rounded-md mb-2"
-                             onerror="this.src='https://picsum.photos/400/400?random=grocery'">
                         <h4 class="text-sm font-semibold text-gray-700">${product.name}</h4>
                         <p class="text-lg font-bold text-gray-800 my-1">₹${product.price.toFixed(2)}</p>
                         <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
