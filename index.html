@@ -1413,12 +1413,17 @@
             }
 
             try {
+                // Backend stores dates in IST (UTC+5:30), but JavaScript interprets them as UTC
+                // Add 5.5 hours to get the correct display time
                 const dateObj = new Date(dateString);
 
                 if (isNaN(dateObj.getTime())) {
                     console.warn('Invalid date:', dateString);
                     return { date: 'Invalid Date', time: 'Invalid Date', full: 'Invalid Date' };
                 }
+
+                // Add 5.5 hours (330 minutes) to convert from UTC to IST
+                dateObj.setMinutes(dateObj.getMinutes() + 330);
 
                 const day = dateObj.getDate().toString().padStart(2, '0');
                 const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
