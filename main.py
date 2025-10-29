@@ -2684,7 +2684,7 @@ def get_sales_ledger(
     username: str = Depends(verify_token)
 ):
     check_permission(Permission.SALES_LEDGER, db, username)
-    # ... existing code ...
+    # ... existing code here ....
 
 @app.get("/ledger/purchases", response_model=List[PurchaseLedgerEntry])
 def get_purchase_ledger(
