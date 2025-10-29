@@ -1,38 +1,54 @@
-from dotenv import load_dotenv
+#!/usr/bin/env python3
 import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import Session
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-print(f"Connecting to: {DATABASE_URL}")
+DATABASE_URL = os.getenv('DATABASE_URL')
+print(f"DATABASE_URL found: {DATABASE_URL is not None}")
 
-if not DATABASE_URL:
-    print("DATABASE_URL not set")
-    exit()
+if DATABASE_URL:
+    print(f"Connecting to: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'unknown'}")
 
-engine = create_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    engine = create_engine(DATABASE_URL, echo=False)
+    session = Session(engine)
 
-db = SessionLocal()
-try:
-    result = db.execute(text("SELECT * FROM users LIMIT 10"))
-    users = result.fetchall()
-    print("Users in database:")
-    for user in users:
-        print(user)
-except Exception as e:
-    print(f"Error: {e}")
+    try:
+        print("\n=== DATABASE STATUS CHECK ===")
 
-try:
-    result = db.execute(text("SELECT username, password_hash FROM users WHERE username = 'raza123'"))
-    user = result.fetchone()
-    if user:
-        print(f"User {user[0]} password hash: {user[1]}")
-    else:
-        print("No user 'raza123' found")
-except Exception as e:
-    print(f"Error querying user: {e}")
+        # Test connection
+        session.execute(text("SELECT 1"))
+        print("✅ Database connection successful")
 
-db.close()
+        # Check categories table exists and count
+        try:
+            result = session.execute(text('SELECT COUNT(*) FROM categories'))
+            category_count = result.fetchone()[0]
+            print(f"Categories count: {category_count}")
+        except Exception as e:
+            print(f"❌ Error checking categories: {e}")
+
+        # Check products table exists and count
+        try:
+            result = session.execute(text('SELECT COUNT(*) FROM products'))
+            product_count = result.fetchone()[0]
+            print(f"Products count: {product_count}")
+        except Exception as e:
+            print(f"❌ Error checking products: {e}")
+
+        # Check users table exists and count
+        try:
+            result = session.execute(text('SELECT COUNT(*) FROM users'))
+            user_count = result.fetchone()[0]
+            print(f"Users count: {user_count}")
+        except Exception as e:
+            print(f"❌ Error checking users: {e}")
+
+        print("=== CHECK COMPLETE ===")
+
+    finally:
+        session.close()
+else:
+    print("❌ No DATABASE_URL found")
