@@ -1,6 +1,12 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "deploy": {
-    "startCommand": "sh start.sh"
+    "startCommand": "sh start.sh",
+    "envVars": [
+      {
+        "name": "USE_SQLITE",
+        "value": "false"
+      }
+    ]
   }
 }
