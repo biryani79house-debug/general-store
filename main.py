@@ -2801,7 +2801,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db), username: str
     # ... existing code ...
 
 @app.post("/sales/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
-def record_sale(sale: SaleCreate, db: Session = Depends(get_db)):
+def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = Depends(verify_token)):
     check_permission(Permission.SALES, db, username)
     # ... existing code ...
 
