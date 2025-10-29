@@ -2156,7 +2156,8 @@ def update_store_settings(
     username: str = Depends(verify_token)
 ):
     """Update store settings in database"""
-    check_permission(Permission.USER_MANAGEMENT, db, username)
+    # Allow any authenticated user to update store settings, not just admins
+    # check_permission(Permission.USER_MANAGEMENT, db, username)
 
     settings = db.query(StoreSettings).first()
     if not settings:

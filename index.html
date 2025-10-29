@@ -2489,20 +2489,34 @@ function backToHome() {
                 console.log(`📊 Delete response status: ${response.status}`);
 
                 if (response.ok) {
-                    const result = await response.json();
-                    showNotification(result.message || `Product "${productName}" deleted successfully!`);
+                    const settings = await response.json();
 
-                    await loadDeleteProductPage();
-                } else {
-                    let errorMessage = `Failed to delete product: ${response.status}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData.detail) {
-                            errorMessage = errorData.detail;
-                        }
-                    } catch (e) {
-                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
-                    }
+                    // Safely update display elements (with null checks)
+                    const displayStoreName = document.getElementById('display-store-name');
+                    const displayStoreSubtitle = document.getElementById('display-store-subtitle');
+                    const displayStoreLocation = document.getElementById('display-store-location');
+                    const displayStoreContact = document.getElementById('display-store-contact');
+                    const displayDeliveryNote = document.getElementById('display-delivery-note');
+
+                    if (displayStoreName) displayStoreName.textContent = settings.store_name;
+                    if (displayStoreSubtitle) displayStoreSubtitle.textContent = settings.store_subtitle;
+                    if (displayStoreLocation) displayStoreLocation.textContent = settings.store_location;
+                    if (displayStoreContact) displayStoreContact.textContent = settings.store_contact;
+                    if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
+
+                    // Update header display (with null checks)
+                    const headerStoreName = document.getElementById('header-store-name');
+                    const headerStoreSubtitle = document.getElementById('header-store-subtitle');
+                    const headerStoreLocation = document.getElementById('header-store-location');
+                    const headerStoreContact = document.getElementById('header-store-contact');
+                    const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                    if (headerStoreName) headerStoreName.textContent = settings.store_name;
+                    if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
+                    if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
+                    if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
+                    if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
+                }
                     throw new Error(errorMessage);
                 }
 
@@ -5237,6 +5251,9 @@ function backToHome() {
                     console.log('👤 Showing authenticated main page');
                     if (loginPage) loginPage.classList.remove('active');
                     if (homePage) homePage.classList.add('active');
+
+                    // Load store details for header display (call after DOM is ready)
+                    loadStoreDetails();
 
                     // Start session tracking for authenticated users
                     startSessionTracking();
