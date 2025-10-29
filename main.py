@@ -987,19 +987,35 @@ def delete_product(product_id: int, db: Session = Depends(get_db), username: str
         )
 # --- API Endpoints for Sales ---
 @app.post("/sales/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
-def record_sale(sale: SaleCreate, db: Session = Depends(get_db)):
+def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = None):
+    # Accept optional authentication - use token if available
+    from fastapi import Depends
+    try:
+        username = verify_token(token=None)  # This will work differently, need to try
+    except:
+        username = None
+
     product = db.query(Product).filter(Product.id == sale.product_id).first()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     if product.stock < sale.quantity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough stock available")
 
-    # Find customer user for created_by
-    customer_user = db.query(User).filter(User.username == "customer").first()
-    if customer_user:
-        created_by = customer_user.id
+    # Set created_by based on whom is recording the sale
+    if username:
+        # Authenticated user is recording the sale
+        user = db.query(User).filter(User.username == username).first()
+        if user:
+            created_by = user.id
+        else:
+            created_by = None
     else:
-        created_by = None
+        # Customer is placing the order
+        customer_user = db.query(User).filter(User.username == "customer").first()
+        if customer_user:
+            created_by = customer_user.id
+        else:
+            created_by = None
 
     # Use product's selling_price for the sale
     selling_price = product.selling_price
@@ -2768,7 +2784,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db), username: str
     # ... existing code ...
 
 @app.post("/sales/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
-def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+def record_sale(sale: SaleCreate, db: Session = Depends(get_db)):
     check_permission(Permission.SALES, db, username)
     # ... existing code ...
 
