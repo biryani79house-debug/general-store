@@ -1,69 +1,65 @@
+#!/usr/bin/env python3
+"""Test script to debug purchase ledger category filtering issue."""
+
 import requests
-import json
+import os
+from dotenv import load_dotenv
 
-# Test script to verify category filtering in sales ledger
+# Load environment variables
+load_dotenv()
 
-# Backend URL
-base_url = "http://localhost:8000"
-
-# Login to get token
-login_data = {
-    "username": "raza123",
-    "password": "123456"
-}
-
-print("🔐 Logging in...")
-login_response = requests.post(f"{base_url}/auth/login", json=login_data)
-if login_response.status_code == 200:
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    print("✅ Login successful")
-else:
-    print(f"❌ Login failed: {login_response.status_code}")
-    exit(1)
-
-# Test sales ledger with vegetables category filter
-print("\n📊 Testing sales ledger with vegetables category filter...")
-params = {"category": "Vegetables"}
-response = requests.get(f"{base_url}/ledger/sales", headers=headers, params=params)
-
-if response.status_code == 200:
-    data = response.json()
-    print(f"✅ Filter request successful. Returned {len(data)} records")
-
-    if len(data) == 0:
-        print("✅ CORRECT: No sales found for vegetables category (expected empty)")
-    else:
-        print(f"❌ UNEXPECTED: Found {len(data)} sales records for vegetables category")
-        for sale in data:
-            print(f"  - Product: {sale['product_name']}, Category: {sale.get('product_category', 'N/A')}")
-
-else:
-    print(f"❌ Request failed: {response.status_code}")
+def test_category_filtering():
     try:
-        error_data = response.json()
-        print(f"Error details: {error_data}")
-    except:
-        print(f"Response: {response.text}")
+        # Get authentication token
+        login_response = requests.post('http://localhost:8000/auth/login', json={
+            'username': 'raza123',
+            'password': '123456'
+        })
 
-# Test sales ledger without category filter (should show existing sales)
-print("\n📊 Testing sales ledger without category filter...")
-response = requests.get(f"{base_url}/ledger/sales", headers=headers)
+        if login_response.status_code != 200:
+            print(f"Login failed: {login_response.status_code} - {login_response.text}")
+            return
 
-if response.status_code == 200:
-    data = response.json()
-    print(f"✅ Request successful. Returned {len(data)} total sales records")
+        token = login_response.json()['access_token']
+        headers = {'Authorization': f'Bearer {token}'}
 
-    # Check if any records have vegetables category
-    vegetables_sales = [s for s in data if s.get('product_category') == 'Vegetables']
-    print(f"✅ Records with vegetables category: {len(vegetables_sales)}")
+        # Test categories
+        categories_to_test = ['Groceries', 'Fruits', 'Dairy']
 
-    if len(data) > 0:
-        print("✅ Sample existing sales:")
-        for i, sale in enumerate(data[:3]):  # Show first 3 records
-            print(f"  - {sale['product_name']} ({sale.get('product_category', 'N/A')})")
+        for category in categories_to_test:
+            print(f"\n=== Testing category: {category} ===")
 
-else:
-    print(f"❌ Request failed: {response.status_code}")
+            # Test purchase ledger with category filter
+            response = requests.get(
+                f'http://localhost:8000/ledger/purchases?category={category}',
+                headers=headers
+            )
 
-print("\n🧪 Test completed!")
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ Records returned: {len(data)}")
+                if data:
+                    for item in data:
+                        print(f"   - {item['product_name']}: qty={item['quantity']}, total=₹{item['total_cost']}")
+                else:
+                    print("   No records found")
+            else:
+                print(f"❌ Error: {response.status_code} - {response.text}")
+
+        # Also test without category filter to see all purchases
+        print("\n=== Testing without category filter (all purchases) ===")
+        response = requests.get('http://localhost:8000/ledger/purchases', headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ Total records returned: {len(data)}")
+            if data:
+                for item in data:
+                    print(f"   - {item['product_name']} ({item.get('product_category', 'No category')}): qty={item['quantity']}, total=₹{item['total_cost']}")
+        else:
+            print(f"❌ Error: {response.status_code} - {response.text}")
+
+    except Exception as e:
+        print(f"Test failed with error: {e}")
+
+if __name__ == "__main__":
+    test_category_filtering()

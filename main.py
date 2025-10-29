@@ -2863,6 +2863,7 @@ def get_purchase_ledger(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     product_id: Optional[int] = None,
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     username: str = Depends(verify_token)
 ):
