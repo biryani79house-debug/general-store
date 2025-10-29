@@ -994,6 +994,13 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db)):
     if product.stock < sale.quantity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough stock available")
 
+    # Find customer user for created_by
+    customer_user = db.query(User).filter(User.username == "customer").first()
+    if customer_user:
+        created_by = customer_user.id
+    else:
+        created_by = None
+
     # Use product's selling_price for the sale
     selling_price = product.selling_price
     total_amount = selling_price * sale.quantity
@@ -1002,7 +1009,8 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db)):
         product_id=sale.product_id,
         quantity=sale.quantity,
         total_amount=total_amount,
-        sale_date=datetime.now(IST)
+        sale_date=datetime.now(IST),
+        created_by=created_by
     )
     product.stock -= sale.quantity
 
@@ -2049,6 +2057,30 @@ async def seed_products(db: Session = Depends(get_db)):
         for cat_name in categories:
             if not db.query(Category).filter(Category.name.ilike(cat_name)).first():
                 db.add(Category(name=cat_name))
+
+        # Create customer user for customer sales
+        customer_user_exists = db.query(User).filter(User.username == "customer").first()
+        if not customer_user_exists:
+            hashed = bcrypt.hashpw("customer".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            customer_user = User(
+                username="customer",
+                email="customer@kirana.store",
+                password_hash=hashed,
+                sales=False,
+                purchase=False,
+                create_product=False,
+                delete_product=False,
+                create_category=False,
+                delete_category=False,
+                sales_ledger=False,
+                purchase_ledger=False,
+                stock_ledger=False,
+                profit_loss=False,
+                opening_stock=False,
+                user_management=False
+            )
+            db.add(customer_user)
+            db.flush()
 
         # Sample products
         sample_products = [
