@@ -717,29 +717,52 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
         # Test database connection
         db.execute(text("SELECT 1"))
 
-        # Get all products first
-        products = db.query(Product).all()
-
-        print(f"🔍 Found {len(products)} products in database")
+        # Get all products first with better error handling
+        print("🔍 Querying all products...")
+        products_query = db.query(Product)
+        products = products_query.all()
+        print(f"🔍 Found {len(products)} products total")
 
         if len(products) == 0:
-            print("⚠️ No products found in database")
+            print("⚠️ No products found in database - possible empty table")
             return []
 
         opening_stock_data = []
 
-        for product in products:
-            print(f"📦 Processing product: ID={product.id}, Name='{product.name}', Purchase Price={product.purchase_price}")
+        for i, product in enumerate(products):
+            print(f"📦 [{i+1}/{len(products)}] Processing product: ID={product.id}, Name='{product.name}', Purchase Price={product.purchase_price}")
+
+            # Validate product fields are not None
+            if product.id is None:
+                print(f"⚠️ Product has None ID: {product}")
+                continue
+            if product.name is None:
+                print(f"⚠️ Product {product.id} has None name")
+                continue
+            if product.purchase_price is None:
+                print(f"⚠️ Product {product.id} ({product.name}) has None purchase_price")
+                continue
+            if product.selling_price is None:
+                print(f"⚠️ Product {product.id} ({product.name}) has None selling_price")
+                continue
+            if product.unit_type is None:
+                print(f"⚠️ Product {product.id} ({product.name}) has None unit_type")
+                continue
 
             # Get total quantity from purchase register for this product
-            total_purchase_quantity_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
+            purchase_qty_query = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id)
+            total_purchase_quantity_result = purchase_qty_query.scalar()
 
             # Handle None case (no purchases yet)
             total_purchase_quantity = float(total_purchase_quantity_result or 0)
             opening_stock_quantity = int(total_purchase_quantity)
 
             # Pre-calculate stock value using purchase price
-            stock_value = opening_stock_quantity * float(product.purchase_price)
+            try:
+                stock_value = opening_stock_quantity * float(product.purchase_price)
+            except (ValueError, TypeError) as calc_error:
+                print(f"❌ Calculation error for product {product.id}: {calc_error}")
+                stock_value = 0.0
 
             product_data = {
                 "id": int(product.id),
@@ -752,7 +775,7 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
                 "created_at": product.created_at.isoformat() if product.created_at else None
             }
 
-            print(f"✅ Processed product data: {product_data}")
+            print(f"✅ Processed product data OK: {product_data}")
             opening_stock_data.append(product_data)
 
         print(f"📤️ Returning {len(opening_stock_data)} opening stock records")
