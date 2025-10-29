@@ -714,14 +714,23 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
     check_permission(Permission.OPENING_STOCK, db, username)
 
     try:
-        # First test database connection
+        # Test database connection
         db.execute(text("SELECT 1"))
 
+        # Get all products first
         products = db.query(Product).all()
+
+        print(f"🔍 Found {len(products)} products in database")
+
+        if len(products) == 0:
+            print("⚠️ No products found in database")
+            return []
 
         opening_stock_data = []
 
         for product in products:
+            print(f"📦 Processing product: ID={product.id}, Name='{product.name}', Purchase Price={product.purchase_price}")
+
             # Get total quantity from purchase register for this product
             total_purchase_quantity_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
 
@@ -732,24 +741,48 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
             # Pre-calculate stock value using purchase price
             stock_value = opening_stock_quantity * float(product.purchase_price)
 
-            opening_stock_data.append({
+            product_data = {
                 "id": int(product.id),
                 "name": str(product.name),
                 "purchase_price": float(product.purchase_price),
                 "selling_price": float(product.selling_price),
                 "unit_type": str(product.unit_type),
                 "quantity": int(opening_stock_quantity),
-                "stock_value": float(stock_value)
-            })
+                "stock_value": float(stock_value),
+                "created_at": product.created_at.isoformat() if product.created_at else None
+            }
 
+            print(f"✅ Processed product data: {product_data}")
+            opening_stock_data.append(product_data)
+
+        print(f"📤️ Returning {len(opening_stock_data)} opening stock records")
         return opening_stock_data
 
     except Exception as e:
         print(f"❌ Error generating opening stock register: {str(e)}")
         import traceback
         traceback.print_exc()
-        # Return a temporary simple response for debugging
-        return [{"test": "debug", "error": str(e)}]
+        # Return detailed debug info
+        return [{
+            "test": "debug",
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
+        }]
+
+# Test endpoint to check products directly
+@app.get("/test/products")
+def test_products(db: Session = Depends(get_db)):
+    """Test endpoint to check if products exist"""
+    try:
+        products = db.query(Product).all()
+        return {
+            "count": len(products),
+            "products": [{"id": p.id, "name": p.name, "purchase_price": p.purchase_price, "selling_price": p.selling_price, "unit_type": p.unit_type}
+                        for p in products[:5]]  # First 5 products only
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 @app.get("/products/stock-snapshot", response_model=List[ProductStockSnapshot])
 def get_products_stock_snapshot(
