@@ -714,42 +714,42 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
     check_permission(Permission.OPENING_STOCK, db, username)
 
     try:
+        # First test database connection
+        db.execute(text("SELECT 1"))
+
         products = db.query(Product).all()
 
         opening_stock_data = []
 
         for product in products:
             # Get total quantity from purchase register for this product
-            total_purchase_quantity = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
+            total_purchase_quantity_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
 
             # Handle None case (no purchases yet)
-            if total_purchase_quantity is None:
-                total_purchase_quantity = 0
-
+            total_purchase_quantity = float(total_purchase_quantity_result or 0)
             opening_stock_quantity = int(total_purchase_quantity)
 
             # Pre-calculate stock value using purchase price
-            stock_value = opening_stock_quantity * product.purchase_price
+            stock_value = opening_stock_quantity * float(product.purchase_price)
 
             opening_stock_data.append({
-                "id": product.id,
-                "name": product.name,
+                "id": int(product.id),
+                "name": str(product.name),
                 "purchase_price": float(product.purchase_price),
                 "selling_price": float(product.selling_price),
-                "unit_type": product.unit_type,
-                "quantity": opening_stock_quantity,
+                "unit_type": str(product.unit_type),
+                "quantity": int(opening_stock_quantity),
                 "stock_value": float(stock_value)
             })
 
-        print(f"📊 Generated opening stock register for {len(opening_stock_data)} products")
-        print(f"🔍 DEBUG: Response data sample: {opening_stock_data[:2] if opening_stock_data else 'No data'}")
         return opening_stock_data
 
     except Exception as e:
-        print(f"❌ Error generating opening stock register: {e}")
+        print(f"❌ Error generating opening stock register: {str(e)}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error generating opening stock register: {str(e)}")
+        # Return a temporary simple response for debugging
+        return [{"test": "debug", "error": str(e)}]
 
 @app.get("/products/stock-snapshot", response_model=List[ProductStockSnapshot])
 def get_products_stock_snapshot(
