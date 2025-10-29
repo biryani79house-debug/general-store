@@ -708,8 +708,8 @@ class OpeningStockResponse(BaseModel):
 @app.get("/opening-stock-register")
 def get_opening_stock_register(db: Session = Depends(get_db), username: str = Depends(verify_token)):
     """
-    Get opening stock register showing all products with their current stock levels.
-    Shows Product.stock directly (current stock from database).
+    Get opening stock register showing all products with quantity from purchase register.
+    Shows total quantity purchased for each product (from all purchase records).
     """
     check_permission(Permission.OPENING_STOCK, db, username)
 
@@ -719,8 +719,14 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
         opening_stock_data = []
 
         for product in products:
-            # Use Product.stock directly as quantity
-            opening_stock_quantity = int(product.stock)
+            # Get total quantity from purchase register for this product
+            total_purchase_quantity = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
+
+            # Handle None case (no purchases yet)
+            if total_purchase_quantity is None:
+                total_purchase_quantity = 0
+
+            opening_stock_quantity = int(total_purchase_quantity)
 
             # Pre-calculate stock value using purchase price
             stock_value = opening_stock_quantity * product.purchase_price
