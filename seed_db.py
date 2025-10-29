@@ -10,7 +10,7 @@ import bcrypt
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
+USE_SQLITE = False  # Force PostgreSQL since we only use PostgreSQL
 
 print(f"USE_SQLITE: {USE_SQLITE}")
 print(f"DATABASE_URL: {DATABASE_URL}")
