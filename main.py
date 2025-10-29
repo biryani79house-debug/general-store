@@ -717,38 +717,60 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
         # Test database connection
         db.execute(text("SELECT 1"))
 
-        # Get all products first
+        # Get all products first - simplified approach to debug
         products = db.query(Product).all()
-        print(f"🔍 Found {len(products)} products in database")
+        print(f"🔍 Opening stock register: Found {len(products)} products in database")
 
-        return [
-            {
-                "id": 1,
-                "name": "Test Product",
-                "purchase_price": 50.0,
-                "selling_price": 70.0,
-                "unit_type": "pcs",
-                "quantity": 100,
-                "stock_value": 5000.0,
-                "created_at": "2025-01-01T00:00:00Z"
-            },
-            {
-                "id": 2,
-                "name": "Second Product",
-                "purchase_price": 25.0,
-                "selling_price": 35.0,
-                "unit_type": "pcs",
-                "quantity": 50,
-                "stock_value": 1250.0,
-                "created_at": "2025-01-02T00:00:00Z"
-            }
-        ]
+        opening_stock_data = []
+
+        for i, product in enumerate(products):
+            print(f"🔍 Product {i+1}: ID={product.id}, Name='{product.name}', Purchase Price={product.purchase_price}")
+
+            # Handle null values defensively
+            if product.id is None or product.name is None or product.purchase_price is None:
+                print(f"⚠️ Skipping invalid product {product.id} - has null values")
+                continue
+
+            try:
+                # Calculate total purchases for this product
+                purchase_total_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
+                total_purchases = int(purchase_total_result or 0)
+
+                # Calculate stock value safely
+                purchase_price = float(product.purchase_price)
+                stock_value = float(total_purchases * purchase_price)
+
+                selling_price = float(product.selling_price or 0)  # Handle null selling price
+                unit_type = str(product.unit_type or "pcs")  # Handle null unit type
+
+                product_data = {
+                    "id": int(product.id),
+                    "name": str(product.name),
+                    "purchase_price": purchase_price,
+                    "selling_price": selling_price,
+                    "unit_type": unit_type,
+                    "quantity": total_purchases,  # Total purchases = opening stock
+                    "stock_value": stock_value,
+                    "created_at": product.created_at.isoformat() if product.created_at else None
+                }
+
+                print(f"✅ Processed: {product.name} - {total_purchases} units worth ₹{stock_value:.2f}")
+                opening_stock_data.append(product_data)
+
+            except Exception as calc_error:
+                print(f"❌ Calculation error for product {product.id}: {calc_error}")
+                continue
+
+        print(f"📦 Returning {len(opening_stock_data)} valid products")
+        return opening_stock_data
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"❌ Error in opening stock register: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return [{
-            "test": "debug",
-            "error": str(e)
+            "error": str(e),
+            "type": "backend_error"
         }]
 
 # Test endpoint to check products directly
