@@ -2128,7 +2128,7 @@ class StoreSettings(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(IST))
     updated_at = Column(DateTime, default=lambda: datetime.now(IST), onupdate=lambda: datetime.now(IST))
 
-# Create an API endpoint to get store settings
+        # Create an API endpoint to get store settings
 @app.get("/store-settings")
 def get_store_settings(db: Session = Depends(get_db)):
     """Get store settings from database"""
@@ -2139,6 +2139,9 @@ def get_store_settings(db: Session = Depends(get_db)):
         db.add(settings)
         db.commit()
         db.refresh(settings)
+
+    # Debug logging
+    print(f"📋 Retrieved store settings: {settings.store_name}, {settings.store_subtitle}, {settings.store_location}, {settings.store_contact}, {settings.delivery_note}")
 
     return {
         "store_name": settings.store_name,

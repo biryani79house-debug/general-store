@@ -4449,56 +4449,89 @@ function backToHome() {
                     headers: getAuthHeaders()
                 });
 
+                let settings;
                 if (response.ok) {
-                    const settings = await response.json();
-                    // Safely update display elements (check if they exist)
-                    const displayStoreName = document.getElementById('display-store-name');
-                    const displayStoreSubtitle = document.getElementById('display-store-subtitle');
-                    const displayStoreLocation = document.getElementById('display-store-location');
-                    const displayStoreContact = document.getElementById('display-store-contact');
-                    const displayDeliveryNote = document.getElementById('display-delivery-note');
-
-                    if (displayStoreName) displayStoreName.textContent = settings.store_name;
-                    if (displayStoreSubtitle) displayStoreSubtitle.textContent = settings.store_subtitle;
-                    if (displayStoreLocation) displayStoreLocation.textContent = settings.store_location;
-                    if (displayStoreContact) displayStoreContact.textContent = settings.store_contact;
-                    if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
-
-                    // Update header display (always available)
-                    const headerStoreName = document.getElementById('header-store-name');
-                    const headerStoreSubtitle = document.getElementById('header-store-subtitle');
-                    const headerStoreLocation = document.getElementById('header-store-location');
-                    const headerStoreContact = document.getElementById('header-store-contact');
-                    const headerDeliveryNote = document.getElementById('header-delivery-note');
-
-                    if (headerStoreName) headerStoreName.textContent = settings.store_name;
-                    if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
-                    if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
-                    if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
-                    if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
+                    settings = await response.json();
+                    console.log('✅ Loaded store settings:', settings);
                 } else {
-                    console.warn('Could not load store settings, using defaults');
-                    // Safely update display elements (check if they exist)
-                    const displayStoreName = document.getElementById('display-store-name');
-                    const displayStoreSubtitle = document.getElementById('display-store-subtitle');
-                    const displayStoreLocation = document.getElementById('display-store-location');
-                    const displayStoreContact = document.getElementById('display-store-contact');
-                    const displayDeliveryNote = document.getElementById('display-delivery-note');
-
-                    if (displayStoreName) displayStoreName.textContent = 'Raza Wholesale and Retail';
-                    if (displayStoreSubtitle) displayStoreSubtitle.textContent = 'Kirana Store';
-                    if (displayStoreLocation) displayStoreLocation.textContent = 'Tolichowki, Hyderabad';
-                    if (displayStoreContact) displayStoreContact.textContent = '+91 7075210801';
-                    if (displayDeliveryNote) displayDeliveryNote.textContent = 'Order on WhatsApp - We deliver to your doorstep';
+                    console.warn('Could not load store settings, using database defaults');
+                    // If API fails, try to get any existing settings from localStorage as very last fallback
+                    settings = {
+                        store_name: localStorage.getItem('fallback_store_name') || 'Raza Wholesale and Retail',
+                        store_subtitle: localStorage.getItem('fallback_store_subtitle') || 'Kirana Store',
+                        store_location: localStorage.getItem('fallback_store_location') || 'Tolichowki, Hyderabad',
+                        store_contact: localStorage.getItem('fallback_store_contact') || '+91 7075210801',
+                        delivery_note: localStorage.getItem('fallback_delivery_note') || 'Order on WhatsApp - We deliver to your doorstep'
+                    };
                 }
+
+                // Update settings globally for reference
+                window.currentSettings = settings;
+
+                // Safely update display elements (check if they exist)
+                const displayStoreName = document.getElementById('display-store-name');
+                const displayStoreSubtitle = document.getElementById('display-store-subtitle');
+                const displayStoreLocation = document.getElementById('display-store-location');
+                const displayStoreContact = document.getElementById('display-store-contact');
+                const displayDeliveryNote = document.getElementById('display-delivery-note');
+
+                if (displayStoreName) displayStoreName.textContent = settings.store_name;
+                if (displayStoreSubtitle) displayStoreSubtitle.textContent = settings.store_subtitle;
+                if (displayStoreLocation) displayStoreLocation.textContent = settings.store_location;
+                if (displayStoreContact) displayStoreContact.textContent = settings.store_contact;
+                if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
+
+                // Update header display (always available when user logged in)
+                const headerStoreName = document.getElementById('header-store-name');
+                const headerStoreSubtitle = document.getElementById('header-store-subtitle');
+                const headerStoreLocation = document.getElementById('header-store-location');
+                const headerStoreContact = document.getElementById('header-store-contact');
+                const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                if (headerStoreName) headerStoreName.textContent = settings.store_name;
+                if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
+                if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
+                if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
+                if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
+
             } catch (error) {
                 console.error('Error loading store settings:', error);
-                // Fallback to defaults if API fails
-                document.getElementById('display-store-name').textContent = 'Raza Wholesale and Retail';
-                document.getElementById('display-store-subtitle').textContent = 'Kirana Store';
-                document.getElementById('display-store-location').textContent = 'Tolichowki, Hyderabad';
-                document.getElementById('display-store-contact').textContent = '+91 7075210801';
-                document.getElementById('display-delivery-note').textContent = 'Order on WhatsApp - We deliver to your doorstep';
+                // Fallback to defaults if API completely fails
+                const fallbackSettings = {
+                    store_name: 'Raza Wholesale and Retail',
+                    store_subtitle: 'Kirana Store',
+                    store_location: 'Tolichowki, Hyderabad',
+                    store_contact: '+91 7075210801',
+                    delivery_note: 'Order on WhatsApp - We deliver to your doorstep'
+                };
+
+                window.currentSettings = fallbackSettings;
+
+                // Safely update display elements (check if they exist)
+                const displayStoreName = document.getElementById('display-store-name');
+                const displayStoreSubtitle = document.getElementById('display-store-subtitle');
+                const displayStoreLocation = document.getElementById('display-store-location');
+                const displayStoreContact = document.getElementById('display-store-contact');
+                const displayDeliveryNote = document.getElementById('display-delivery-note');
+
+                if (displayStoreName) displayStoreName.textContent = fallbackSettings.store_name;
+                if (displayStoreSubtitle) displayStoreSubtitle.textContent = fallbackSettings.store_subtitle;
+                if (displayStoreLocation) displayStoreLocation.textContent = fallbackSettings.store_location;
+                if (displayStoreContact) displayStoreContact.textContent = fallbackSettings.store_contact;
+                if (displayDeliveryNote) displayDeliveryNote.textContent = fallbackSettings.delivery_note;
+
+                // Update header if exists
+                const headerStoreName = document.getElementById('header-store-name');
+                const headerStoreSubtitle = document.getElementById('header-store-subtitle');
+                const headerStoreLocation = document.getElementById('header-store-location');
+                const headerStoreContact = document.getElementById('header-store-contact');
+                const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                if (headerStoreName) headerStoreName.textContent = fallbackSettings.store_name;
+                if (headerStoreSubtitle) headerStoreSubtitle.textContent = fallbackSettings.store_subtitle;
+                if (headerStoreLocation) headerStoreLocation.textContent = fallbackSettings.store_location;
+                if (headerStoreContact) headerStoreContact.textContent = fallbackSettings.store_contact;
+                if (headerDeliveryNote) headerDeliveryNote.textContent = fallbackSettings.delivery_note;
             }
         }
 
