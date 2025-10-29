@@ -2495,28 +2495,34 @@ function backToHome() {
                     const displayStoreName = document.getElementById('display-store-name');
                     const displayStoreSubtitle = document.getElementById('display-store-subtitle');
                     const displayStoreLocation = document.getElementById('display-store-location');
-                    const displayStoreContact = document.getElementById('display-store-contact');
-                    const displayDeliveryNote = document.getElementById('display-delivery-note');
 
                     if (displayStoreName) displayStoreName.textContent = settings.store_name;
                     if (displayStoreSubtitle) displayStoreSubtitle.textContent = settings.store_subtitle;
                     if (displayStoreLocation) displayStoreLocation.textContent = settings.store_location;
-                    if (displayStoreContact) displayStoreContact.textContent = settings.store_contact;
-                    if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
 
                     // Update header display (with null checks)
                     const headerStoreName = document.getElementById('header-store-name');
                     const headerStoreSubtitle = document.getElementById('header-store-subtitle');
                     const headerStoreLocation = document.getElementById('header-store-location');
-                    const headerStoreContact = document.getElementById('header-store-contact');
-                    const headerDeliveryNote = document.getElementById('header-delivery-note');
 
                     if (headerStoreName) headerStoreName.textContent = settings.store_name;
                     if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
                     if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
-                    if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
-                    if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
-                }
+
+                    showNotification(`✅ Product "${productName}" deleted successfully!`);
+
+                    // Refresh the delete product page to show updated list
+                    loadDeleteProductPage();
+                } else {
+                    let errorMessage = `Failed to delete product: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.detail) {
+                            errorMessage = errorData.detail;
+                        }
+                    } catch (e) {
+                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                    }
                     throw new Error(errorMessage);
                 }
 
