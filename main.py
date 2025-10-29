@@ -250,6 +250,7 @@ class PurchaseLedgerEntry(BaseModel):
     date: datetime
     product_id: int
     product_name: str
+    product_category: Optional[str] = None
     quantity: int
     unit_cost: float
     total_cost: float
@@ -1286,6 +1287,7 @@ def get_purchase_ledger(
                 date=purchase.purchase_date,
                 product_id=purchase.product_id,
                 product_name=purchase.product.name if purchase.product else "Unknown",
+                product_category=purchase.product.category if purchase.product else None,
                 quantity=purchase.quantity,
                 unit_cost=unit_cost,
                 total_cost=purchase.total_cost,
