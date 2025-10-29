@@ -4465,11 +4465,17 @@ function backToHome() {
                     if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
 
                     // Update header display (always available)
-                    document.getElementById('header-store-name').textContent = settings.store_name;
-                    document.getElementById('header-store-subtitle').textContent = settings.store_subtitle;
-                    document.getElementById('header-store-location').textContent = settings.store_location;
-                    document.getElementById('header-store-contact').textContent = settings.store_contact;
-                    document.getElementById('header-delivery-note').textContent = settings.delivery_note;
+                    const headerStoreName = document.getElementById('header-store-name');
+                    const headerStoreSubtitle = document.getElementById('header-store-subtitle');
+                    const headerStoreLocation = document.getElementById('header-store-location');
+                    const headerStoreContact = document.getElementById('header-store-contact');
+                    const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                    if (headerStoreName) headerStoreName.textContent = settings.store_name;
+                    if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
+                    if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
+                    if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
+                    if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
                 } else {
                     console.warn('Could not load store settings, using defaults');
                     // Safely update display elements (check if they exist)
