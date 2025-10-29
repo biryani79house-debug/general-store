@@ -736,11 +736,11 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
             opening_stock_data.append({
                 "id": product.id,
                 "name": product.name,
-                "purchase_price": product.purchase_price,
-                "selling_price": product.selling_price,
+                "purchase_price": float(product.purchase_price),
+                "selling_price": float(product.selling_price),
                 "unit_type": product.unit_type,
                 "quantity": opening_stock_quantity,
-                "stock_value": stock_value,
+                "stock_value": float(stock_value),
                 "created_at": product.created_at
             })
 
