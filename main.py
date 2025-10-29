@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status, Depends, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text,func
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship, joinedload
 from sqlalchemy import ForeignKey, Enum as SQLEnum
 import enum
@@ -732,34 +732,37 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
                 continue
 
             try:
-                # Calculate total purchases for this product
-                purchase_total_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
-                total_purchases = int(product.unit_quantity)
-
-                # Calculate stock value safely
-                purchase_price = float(product.purchase_price)
-                stock_value = float(total_purchases * purchase_price)
-
-                selling_price = float(product.selling_price or 0)  # Handle null selling price
-                unit_type = str(product.unit_type or "pcs")  # Handle null unit type
-
-                product_data = {
-                    "id": int(product.id),
-                    "name": str(product.name),
-                    "purchase_price": purchase_price,
-                    "selling_price": selling_price,
-                    "unit_type": unit_type,
-                    "quantity": total_purchases,  # Total purchases = opening stock
-                    "stock_value": stock_value,
-                    "created_at": product.created_at.isoformat() if product.created_at else None
-                }
-
-                print(f"✅ Processed: {product.name} - {total_purchases} units worth ₹{stock_value:.2f}")
-                opening_stock_data.append(product_data)
-
+                # Calculate total purchase quantity
+                total_purchase_quantity = db.query(func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
+                print(f"  Total purchase quantity: {total_purchase_quantity}")
             except Exception as calc_error:
-                print(f"❌ Calculation error for product {product.id}: {calc_error}")
+                print(f"  ❌ Error calculating purchase quantity: {calc_error}")
                 continue
+
+            # Handle None case
+            if total_purchase_quantity is None:
+                total_purchase_quantity = 0
+
+            opening_stock_quantity = int(total_purchase_quantity)
+            stock_value = opening_stock_quantity * product.purchase_price
+
+            print(f"  Opening stock quantity: {opening_stock_quantity}")
+            print(f"  Stock value: {stock_value}")
+
+            try:
+                opening_stock_data.append({
+                    "id": product.id,
+                    "name": product.name,
+                    "purchase_price": product.purchase_price,
+                    "selling_price": product.selling_price,
+                    "unit_type": product.unit_type,
+                    "quantity": opening_stock_quantity,
+                    "stock_value": stock_value,
+                    "created_at": product.created_at
+                })
+                print("  ✅ Product processed successfully")
+            except Exception as append_error:
+                print(f"  ❌ Error adding product to data: {append_error}")
 
         print(f"📦 Returning {len(opening_stock_data)} valid products")
         return opening_stock_data
