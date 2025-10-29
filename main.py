@@ -1039,7 +1039,14 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
 
 # --- API Endpoints for Purchases ---
 @app.post("/purchases/", response_model=PurchaseResponse, status_code=status.HTTP_201_CREATED)
-def record_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db)):
+def record_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    check_permission(Permission.PURCHASE, db, username)
+
+    # Get the user who is creating this purchase
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
     product = db.query(Product).filter(Product.id == purchase.product_id).first()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
@@ -1049,10 +1056,11 @@ def record_purchase(purchase: PurchaseCreate, db: Session = Depends(get_db)):
         product_id=purchase.product_id,
         quantity=purchase.quantity,
         total_cost=total_cost,
-        purchase_date=datetime.now(IST)
+        purchase_date=datetime.now(IST),
+        created_by=user.id  # Set the user who created this purchase
     )
     product.stock += purchase.quantity
-    
+
     db.add(db_purchase)
     db.commit()
     db.refresh(db_purchase)
