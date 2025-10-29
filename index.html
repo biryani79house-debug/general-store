@@ -1342,6 +1342,9 @@
                         // Show user controls in header
                         showUserControls(result.user);
 
+                        // Load store details for header display
+                        await loadStoreDetails();
+
                         // Load home page buttons based on user permissions
                         loadHomePageButtons();
                     } else {
@@ -4518,19 +4521,31 @@ function backToHome() {
                 const result = await response.json();
                 console.log('✅ Store settings saved successfully:', result);
 
-                // Update display with the saved values
-                document.getElementById('display-store-name').textContent = result.settings.store_name;
-                document.getElementById('display-store-subtitle').textContent = result.settings.store_subtitle;
-                document.getElementById('display-store-location').textContent = result.settings.store_location;
-                document.getElementById('display-store-contact').textContent = result.settings.store_contact;
-                document.getElementById('display-delivery-note').textContent = result.settings.delivery_note;
+                // Safely update display elements (with null checks)
+                const displayStoreName = document.getElementById('display-store-name');
+                const displayStoreSubtitle = document.getElementById('display-store-subtitle');
+                const displayStoreLocation = document.getElementById('display-store-location');
+                const displayStoreContact = document.getElementById('display-store-contact');
+                const displayDeliveryNote = document.getElementById('display-delivery-note');
 
-                // Also update header logo
-                document.getElementById('header-store-name').textContent = result.settings.store_name;
-                document.getElementById('header-store-subtitle').textContent = result.settings.store_subtitle;
-                document.getElementById('header-store-location').textContent = result.settings.store_location;
-                document.getElementById('header-store-contact').textContent = result.settings.store_contact;
-                document.getElementById('header-delivery-note').textContent = result.settings.delivery_note;
+                if (displayStoreName) displayStoreName.textContent = result.settings.store_name;
+                if (displayStoreSubtitle) displayStoreSubtitle.textContent = result.settings.store_subtitle;
+                if (displayStoreLocation) displayStoreLocation.textContent = result.settings.store_location;
+                if (displayStoreContact) displayStoreContact.textContent = result.settings.store_contact;
+                if (displayDeliveryNote) displayDeliveryNote.textContent = result.settings.delivery_note;
+
+                // Also update header logo (with null checks)
+                const headerStoreName = document.getElementById('header-store-name');
+                const headerStoreSubtitle = document.getElementById('header-store-subtitle');
+                const headerStoreLocation = document.getElementById('header-store-location');
+                const headerStoreContact = document.getElementById('header-store-contact');
+                const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                if (headerStoreName) headerStoreName.textContent = result.settings.store_name;
+                if (headerStoreSubtitle) headerStoreSubtitle.textContent = result.settings.store_subtitle;
+                if (headerStoreLocation) headerStoreLocation.textContent = result.settings.store_location;
+                if (headerStoreContact) headerStoreContact.textContent = result.settings.store_contact;
+                if (headerDeliveryNote) headerDeliveryNote.textContent = result.settings.delivery_note;
 
                 showNotification('✅ Store details saved successfully!');
 
