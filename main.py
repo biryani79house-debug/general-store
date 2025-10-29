@@ -154,7 +154,7 @@ class Sale(Base):
     quantity = Column(Integer, nullable=False)
     total_amount = Column(Float, nullable=False)
     sale_date = Column(DateTime, default=lambda: datetime.now(IST))
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
@@ -1009,14 +1009,18 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
         if user:
             created_by = user.id
         else:
-            created_by = None
+            # Fallback to first admin user if possible
+            admin_user = db.query(User).filter(User.username == "raza123").first()
+            created_by = admin_user.id if admin_user else 1  # Fallback to ID 1
     else:
-        # Customer is placing the order
+        # Customer is placing the order or anonymous transaction
         customer_user = db.query(User).filter(User.username == "customer").first()
         if customer_user:
             created_by = customer_user.id
         else:
-            created_by = None
+            # Fallback to first available user (should always have at least admin)
+            first_user = db.query(User).first()
+            created_by = first_user.id if first_user else 1
 
     # Use product's selling_price for the sale
     selling_price = product.selling_price
@@ -1157,7 +1161,8 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         db_sale = Sale(
             product_id=product.id,
             quantity=item.quantity,
-            total_amount=item_total
+            total_amount=item_total,
+            created_by=1  # Default admin user for WhatsApp orders
         )
         db.add(db_sale)
         items_sold.append(item.product_name)
