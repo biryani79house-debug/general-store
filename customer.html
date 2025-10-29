@@ -217,7 +217,7 @@
 
     <script>
         // ===== BACKEND CONFIGURATION =====
-        const backendURL = "https://kirana-store-maoc.onrender.com";
+        const backendURL = "https://kirana-store-backend-production.up.railway.app";
         const WHATSAPP_NUMBER = "917075210801";
 
         // Global variables
@@ -299,8 +299,12 @@
                 }
 
                 products = await response.json();
-                showCartButton();
-                renderProducts();
+                if (products.length === 0) {
+                    loadMockProducts();
+                } else {
+                    showCartButton();
+                    renderProducts();
+                }
 
             } catch (error) {
                 console.error("Fetch error:", error);
