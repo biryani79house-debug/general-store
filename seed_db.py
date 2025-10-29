@@ -62,6 +62,20 @@ try:
         db.add(admin)
         print("Admin user created")
 
+        # Create sample categories
+        sample_categories = [
+            Category(name="Fruits"),
+            Category(name="Vegetables"),
+            Category(name="Dairy"),
+            Category(name="Bakery"),
+            Category(name="Groceries"),
+            Category(name="Beverages"),
+            Category(name="Snacks"),
+            Category(name="Meat & Fish"),
+        ]
+        db.add_all(sample_categories)
+        print("Sample categories added")
+
         # Create sample products
         sample_products = [
             Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", category="Fruits", stock=50),

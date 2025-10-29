@@ -474,6 +474,21 @@ async def lifespan(app: FastAPI):
                         print(f"✅ Default admin user created: username=raza123, password={default_password}")
                         print("⚠️  PLEASE CHANGE THE DEFAULT PASSWORD AFTER FIRST LOGIN!")
 
+                    # Create sample categories
+                    sample_categories = [
+                        Category(name="Fruits"),
+                        Category(name="Vegetables"),
+                        Category(name="Dairy"),
+                        Category(name="Bakery"),
+                        Category(name="Groceries"),
+                        Category(name="Beverages"),
+                        Category(name="Snacks"),
+                        Category(name="Meat & Fish"),
+                    ]
+                    db.add_all(sample_categories)
+                    db.commit()
+                    print("✅ Sample categories added to database.")
+
                     print("Seeding database with sample products...")
                     sample_products = [
                         Product(name="Apple", purchase_price=80.00, selling_price=100.00, unit_type="kgs", category="Fruits", stock=50),
