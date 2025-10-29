@@ -4420,10 +4420,43 @@ function backToHome() {
         }
 
         async function loadStoreDetails() {
-            // For now, just set default values. In a real app, this would fetch from server
-            document.getElementById('display-store-name').textContent = localStorage.getItem('storeName') || 'Raza Wholesale and Retail';
-            document.getElementById('display-store-location').textContent = localStorage.getItem('storeLocation') || 'Tolichowki, Hyderabad';
-            document.getElementById('display-store-contact').textContent = localStorage.getItem('storeContact') || '+91 7075210801';
+            try {
+                // Fetch store settings from server
+                const response = await fetch(`${backendURL}/store-settings`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (response.ok) {
+                    const settings = await response.json();
+                    document.getElementById('display-store-name').textContent = settings.store_name;
+                    document.getElementById('display-store-subtitle').textContent = settings.store_subtitle;
+                    document.getElementById('display-store-location').textContent = settings.store_location;
+                    document.getElementById('display-store-contact').textContent = settings.store_contact;
+                    document.getElementById('display-delivery-note').textContent = settings.delivery_note;
+
+                    // Update header display
+                    document.getElementById('header-store-name').textContent = settings.store_name;
+                    document.getElementById('header-store-subtitle').textContent = settings.store_subtitle;
+                    document.getElementById('header-store-location').textContent = settings.store_location;
+                    document.getElementById('header-store-contact').textContent = settings.store_contact;
+                    document.getElementById('header-delivery-note').textContent = settings.delivery_note;
+                } else {
+                    console.warn('Could not load store settings, using defaults');
+                    document.getElementById('display-store-name').textContent = 'Raza Wholesale and Retail';
+                    document.getElementById('display-store-subtitle').textContent = 'Kirana Store';
+                    document.getElementById('display-store-location').textContent = 'Tolichowki, Hyderabad';
+                    document.getElementById('display-store-contact').textContent = '+91 7075210801';
+                    document.getElementById('display-delivery-note').textContent = 'Order on WhatsApp - We deliver to your doorstep';
+                }
+            } catch (error) {
+                console.error('Error loading store settings:', error);
+                // Fallback to defaults if API fails
+                document.getElementById('display-store-name').textContent = 'Raza Wholesale and Retail';
+                document.getElementById('display-store-subtitle').textContent = 'Kirana Store';
+                document.getElementById('display-store-location').textContent = 'Tolichowki, Hyderabad';
+                document.getElementById('display-store-contact').textContent = '+91 7075210801';
+                document.getElementById('display-delivery-note').textContent = 'Order on WhatsApp - We deliver to your doorstep';
+            }
         }
 
         function startEditingStoreDetails() {
@@ -4457,32 +4490,58 @@ function backToHome() {
                 return;
             }
 
-            // Save to localStorage (in a real app, this would save to server)
-            localStorage.setItem('storeName', name);
-            localStorage.setItem('storeSubtitle', subtitle);
-            localStorage.setItem('storeLocation', location);
-            localStorage.setItem('storeContact', contact);
-            localStorage.setItem('storeDeliveryNote', deliveryNote);
+            try {
+                // Save to server API
+                const response = await fetch(`${backendURL}/store-settings`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        store_name: name,
+                        store_subtitle: subtitle || 'Kirana Store',
+                        store_location: location || 'Tolichowki, Hyderabad',
+                        store_contact: contact,
+                        delivery_note: deliveryNote || 'Order on WhatsApp - We deliver to your doorstep'
+                    })
+                });
 
-            // Update display
-            document.getElementById('display-store-name').textContent = name;
-            document.getElementById('display-store-subtitle').textContent = subtitle || 'Kirana Store';
-            document.getElementById('display-store-location').textContent = location || 'Tolichowki, Hyderabad';
-            document.getElementById('display-store-contact').textContent = contact;
-            document.getElementById('display-delivery-note').textContent = deliveryNote || 'Order on WhatsApp - We deliver to your doorstep';
+                if (!response.ok) {
+                    let errorMessage = 'Failed to save store settings';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
 
-            // Also update header logo
-            document.getElementById('header-store-name').textContent = name;
-            document.getElementById('header-store-subtitle').textContent = subtitle || 'Kirana Store';
-            document.getElementById('header-store-location').textContent = location || 'Tolichowki, Hyderabad';
-            document.getElementById('header-store-contact').textContent = contact;
-            document.getElementById('header-delivery-note').textContent = deliveryNote || 'Order on WhatsApp - We deliver to your doorstep';
+                const result = await response.json();
+                console.log('✅ Store settings saved successfully:', result);
 
-            showNotification('✅ Store details saved successfully!');
+                // Update display with the saved values
+                document.getElementById('display-store-name').textContent = result.settings.store_name;
+                document.getElementById('display-store-subtitle').textContent = result.settings.store_subtitle;
+                document.getElementById('display-store-location').textContent = result.settings.store_location;
+                document.getElementById('display-store-contact').textContent = result.settings.store_contact;
+                document.getElementById('display-delivery-note').textContent = result.settings.delivery_note;
 
-            // Hide edit form, show display
-            document.getElementById('store-details-display').classList.remove('hidden');
-            document.getElementById('store-details-form').classList.add('hidden');
+                // Also update header logo
+                document.getElementById('header-store-name').textContent = result.settings.store_name;
+                document.getElementById('header-store-subtitle').textContent = result.settings.store_subtitle;
+                document.getElementById('header-store-location').textContent = result.settings.store_location;
+                document.getElementById('header-store-contact').textContent = result.settings.store_contact;
+                document.getElementById('header-delivery-note').textContent = result.settings.delivery_note;
+
+                showNotification('✅ Store details saved successfully!');
+
+                // Hide edit form, show display
+                document.getElementById('store-details-display').classList.remove('hidden');
+                document.getElementById('store-details-form').classList.add('hidden');
+
+            } catch (error) {
+                console.error('❌ Error saving store settings:', error);
+                showNotification(`❌ Failed to save store settings: ${error.message}`);
+            }
         }
 
         function showCreateUserForm() {

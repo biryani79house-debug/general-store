@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from main import Base, User, Product, Category
+from main import Base, User, Product, Category, StoreSettings
 from sqlalchemy import text
 import bcrypt
 
