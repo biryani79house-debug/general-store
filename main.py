@@ -447,7 +447,7 @@ async def lifespan(app: FastAPI):
                     # Create default admin user if no users exist
                     user_count = db.query(User).count()
                     if user_count == 0:
-                        default_password = "admin123"
+                        default_password = "123456"
                         hashed_password = bcrypt.hashpw(default_password.encode('utf-8'), bcrypt.gensalt())
 
                         default_admin = User(
