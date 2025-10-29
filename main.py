@@ -734,7 +734,7 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
             try:
                 # Calculate total purchases for this product
                 purchase_total_result = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
-                total_purchases = int(purchase_total_result or 0)
+                total_purchases = int(product.unit_quantity)
 
                 # Calculate stock value safely
                 purchase_price = float(product.purchase_price)
