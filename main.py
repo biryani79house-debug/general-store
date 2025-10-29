@@ -2111,6 +2111,73 @@ async def incoming_sms(request: Request):
         resp.message("Sorry, something went wrong. Please try again later.")
         return JSONResponse(content=str(resp), media_type="text/xml")
 
+# Create the database tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
+# Store Settings table
+class StoreSettings(Base):
+    """Store settings for persistent configuration"""
+    __tablename__ = "store_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    store_name = Column(String, default="Raza Wholesale and Retail")
+    store_subtitle = Column(String, default="Kirana Store")
+    store_location = Column(String, default="Tolichowki, Hyderabad")
+    store_contact = Column(String, default="+91 7075210801")
+    delivery_note = Column(String, default="Order on WhatsApp - We deliver to your doorstep")
+    created_at = Column(DateTime, default=lambda: datetime.now(IST))
+    updated_at = Column(DateTime, default=lambda: datetime.now(IST), onupdate=lambda: datetime.now(IST))
+
+# Create an API endpoint to get store settings
+@app.get("/store-settings")
+def get_store_settings(db: Session = Depends(get_db)):
+    """Get store settings from database"""
+    settings = db.query(StoreSettings).first()
+    if not settings:
+        # Create default settings if none exist
+        settings = StoreSettings()
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    return {
+        "store_name": settings.store_name,
+        "store_subtitle": settings.store_subtitle,
+        "store_location": settings.store_location,
+        "store_contact": settings.store_contact,
+        "delivery_note": settings.delivery_note
+    }
+
+# Create an API endpoint to update store settings
+@app.put("/store-settings")
+def update_store_settings(
+    settings_data: Dict[str, str],
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """Update store settings in database"""
+    check_permission(Permission.USER_MANAGEMENT, db, username)
+
+    settings = db.query(StoreSettings).first()
+    if not settings:
+        settings = StoreSettings()
+
+    # Update settings
+    settings.store_name = settings_data.get('store_name', settings.store_name or "Raza Wholesale and Retail")
+    settings.store_subtitle = settings_data.get('store_subtitle', settings.store_subtitle or "Kirana Store")
+    settings.store_location = settings_data.get('store_location', settings.store_location or "Tolichowki, Hyderabad")
+    settings.store_contact = settings_data.get('store_contact', settings.store_contact or "+91 7075210801")
+    settings.delivery_note = settings_data.get('delivery_note', settings.delivery_note or "Order on WhatsApp - We deliver to your doorstep")
+
+    try:
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+        return {"message": "Store settings updated successfully", "settings": get_store_settings(db)}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update store settings: {str(e)}")
+
 # === SEEDING ENDPOINT FOR DEMO ===
 @app.post("/seed")
 async def seed_products(db: Session = Depends(get_db)):
@@ -2167,7 +2234,14 @@ async def seed_products(db: Session = Depends(get_db)):
         db.add_all(sample_products)
         db.commit()
 
-        return {"message": f"Seeded database with {len(sample_products)} products and {len(categories)} categories."}
+        # Create default store settings if not exist
+        settings_count = db.query(StoreSettings).count()
+        if settings_count == 0:
+            default_settings = StoreSettings()
+            db.add(default_settings)
+            db.commit()
+
+        return {"message": f"Seeded database with {len(sample_products)} products, {len(categories)} categories, and store settings."}
 
     except Exception as e:
         db.rollback()
