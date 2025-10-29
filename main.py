@@ -731,8 +731,6 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
             # Pre-calculate stock value using purchase price
             stock_value = opening_stock_quantity * product.purchase_price
 
-            print(f"Product {product.name}: quantity={opening_stock_quantity}, stock_value={stock_value}")
-
             opening_stock_data.append({
                 "id": product.id,
                 "name": product.name,
@@ -740,8 +738,7 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
                 "selling_price": float(product.selling_price),
                 "unit_type": product.unit_type,
                 "quantity": opening_stock_quantity,
-                "stock_value": float(stock_value),
-                "created_at": product.created_at
+                "stock_value": float(stock_value)
             })
 
         print(f"📊 Generated opening stock register for {len(opening_stock_data)} products")
