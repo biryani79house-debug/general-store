@@ -719,10 +719,11 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
 
         opening_stock_data = []
 
-        # Show opening stock for CURRENT products using initial stock (immutable)
+        # Show opening stock for CURRENT products using quantity from purchase register
         for product in products:
-            # Get initial stock as opening stock quantity
-            opening_stock_quantity = product.initial_stock  # Use initial stock, not current
+            # Get total quantity from purchase register for this product
+            total_purchase_quantity = db.query(db.func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar() or 0
+            opening_stock_quantity = total_purchase_quantity
 
             # Pre-calculate stock value using purchase price
             stock_value = opening_stock_quantity * product.purchase_price
