@@ -300,7 +300,7 @@
 
                 products = await response.json();
                 if (products.length === 0) {
-                    loadMockProducts();
+                    productListEl.innerHTML = '<p class="text-center text-gray-500">No products available in database</p>';
                 } else {
                     showCartButton();
                     renderProducts();
@@ -308,7 +308,7 @@
 
             } catch (error) {
                 console.error("Fetch error:", error);
-                loadMockProducts();
+                productListEl.innerHTML = '<p class="text-center text-gray-500">Unable to load products from database</p>';
             }
         }
 
