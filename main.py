@@ -167,7 +167,7 @@ class Purchase(Base):
     quantity = Column(Integer, nullable=False)
     total_cost = Column(Float, nullable=False)
     purchase_date = Column(DateTime, default=lambda: datetime.now(IST))
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
