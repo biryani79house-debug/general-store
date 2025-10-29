@@ -736,7 +736,7 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
                 "purchase_price": product.purchase_price,
                 "selling_price": product.selling_price,
                 "unit_type": product.unit_type,
-            "quantity": opening_stock_quantity,  # Use initial stock for opening register
+                "quantity": opening_stock_quantity,
                 "stock_value": stock_value,
                 "created_at": product.created_at
             })
