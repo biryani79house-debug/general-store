@@ -12,12 +12,12 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "index.html"
+      "src": "/customer",
+      "dest": "/customer.html"
     },
     {
-      "src": "/customer/(.*)",
-      "dest": "customer.html"
+      "src": "/(.*)",
+      "dest": "index.html"
     }
   ],
   "regions": ["sin1"]
