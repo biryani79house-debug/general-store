@@ -421,8 +421,8 @@ async def lifespan(app: FastAPI):
                 db.add_all(sample_products)
                 db.commit()
                 print("✅ Sample products added to database.")
-                else:
-                    print(f"Database already contains {product_count} products.")
+            else:
+                print(f"Database already contains {product_count} products.")
 
         except Exception as column_error:
             print(f"⚠️ Schema mismatch detected: {column_error}")
