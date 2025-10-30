@@ -513,8 +513,8 @@
                 return;
             }
 
-            // Open WhatsApp immediately to avoid popup blocker
-            const whatsappUrl = `https://wa.me/${customerPhone}`;
+            // Open WhatsApp to shopkeeper's number for customer to send order
+            const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}`;
             const whatsappWindow = window.open(whatsappUrl, '_blank');
 
             // Disable button to prevent double submission
