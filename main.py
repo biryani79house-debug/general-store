@@ -26,6 +26,8 @@ SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 # Load environment variables from .env file for local development
 load_dotenv()
 
+
+
 # Use SQLite for local development, PostgreSQL for production
 USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
 
@@ -1220,13 +1222,32 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     response_message = (
         f"Thank you, {order_request.customer_name}! Your order for {', '.join(items_sold)} "
         f"has been placed. Your total bill is Rs. {total_bill:.2f}. "
-        "We will notify you once the payment is confirmed and the delivery is on its way."
+        "Please make the payment to proceed with your order. "
+        "We will deliver once payment is confirmed."
     )
-    
+
+    # Message to send to customer via WhatsApp
+    whatsapp_message = (
+        f"🙏 Thanks {order_request.customer_name} for your order!\n\n"
+        f"📦 Items ordered: {', '.join(items_sold)}\n"
+        f"💰 Total bill: Rs. {total_bill:.2f}\n\n"
+        f"💳 Please make the payment to confirm your order.\n"
+        f"🚚 We will deliver once payment is received.\n\n"
+        f"Thank you for shopping with us! 🏪"
+    )
+
     print(f"Online order received from {order_request.customer_name} ({order_request.phone_number}). "
           f"Total bill: Rs. {total_bill:.2f}")
+    print(f"📱 WhatsApp message to send to {order_request.phone_number}:")
+    print(whatsapp_message)
 
-    return {"status": "success", "message": response_message, "total_bill": total_bill}
+    return {
+        "status": "success",
+        "message": response_message,
+        "total_bill": total_bill,
+        "customer_number": order_request.phone_number,
+        "whatsapp_message": whatsapp_message
+    }
 
 # --- Dummy product data for SMS handler ---
 PRODUCTS_DB = {
