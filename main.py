@@ -26,6 +26,8 @@ SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 # Load environment variables from .env file for local development
 load_dotenv()
 
+# WhatsApp messaging is handled manually - messages are provided for copying and sending
+
 
 
 # Use SQLite for local development, PostgreSQL for production
