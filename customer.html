@@ -513,8 +513,45 @@
                 return;
             }
 
-            // Open WhatsApp to shopkeeper's number for customer to send order
-            const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}`;
+            // Create WhatsApp message to send to shopkeeper
+            let whatsappMessage = `*NEW CUSTOMER ORDER*\n\n`;
+            whatsappMessage += `👤 Customer: ${customerName}\n`;
+            whatsappMessage += `📞 Phone: ${customerPhone}\n`;
+
+            if (customerAddress) {
+                whatsappMessage += `🏠 Address: ${customerAddress}\n`;
+            }
+
+            whatsappMessage += `\n📦 ORDER DETAILS:\n`;
+            whatsappMessage += `─`.repeat(20) + `\n`;
+
+            for (const item of orderItems) {
+                const product = products.find(p => {
+                    for (const productId in cart) {
+                        if (products.find(pr => pr.id === parseInt(productId))?.name === item.product_name) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                const quantity = cart[Object.keys(cart).find(pid => products.find(p => p.id === parseInt(pid))?.name === item.product_name)];
+                const unitType = product?.unit_type || 'pcs';
+                whatsappMessage += `${item.product_name} - ${quantity} ${unitType} × ₹${product.selling_price.toFixed(2)} = ₹${(item.quantity * product.selling_price).toFixed(2)}\n`;
+            }
+
+            whatsappMessage += `─`.repeat(20) + `\n`;
+            whatsappMessage += `*TOTAL: ₹${total.toFixed(2)}*\n\n`;
+
+            if (customerNotes) {
+                whatsappMessage += `*NOTES:* ${customerNotes}\n\n`;
+            }
+
+            whatsappMessage += `✅ Please confirm and process this order.\n`;
+            whatsappMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+            whatsappMessage += `🏪 Raza Wholesale and Retail Store`;
+
+            // Open WhatsApp to shopkeeper's number with pre-filled message
+            const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
             const whatsappWindow = window.open(whatsappUrl, '_blank');
 
             // Disable button to prevent double submission
