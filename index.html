@@ -4489,17 +4489,22 @@ function backToHome() {
                 if (loginStoreTitle) loginStoreTitle.textContent = `🛒 ${settings.store_name}`;
                 if (loginStoreSub) loginStoreSub.textContent = settings.store_subtitle;
 
-                // Update header display (always available when user logged in)
+                // Update header display immediately when settings load
                 const headerStoreName = document.getElementById('header-store-name');
                 const headerStoreSubtitle = document.getElementById('header-store-subtitle');
                 const headerStoreLocation = document.getElementById('header-store-location');
-                const headerStoreContact = document.getElementById('header-store-contact');
+                const headerStoreContactDisplay = document.getElementById('header-store-contact-display');
                 const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                console.log('🔄 Updating header elements immediately with settings:', settings);
 
                 if (headerStoreName) headerStoreName.textContent = settings.store_name;
                 if (headerStoreSubtitle) headerStoreSubtitle.textContent = settings.store_subtitle;
                 if (headerStoreLocation) headerStoreLocation.textContent = settings.store_location;
-                if (headerStoreContact) headerStoreContact.textContent = settings.store_contact;
+                if (headerStoreContactDisplay) {
+                    console.log('✅ Setting header contact to:', settings.store_contact);
+                    headerStoreContactDisplay.textContent = settings.store_contact;
+                }
                 if (headerDeliveryNote) headerDeliveryNote.textContent = settings.delivery_note;
 
             } catch (error) {
@@ -5320,11 +5325,33 @@ function backToHome() {
                 // Additional header update for authenticated users
                 if (isAuthenticated) {
                     console.log('👤 Updating header for authenticated user');
+                    console.log('📊 Current settings available:', !!window.currentSettings);
+
                     const headerStoreContact = document.getElementById('header-store-contact-display');
                     const headerDeliveryNote = document.getElementById('header-delivery-note');
+
+                    console.log('🎯 Header contact element found:', !!headerStoreContact);
+                    console.log('🎯 Header delivery element found:', !!headerDeliveryNote);
+
                     if (window.currentSettings) {
-                        if (headerStoreContact) headerStoreContact.textContent = window.currentSettings.store_contact;
-                        if (headerDeliveryNote) headerDeliveryNote.textContent = window.currentSettings.delivery_note;
+                        console.log('📋 Current settings data:', window.currentSettings);
+                        console.log('📋 Store contact value:', window.currentSettings.store_contact);
+
+                        if (headerStoreContact) {
+                            console.log('✅ Setting contact to:', window.currentSettings.store_contact);
+                            headerStoreContact.textContent = window.currentSettings.store_contact;
+                        } else {
+                            console.log('❌ Header contact element not found');
+                        }
+
+                        if (headerDeliveryNote) {
+                            console.log('✅ Setting delivery note to:', window.currentSettings.delivery_note);
+                            headerDeliveryNote.textContent = window.currentSettings.delivery_note;
+                        } else {
+                            console.log('❌ Header delivery element not found');
+                        }
+                    } else {
+                        console.log('❌ window.currentSettings is not available');
                     }
                 }
 
