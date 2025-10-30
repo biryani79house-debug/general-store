@@ -1257,20 +1257,18 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         f"🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
     )
 
-    # Automatic response message for WhatsApp
-    print(f"Online order received from {order_request.customer_name} ({order_request.phone_number}). "
-          f"Total bill: Rs. {total_bill:.2f}")
-    print(f"📱 Automatic response message to send to customer:")
+    # Automatic response message content for customer
+    print(f"📱 Customer order processed - Generated WhatsApp response message:")
     print(whatsapp_message)
 
     return {
         "status": "success",
-        "message": response_message,
+        "message": f"Thank you {order_request.customer_name}, your order has been received!",
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
         "whatsapp_message": whatsapp_message,
-        "whatsapp_sent": False,  # Not actually sent through API
-        "error": "WhatsApp sending disabled"
+        "whatsapp_sent": False,
+        "error": "Message generated but not sent"
     }
 
 # --- Dummy product data for SMS handler ---
