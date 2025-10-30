@@ -542,6 +542,10 @@
                     }
                     console.log('Order processed:', result);
 
+                    // Open WhatsApp with automatic confirmation message
+                    const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(result.whatsapp_message)}`;
+                    window.open(whatsappUrl, '_blank');
+
                     // Reset cart and close modal
                     cart = {};
                     updateCartUI();
