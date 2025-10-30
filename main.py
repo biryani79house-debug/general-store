@@ -16,6 +16,7 @@ import jwt
 import bcrypt
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -26,7 +27,22 @@ SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 # Load environment variables from .env file for local development
 load_dotenv()
 
-# WhatsApp messaging is handled manually - messages are provided for copying and sending
+# Twilio configuration for WhatsApp
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+
+# Initialize Twilio client if credentials are provided
+twilio_client = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+    try:
+        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        print("✅ Twilio client initialized for WhatsApp messaging")
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Twilio client: {e}")
+        twilio_client = None
+else:
+    print("⚠️ Twilio credentials not found. WhatsApp messaging will not work.")
 
 
 
@@ -1194,22 +1210,22 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
 # --- API Endpoint for WhatsApp Orders ---
 @app.post("/whatsapp-order/", status_code=status.HTTP_200_OK)
 def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = Depends(get_db)):
-    """Simulates receiving an order from a WhatsApp webhook."""
+    """Processes order and sends WhatsApp confirmation message."""
     total_bill = 0
     items_sold = []
-    
+
     for item in order_request.items:
         product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
         if not product:
             return {"status": "error", "message": f"Product '{item.product_name}' not found."}
-        
+
         if product.stock < item.quantity:
             return {"status": "error", "message": f"Insufficient stock for '{item.product_name}'."}
 
         item_total = product.selling_price * item.quantity
         total_bill += item_total
         product.stock -= item.quantity
-        
+
         db_sale = Sale(
             product_id=product.id,
             quantity=item.quantity,
@@ -1218,9 +1234,9 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         )
         db.add(db_sale)
         items_sold.append(item.product_name)
-    
+
     db.commit()
-    
+
     response_message = (
         f"Thank you, {order_request.customer_name}! Your order for {', '.join(items_sold)} "
         f"has been placed. Your total bill is Rs. {total_bill:.2f}. "
@@ -1241,6 +1257,32 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         f"🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
     )
 
+    # Send WhatsApp message using Twilio
+    whatsapp_sent = False
+    error_message = None
+
+    if twilio_client and TWILIO_WHATSAPP_NUMBER:
+        try:
+            # Format phone number with whatsapp: prefix
+            formatted_number = f"whatsapp:{order_request.phone_number}"
+            from_whatsapp = f"whatsapp:{TWILIO_WHATSAPP_NUMBER}"
+
+            message = twilio_client.messages.create(
+                body=whatsapp_message,
+                from_=from_whatsapp,
+                to=formatted_number
+            )
+            print(f"✅ WhatsApp message sent successfully to {order_request.phone_number}. Message SID: {message.sid}")
+            whatsapp_sent = True
+        except Exception as e:
+            print(f"❌ Failed to send WhatsApp message: {str(e)}")
+            error_message = f"WhatsApp delivery failed: {str(e)}"
+            whatsapp_sent = False
+    else:
+        print("⚠️ Twilio not configured or unavailable. WhatsApp message not sent.")
+        error_message = "WhatsApp service not configured"
+        whatsapp_sent = False
+
     print(f"Online order received from {order_request.customer_name} ({order_request.phone_number}). "
           f"Total bill: Rs. {total_bill:.2f}")
     print(f"📱 WhatsApp message to send to {order_request.phone_number}:")
@@ -1251,7 +1293,9 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "message": response_message,
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
-        "whatsapp_message": whatsapp_message
+        "whatsapp_message": whatsapp_message,
+        "whatsapp_sent": whatsapp_sent,
+        "error": error_message
     }
 
 # --- Dummy product data for SMS handler ---
