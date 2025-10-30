@@ -525,18 +525,16 @@
             whatsappMessage += `\n📦 ORDER DETAILS:\n`;
             whatsappMessage += `─`.repeat(20) + `\n`;
 
-            for (const item of orderItems) {
-                const product = products.find(p => {
-                    for (const productId in cart) {
-                        if (products.find(pr => pr.id === parseInt(productId))?.name === item.product_name) {
-                            return true;
-                        }
+            for (const productId in cart) {
+                if (cart[productId] > 0) {
+                    const product = products.find(p => p.id === parseInt(productId));
+                    if (product) {
+                        const quantity = cart[productId];
+                        const unitType = product.unit_type || 'pcs';
+                        const itemTotal = quantity * product.selling_price;
+                        whatsappMessage += `${product.name} - ${quantity} ${unitType} × ₹${product.selling_price.toFixed(2)} = ₹${itemTotal.toFixed(2)}\n`;
                     }
-                    return false;
-                });
-                const quantity = cart[Object.keys(cart).find(pid => products.find(p => p.id === parseInt(pid))?.name === item.product_name)];
-                const unitType = product?.unit_type || 'pcs';
-                whatsappMessage += `${item.product_name} - ${quantity} ${unitType} × ₹${product.selling_price.toFixed(2)} = ₹${(item.quantity * product.selling_price).toFixed(2)}\n`;
+                }
             }
 
             whatsappMessage += `─`.repeat(20) + `\n`;
@@ -552,7 +550,7 @@
 
             // Open WhatsApp to shopkeeper's number with pre-filled message
             const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
-            //const whatsappWindow = window.open(whatsappUrl, '_blank');
+            const whatsappWindow = window.open(whatsappUrl, '_blank');
 
             // Disable button to prevent double submission
             whatsappCheckoutButton.disabled = true;
