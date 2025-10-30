@@ -27,25 +27,6 @@ SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-product
 # Load environment variables from .env file for local development
 load_dotenv()
 
-# Twilio configuration for WhatsApp
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
-
-# Initialize Twilio client if credentials are provided
-twilio_client = None
-if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
-    try:
-        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        print("✅ Twilio client initialized for WhatsApp messaging")
-    except Exception as e:
-        print(f"⚠️ Failed to initialize Twilio client: {e}")
-        twilio_client = None
-else:
-    print("⚠️ Twilio credentials not found. WhatsApp messaging will not work.")
-
-
-
 # Use SQLite for local development, PostgreSQL for production
 USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
 
