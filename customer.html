@@ -552,7 +552,7 @@
 
             // Open WhatsApp to shopkeeper's number with pre-filled message
             const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`;
-            const whatsappWindow = window.open(whatsappUrl, '_blank');
+            //const whatsappWindow = window.open(whatsappUrl, '_blank');
 
             // Disable button to prevent double submission
             whatsappCheckoutButton.disabled = true;
