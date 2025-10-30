@@ -1226,14 +1226,17 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "We will deliver once payment is confirmed."
     )
 
-    # Message to send to customer via WhatsApp
+    # Message to send to customer via WhatsApp (formatted exactly as requested)
     whatsapp_message = (
-        f"🙏 Thanks {order_request.customer_name} for your order!\n\n"
-        f"📦 Items ordered: {', '.join(items_sold)}\n"
-        f"💰 Total bill: Rs. {total_bill:.2f}\n\n"
-        f"💳 Please make the payment to confirm your order.\n"
-        f"🚚 We will deliver once payment is received.\n\n"
-        f"Thank you for shopping with us! 🏪"
+        f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
+        f"📦 *Order Received:*\n"
+        f"{chr(8226)} {', '.join(f'{item.quantity}x {item.product_name}' for item in order_request.items)}\n\n"
+        f"💰 *Total Amount: ₹{total_bill:.2f}*\n\n"
+        f"📱 *Scan the QR code above with Google Pay or PhonePe*\n\n"
+        f"👤 Customer: {order_request.customer_name}\n"
+        f"📞 Phone: {order_request.phone_number}\n\n"
+        f"✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
+        f"🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
     )
 
     print(f"Online order received from {order_request.customer_name} ({order_request.phone_number}). "
