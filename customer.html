@@ -491,72 +491,79 @@
                 return;
             }
 
-            let message = `*NEW CUSTOMER ORDER*\n\n`;
-            message += `👤 Customer: ${customerName}\n`;
-            message += `📞 Phone: ${customerPhone}\n`;
-
-            if (customerAddress) {
-                message += `🏠 Address: ${customerAddress}\n`;
-            }
-
-            message += `\n📦 ORDER DETAILS:\n`;
-            message += `─`.repeat(20) + `\n`;
-
+            // Prepare order items for the API
+            const orderItems = [];
             let total = 0;
-            const saleItems = [];
 
             for (const productId in cart) {
                 if (cart[productId] > 0) {
                     const product = products.find(p => p.id === parseInt(productId));
                     if (product) {
-                        const quantity = cart[productId];
-                        const itemTotal = quantity * product.price;
-                        total += itemTotal;
-
-                        message += `${product.name} - ${quantity} ${product.unit_type || 'pcs'} × ₹${product.price.toFixed(2)} = ₹${itemTotal.toFixed(2)}\n`;
-
-                        saleItems.push({
-                            product_id: product.id,
+                        orderItems.push({
                             product_name: product.name,
-                            quantity: quantity,
-                            price: product.price,
-                            total: itemTotal
+                            quantity: cart[productId]
                         });
+                        total += cart[productId] * product.price;
                     }
                 }
             }
 
-            message += `─`.repeat(20) + `\n`;
-            message += `*TOTAL: ₹${total.toFixed(2)}*\n\n`;
-
-            if (customerNotes) {
-                message += `*NOTES:* ${customerNotes}\n\n`;
+            if (orderItems.length === 0) {
+                showNotification('❌ No items in cart!');
+                return;
             }
 
-            message += `✅ Please confirm and process this order.\n`;
-            message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            message += `🏪 Raza Wholesale and Retail Store`;
+            // Disable button to prevent double submission
+            whatsappCheckoutButton.disabled = true;
+            whatsappCheckoutButton.textContent = '⏳ Processing Order...';
 
-            // Record the sale in the backend
-            recordSale(saleItems, customerName, customerPhone).then(() => {
-                showNotification('🎉 Order sent successfully! Our team will contact you soon.');
-            }).catch(error => {
-                console.warn('Sale recording failed, but continuing to WhatsApp:', error);
-                showNotification('📱 Order sent to WhatsApp (backend recording failed)');
-            });
+            try {
+                // Call the backend API to process order and send automatic WhatsApp response
+                const response = await fetch(`${backendURL}/whatsapp-order/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify({
+                        customer_name: customerName,
+                        phone_number: '+91' + customerPhone, // Add country code
+                        items: orderItems
+                    })
+                });
 
-            // Open WhatsApp
-            const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
+                const result = await response.json();
 
-            // Reset cart and close modal
-            cart = {};
-            updateCartUI();
-            cartModal.classList.add('hidden');
-            cartModal.classList.remove('flex');
+                if (result.status === 'success') {
+                    if (result.whatsapp_sent) {
+                        showNotification('🎉 Order placed successfully! Check your WhatsApp for confirmation.');
+                    } else {
+                        showNotification('📝 Order processed! WhatsApp message ready to send manually.');
+                    }
+                    console.log('Order processed:', result);
 
-            // Reset form
-            document.getElementById('customer-form').reset();
+                    // Reset cart and close modal
+                    cart = {};
+                    updateCartUI();
+                    cartModal.classList.add('hidden');
+                    cartModal.classList.remove('flex');
+
+                    // Reset form
+                    document.getElementById('customer-form').reset();
+
+                } else {
+                    showNotification(`❌ Order failed: ${result.message}`);
+                    console.error('Order error:', result);
+                }
+
+            } catch (error) {
+                console.error('Order submission error:', error);
+                showNotification('❌ Failed to place order. Please try again.');
+            } finally {
+                // Re-enable button
+                whatsappCheckoutButton.disabled = false;
+                whatsappCheckoutButton.textContent = '📱 Place Order on WhatsApp';
+            }
         }
 
         async function recordSale(saleItems, customerName, customerPhone) {
