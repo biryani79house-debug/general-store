@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kirana Store</title>
+    <title id="page-title">Kirana Store</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -185,11 +185,11 @@
             <div class="flex items-center">
                 <div class="logo-container top-0">
                     <div class="text-center bg-blue-500 glass-effect rounded-2xl p-1 text-white">
-                        <h1 id="header-store-name" class="text-xl font-bold mb-1">Raza Wholesale and Retail</h1>
-                        <p id="header-store-subtitle" class="text-blue-100 mb-0">Kirana Store</p>
-                        <p id="header-store-location" class="text-blue-100 text-sm mb-0">Tolichowki, Hyderabad</p>
-                        <p id="header-store-contact-display" class="text-blue-100 text-sm mb-0">Contact: +91 7075210801</p>
-                        <p id="header-delivery-note" class="text-blue-100 text-sm mb-0">Order on WhatsApp - We deliver to your doorstep</p>
+                        <h1 id="header-store-name" class="text-xl font-bold mb-1">Store Name</h1>
+                        <p id="header-store-subtitle" class="text-blue-100 mb-0">Loading...</p>
+                        <p id="header-store-location" class="text-blue-100 text-sm mb-0">Loading...</p>
+                        <p id="header-store-contact-display" class="text-blue-100 text-sm mb-0">Loading...</p>
+                        <p id="header-delivery-note" class="text-blue-100 text-sm mb-0">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -212,8 +212,8 @@
         <main class="w-full max-w-md mx-auto p-4 flex items-center justify-center min-h-screen">
             <div class="bg-white rounded-lg shadow-xl p-8 w-full">
                 <div class="text-center mb-8">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">🛒 Kirana Store</h1>
-                    <p class="text-gray-600">Raza Wholesale and Retail</p>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2" id="login-store-title">🛒 Loading...</h1>
+                    <p class="text-gray-600" id="login-store-sub">Loading...</p>
                     <p class="text-sm text-gray-500">Please sign in to continue</p>
                 </div>
 
@@ -4475,11 +4475,19 @@ function backToHome() {
                 const displayStoreContact = document.getElementById('display-store-contact');
                 const displayDeliveryNote = document.getElementById('display-delivery-note');
 
+                // Update settings display page
                 if (displayStoreName) displayStoreName.textContent = settings.store_name;
                 if (displayStoreSubtitle) displayStoreSubtitle.textContent = settings.store_subtitle;
                 if (displayStoreLocation) displayStoreLocation.textContent = settings.store_location;
                 if (displayStoreContact) displayStoreContact.textContent = settings.store_contact;
                 if (displayDeliveryNote) displayDeliveryNote.textContent = settings.delivery_note;
+
+                // Update login page store title (always shown on login)
+                const loginStoreTitle = document.getElementById('login-store-title');
+                const loginStoreSub = document.getElementById('login-store-sub');
+
+                if (loginStoreTitle) loginStoreTitle.textContent = `🛒 ${settings.store_name}`;
+                if (loginStoreSub) loginStoreSub.textContent = settings.store_subtitle;
 
                 // Update header display (always available when user logged in)
                 const headerStoreName = document.getElementById('header-store-name');
@@ -5293,7 +5301,7 @@ function backToHome() {
                 console.log('🔄 Setting up event listeners...');
                 setupEventListeners();
 
-                // Check authentication before showing any content
+            // Check authentication before showing any content
                 console.log('🔐 Checking existing authentication...');
                 const isAuthenticated = await checkExistingAuthentication();
 
@@ -5305,14 +5313,26 @@ function backToHome() {
                 console.log('📄 Login page element:', loginPage);
                 console.log('📄 Home page element:', homePage);
 
+                // Load store details for display regardless of auth status
+                // (login page for everyone, header after authentication)
+                await loadStoreDetails();
+
+                // Additional header update for authenticated users
+                if (isAuthenticated) {
+                    console.log('👤 Updating header for authenticated user');
+                    const headerStoreContact = document.getElementById('header-store-contact-display');
+                    const headerDeliveryNote = document.getElementById('header-delivery-note');
+                    if (window.currentSettings) {
+                        if (headerStoreContact) headerStoreContact.textContent = window.currentSettings.store_contact;
+                        if (headerDeliveryNote) headerDeliveryNote.textContent = window.currentSettings.delivery_note;
+                    }
+                }
+
                 if (isAuthenticated) {
                     // User is authenticated - show main app
                     console.log('👤 Showing authenticated main page');
                     if (loginPage) loginPage.classList.remove('active');
                     if (homePage) homePage.classList.add('active');
-
-                    // Load store details for header display (call after DOM is ready)
-                    loadStoreDetails();
 
                     // Start session tracking for authenticated users
                     startSessionTracking();
