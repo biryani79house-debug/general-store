@@ -47,6 +47,22 @@ else:
 # Initialize the HTTPBearer instance
 security = HTTPBearer()
 
+# Initialize Twilio client for WhatsApp messaging
+try:
+    twilio_client = TwilioClient(
+        account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
+        auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
+    )
+    TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER')
+    if twilio_client and TWILIO_WHATSAPP_NUMBER:
+        print("✅ Twilio WhatsApp client initialized successfully")
+    else:
+        print("⚠️ Twilio WhatsApp credentials not configured")
+        twilio_client = None
+except Exception as e:
+    print(f"❌ Failed to initialize Twilio client: {str(e)}")
+    twilio_client = None
+
 # Create a SQLAlchemy engine
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -1238,9 +1254,32 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         f"🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
     )
 
-    # Automatic response message content for customer
-    print(f"📱 Customer order processed - Generated WhatsApp response message:")
-    print(whatsapp_message)
+    # Send automatic WhatsApp response message to customer using Twilio
+    whatsapp_sent = False
+    error_message = None
+
+    # Try to send WhatsApp message if Twilio is configured
+    if twilio_client and TWILIO_WHATSAPP_NUMBER:
+        try:
+            # Format phone number with whatsapp: prefix
+            formatted_number = f"whatsapp:{order_request.phone_number}"
+            from_whatsapp = f"whatsapp:{TWILIO_WHATSAPP_NUMBER}"
+
+            message = twilio_client.messages.create(
+                body=whatsapp_message,
+                from_=from_whatsapp,
+                to=formatted_number
+            )
+            print(f"✅ WhatsApp message sent successfully to {order_request.phone_number}. Message SID: {message.sid}")
+            whatsapp_sent = True
+        except Exception as e:
+            print(f"❌ Failed to send WhatsApp message: {str(e)}")
+            error_message = f"WhatsApp delivery failed: {str(e)}"
+            whatsapp_sent = False
+    else:
+        print("⚠️ Twilio WhatsApp not configured - message logged but not sent")
+        error_message = "WhatsApp service not configured"
+        whatsapp_sent = False
 
     return {
         "status": "success",
@@ -1248,8 +1287,8 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
         "whatsapp_message": whatsapp_message,
-        "whatsapp_sent": False,
-        "error": "Message generated but not sent"
+        "whatsapp_sent": whatsapp_sent,
+        "error": error_message if not whatsapp_sent else None
     }
 
 # --- Dummy product data for SMS handler ---
