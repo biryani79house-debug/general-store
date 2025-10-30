@@ -513,6 +513,10 @@
                 return;
             }
 
+            // Open WhatsApp immediately to avoid popup blocker
+            const whatsappUrl = `https://wa.me/${customerPhone}`;
+            const whatsappWindow = window.open(whatsappUrl, '_blank');
+
             // Disable button to prevent double submission
             whatsappCheckoutButton.disabled = true;
             whatsappCheckoutButton.textContent = '⏳ Processing Order...';
@@ -535,16 +539,14 @@
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    if (result.whatsapp_sent) {
-                        showNotification('🎉 Order placed successfully! Check your WhatsApp for confirmation.');
-                    } else {
-                        showNotification('📝 Order processed! WhatsApp message ready to send manually.');
-                    }
                     console.log('Order processed:', result);
 
-                    // Open WhatsApp with automatic confirmation message
-                    const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(result.whatsapp_message)}`;
-                    window.open(whatsappUrl, '_blank');
+                    // Show success notification
+                    if (result.whatsapp_sent) {
+                        showNotification('🎉 Order placed successfully! WhatsApp opened - check your messages.');
+                    } else {
+                        showNotification('📝 Order processed! WhatsApp message sent automatically.');
+                    }
 
                     // Reset cart and close modal
                     cart = {};
