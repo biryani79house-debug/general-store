@@ -1003,3 +1003,14 @@
 2025-10-31 16:10:46,843 - INFO - 1 change detected
 2025-10-31 16:10:47,201 - INFO - 1 change detected
 2025-10-31 16:10:47,607 - INFO - 1 change detected
+2025-10-31 16:56:21,274 - INFO - ====== WebDriver manager ======
+2025-10-31 16:56:21,936 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 16:56:22,268 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 16:56:22,549 - INFO - There is no [win64] chromedriver "141.0.7390.122" for browser google-chrome "141.0.7390" in cache
+2025-10-31 16:56:22,550 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 16:56:23,273 - INFO - WebDriver version 141.0.7390.122 selected
+2025-10-31 16:56:23,280 - INFO - Modern chrome version https://storage.googleapis.com/chrome-for-testing-public/141.0.7390.122/win32/chromedriver-win32.zip
+2025-10-31 16:56:23,280 - INFO - About to download new driver from https://storage.googleapis.com/chrome-for-testing-public/141.0.7390.122/win32/chromedriver-win32.zip
+2025-10-31 16:56:23,547 - INFO - Driver downloading response is 200
+2025-10-31 16:56:24,385 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 16:56:24,820 - INFO - Driver has been saved in cache [C:\Users\mohd_\.wdm\drivers\chromedriver\win64\141.0.7390.122]

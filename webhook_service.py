@@ -99,14 +99,19 @@ def send_whatsapp_message(phone_number: str, message: str) -> bool:
     def send_message_thread():
         driver = None
         try:
-            # Set up Chrome options for headless operation
+            # Set up Chrome options - try without headless first
             chrome_options = Options()
-            chrome_options.add_argument("--headless")  # Run in background
+            # chrome_options.add_argument("--headless=new")  # Temporarily disable headless
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--user-data-dir=./chrome_profile")  # Persistent profile
+            chrome_options.add_argument("--user-data-dir=./chrome_profile")
+            chrome_options.add_argument("--start-minimized")  # Minimize window
+            chrome_options.add_argument("--disable-extensions")
+            chrome_options.add_argument("--disable-plugins")
+            chrome_options.add_argument("--disable-plugins-discovery")
+            # Keep JavaScript and images enabled for WhatsApp Web
 
             # Initialize WebDriver
             service = Service(ChromeDriverManager().install())
