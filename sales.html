@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raza Wholesale and Retail - Online Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Inter", sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(rgba(132, 206, 248, 0.85), rgba(172, 124, 20, 0.438));
+            background-size: cover;
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(236, 49, 49, 0.842);
+            backdrop-filter: blur(10px);
+        }
+        .card-hover:hover { transform: translateY(-2px); }
+        .pulse-cart { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="w-full bg-green-500 shadow-sm p-1 sticky top-0 z-10">
+        <div class="max-w-2xl mx-auto flex justify-center items-center">
+            <div class="text-center bg-blue-500 glass-effect rounded-2xl p-3 text-white">
+                <h1 class="text-xl font-bold mb-1">🛒 Raza Wholesale and Retail</h1>
+                <p class="text-sm">Fresh Products • Best Prices • Fast Delivery</p>
+                <p class="text-sm"><strong>📞 +91 7075210801</strong></p>
+            </div>
+        </div>
+    </header>
+
+    <div class="gradient-bg">
+        <main class="w-full max-w-md mx-auto p-4 space-y-4">
+            <h2 class="text-2xl font-semibold text-center text-white mb-6">🍎 Place Your Order Online</h2>
+
+            <div class="bg-white p-3 rounded-lg shadow-sm">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Category</label>
+                <select id="category-filter" class="w-full p-2 border border-gray-300 rounded-lg">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div id="products-grid" class="grid grid-cols-2 gap-4">
+                <div class="text-center py-8">
+                    <p class="text-gray-500">Loading products...</p>
+                </div>
+            </div>
+
+            <!-- Always visible cart button -->
+            <div class="fixed bottom-4 right-4 z-30">
+                <button id="cart-button" class="bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-colors opacity-60 hover:opacity-100">
+                    🛒 <span id="cart-count">0</span>
+                </button>
+                <div class="text-center mt-1">
+                    <span class="text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded">View Cart</span>
+                </div>
+            </div>
+
+            <!-- Quick Order Section -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">🚀 Quick Order</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button id="quick-order-fruits" class="bg-orange-500 text-white py-2 px-4 rounded hover:bg-orange-600 text-sm font-medium">
+                        🍎 Order Fruits
+                    </button>
+                    <button id="quick-order-dairy" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 text-sm font-medium">
+                        🥛 Order Dairy
+                    </button>
+                    <button id="quick-order-groceries" class="bg-purple-500 text-white py-2 px-4 rounded hover:bg-purple-600 text-sm font-medium">
+                        🛒 Order Groceries
+                    </button>
+                </div>
+            </div>
+
+            <div id="cart-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center p-4 z-20">
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold">🛒 Your Order Summary</h3>
+                        <button id="close-cart" class="text-2xl">&times;</button>
+                    </div>
+                    <div id="cart-items" class="space-y-3"></div>
+                    <div class="pt-4 border-t">
+                        <div class="flex justify-between font-bold text-lg mb-4">
+                            <span>Total Amount:</span>
+                            <span id="cart-total">₹0.00</span>
+                        </div>
+
+                        <div class="space-y-3 mb-4">
+                            <input id="customer-name" placeholder="Your Full Name *" class="w-full p-2 border rounded" required>
+                            <input id="customer-phone" placeholder="Phone Number *" class="w-full p-2 border rounded" required>
+                            <textarea id="customer-address" placeholder="Delivery Address *" class="w-full p-2 border rounded" rows="2" required></textarea>
+                            <textarea id="customer-notes" placeholder="Special Instructions (Optional)" class="w-full p-2 border rounded" rows="2"></textarea>
+                        </div>
+
+                        <button id="whatsapp-checkout-button" class="w-full bg-green-500 text-white py-3 px-4 rounded-lg shadow hover:bg-green-600 font-semibold text-lg">
+                            📱 Checkout on WhatsApp
+                        </button>
+
+                        <p class="text-xs text-gray-500 text-center mt-2">
+                            We'll confirm your order and deliver to your doorstep!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="notification" class="fixed top-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg hidden"></div>
+
+    <script>
+        const BACKEND_URL = "https://web-production-9d240.up.railway.app";
+        const SHOPKEEPER_NUMBER = "917075210801";
+
+        let products = [];
+        let cart = {};
+
+        const productsGrid = document.getElementById('products-grid');
+        const cartButton = document.getElementById('cart-button');
+        const cartModal = document.getElementById('cart-modal');
+        const cartItems = document.getElementById('cart-items');
+        const cartTotal = document.getElementById('cart-total');
+        const cartCount = document.getElementById('cart-count');
+        const whatsappButton = document.getElementById('whatsapp-checkout-button');
+
+        async function init() {
+            try {
+                loadCategories();
+                await loadProducts();
+                console.log('✅ Products loaded successfully');
+            } catch (error) {
+                console.error('Failed to load:', error);
+                productsGrid.innerHTML = '<p class="text-red-500 text-center">Unable to load products. Please refresh the page.</p>';
+            }
+            setupEvents();
+        }
+
+        function loadCategories() {
+            fetch(`${BACKEND_URL}/categories`)
+                .then(res => res.json())
+                .then(categories => {
+                    const select = document.getElementById('category-filter');
+                    categories.forEach(cat => {
+                        select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+                    });
+                    select.onchange = filterProducts;
+                })
+                .catch(() => console.log('Categories not available'));
+        }
+
+        async function loadProducts() {
+            const response = await fetch(`${BACKEND_URL}/products`);
+            if (!response.ok) throw new Error('Failed to load products');
+
+            products = await response.json();
+            displayProducts(products);
+        }
+
+        function displayProducts(productList) {
+            productsGrid.innerHTML = productList.map(product => {
+                const isOutOfStock = product.stock <= 0;
+                const btnClass = isOutOfStock ?
+                    'w-full bg-gray-400 text-white py-2 px-3 rounded cursor-not-allowed text-sm' :
+                    'w-full bg-blue-500 text-white py-2 px-3 rounded hover:bg-blue-600 text-sm font-medium';
+
+                return `
+                    <div class="bg-white p-4 rounded-lg shadow card-hover">
+                        <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
+                        <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
+                        <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
+                        <button class="add-to-cart ${btnClass}" data-id="${product.id}" ${isOutOfStock ? 'disabled' : ''}>
+                            ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterProducts() {
+            const category = this.value;
+            if (!category) {
+                displayProducts(products);
+                return;
+            }
+
+            fetch(`${BACKEND_URL}/products?category=${category}`)
+                .then(res => res.json())
+                .then(filtered => displayProducts(filtered))
+                .catch(() => displayProducts(products.filter(p => p.category_name === category)));
+        }
+
+        function addToCart(productId) {
+            const product = products.find(p => p.id == productId);
+            if (!product || product.stock <= 0) return;
+
+            const currentQty = cart[productId] || 0;
+            if (currentQty + 1 > product.stock) {
+                showNotification(`Only ${product.stock} items available in stock`);
+                return;
+            }
+
+            cart[productId] = currentQty + 1;
+            updateCart();
+            showNotification(`Added ${product.name} to your order`);
+        }
+
+        function updateCart() {
+            const items = Object.keys(cart).filter(id => cart[id] > 0);
+            cartItems.innerHTML = '';
+            let total = 0;
+            let count = 0;
+
+            items.forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                const subtotal = qty * product.price;
+                total += subtotal;
+                count += qty;
+
+                cartItems.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded">
+                        <div class="flex-1">
+                            <div class="font-medium text-sm">${product.name}</div>
+                            <div class="text-sm text-gray-600">₹${product.price} each</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="decrease w-6 h-6 rounded bg-red-500 text-white text-xs" data-id="${productId}">-</button>
+                            <span class="w-6 text-center text-sm">${qty}</span>
+                            <button class="increase w-6 h-6 rounded bg-green-500 text-white text-xs" data-id="${productId}">+</button>
+                        </div>
+                        <div class="text-right ml-4">
+                            <div class="font-medium text-sm">₹${subtotal.toFixed(2)}</div>
+                            <button class="text-red-500 text-xs remove" data-id="${productId}">Remove</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            cartTotal.textContent = `₹${total.toFixed(2)}`;
+            cartCount.textContent = count;
+            cartButton.classList.toggle('hidden', count === 0);
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.remove('hidden');
+            setTimeout(() => notification.classList.add('hidden'), 3000);
+        }
+
+        function generateWhatsAppOrder() {
+            const name = document.getElementById('customer-name').value.trim();
+            const phone = document.getElementById('customer-phone').value.trim();
+            const address = document.getElementById('customer-address').value.trim();
+            const notes = document.getElementById('customer-notes').value.trim();
+
+            if (!name) {
+                alert('Please enter your full name');
+                return;
+            }
+
+            if (!phone || !/^[6-9]\d{9}$/.test(phone.replace(/\s+/g, ''))) {
+                alert('Please enter a valid 10-digit phone number');
+                return;
+            }
+
+            if (!address) {
+                alert('Please enter your delivery address');
+                return;
+            }
+
+            const cartItems = Object.keys(cart).filter(id => cart[id] > 0);
+            if (cartItems.length === 0) {
+                showNotification('Your cart is empty. Please add some products.');
+                return;
+            }
+
+            // Create sales items for API (WhatsApp order expects product_name and quantity)
+            const saleItems = cartItems.map(productId => {
+                const product = products.find(p => p.id == productId);
+                return {
+                    product_name: product.name,
+                    quantity: cart[productId]
+                };
+            });
+
+            // Create WhatsApp message
+            let message = `*🛒 NEW CUSTOMER ORDER*\n\n`;
+            message += `👤 Customer: ${name}\n`;
+            message += `📞 Phone: ${phone}\n`;
+            message += `🏠 Address: ${address}\n`;
+
+            if (notes) message += `📝 Notes: ${notes}\n`;
+
+            message += `\n📦 ORDER DETAILS:\n────────────────────\n`;
+
+            let total = 0;
+            cartItems.forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                const subtotal = qty * product.price;
+                total += subtotal;
+                message += `${product.name} - ${qty} ${product.unit_type} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+            });
+
+            message += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
+
+            message += `✅ *Please confirm and process this order.*\n`;
+            message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+            message += `🏪 *Raza Wholesale and Retail Store*\n`;
+            message += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
+
+            // Record sales in backend
+            fetch(`${BACKEND_URL}/whatsapp-order/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_name: name,
+                    phone_number: '+91' + phone,
+                    items: saleItems
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('Order processed:', data);
+
+                    // Open WhatsApp with message
+                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+                    window.open(whatsappUrl, '_blank');
+
+                    showNotification('Order placed successfully! WhatsApp opened for confirmation.');
+
+                    // Reset cart and close modal
+                    cart = {};
+                    updateCart();
+                    cartModal.classList.add('hidden');
+
+                    // Reset form
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('customer-phone').value = '';
+                    document.getElementById('customer-address').value = '';
+                    document.getElementById('customer-notes').value = '';
+
+                } else {
+                    showNotification('Order failed: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Order submission error:', error);
+                showNotification('Order sent to WhatsApp (backend recording failed)');
+
+                // Still send to WhatsApp even if backend fails
+                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+
+                cart = {};
+                updateCart();
+                cartModal.classList.add('hidden');
+            });
+        }
+
+        function setupEvents() {
+            // WhatsApp checkout button - direct event listener like index.html
+            const whatsappCheckoutButton = document.getElementById('whatsapp-checkout-button');
+            if (whatsappCheckoutButton) {
+                whatsappCheckoutButton.addEventListener('click', generateWhatsAppOrder);
+            }
+
+            // Add to cart buttons
+            document.addEventListener('click', (e) => {
+                if (e.target.classList.contains('add-to-cart')) {
+                    addToCart(e.target.getAttribute('data-id'));
+                }
+
+                if (e.target.classList.contains('decrease')) {
+                    const productId = e.target.getAttribute('data-id');
+                    if (cart[productId] > 1) {
+                        cart[productId]--;
+                        updateCart();
+                    }
+                }
+
+                if (e.target.classList.contains('increase')) {
+                    const productId = e.target.getAttribute('data-id');
+                    const product = products.find(p => p.id == productId);
+                    if (product && cart[productId] < product.stock) {
+                        cart[productId]++;
+                        updateCart();
+                    } else {
+                        showNotification('Maximum stock available');
+                    }
+                }
+
+                if (e.target.classList.contains('remove')) {
+                    const productId = e.target.getAttribute('data-id');
+                    delete cart[productId];
+                    updateCart();
+                    showNotification('Item removed from cart');
+                }
+
+                if (e.target.id === 'close-cart') {
+                    cartModal.classList.add('hidden');
+                }
+
+                if (e.target.id === 'cart-button') {
+                    cartModal.classList.remove('hidden');
+                    cartModal.classList.add('flex');
+                }
+
+                // Quick order buttons
+                if (e.target.id === 'quick-order-fruits') {
+                    quickOrderByCategory('Fruits');
+                }
+
+                if (e.target.id === 'quick-order-dairy') {
+                    quickOrderByCategory('Dairy');
+                }
+
+                if (e.target.id === 'quick-order-groceries') {
+                    quickOrderByCategory('Groceries');
+                }
+            });
+        }
+
+        function quickOrderByCategory(categoryName) {
+            // Filter products by category
+            const categoryProducts = products.filter(p => p.category === categoryName && p.stock > 0);
+
+            if (categoryProducts.length === 0) {
+                showNotification(`No ${categoryName.toLowerCase()} available right now`);
+                return;
+            }
+
+            // Add first 2-3 available products to cart
+            const productsToAdd = categoryProducts.slice(0, 3);
+            let addedCount = 0;
+
+            productsToAdd.forEach(product => {
+                if (product.stock > 0) {
+                    const currentQty = cart[product.id] || 0;
+                    if (currentQty < product.stock) {
+                        cart[product.id] = currentQty + 1;
+                        addedCount++;
+                    }
+                }
+            });
+
+            if (addedCount > 0) {
+                updateCart();
+                showNotification(`Added ${addedCount} ${categoryName.toLowerCase()} items to your cart!`);
+                // Auto-open cart modal
+                cartModal.classList.remove('hidden');
+                cartModal.classList.add('flex');
+            } else {
+                showNotification(`All ${categoryName.toLowerCase()} items are out of stock`);
+            }
+        }
+
+        // Start app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

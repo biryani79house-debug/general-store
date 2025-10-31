@@ -8,12 +8,20 @@
     {
       "src": "customer.html",
       "use": "@vercel/static"
+    },
+    {
+      "src": "sales.html",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/customer",
       "dest": "/customer.html"
+    },
+    {
+      "src": "/sales",
+      "dest": "/sales.html"
     },
     {
       "src": "/(.*)",
