@@ -1014,3 +1014,7 @@
 2025-10-31 16:56:23,547 - INFO - Driver downloading response is 200
 2025-10-31 16:56:24,385 - INFO - Get LATEST chromedriver version for google-chrome
 2025-10-31 16:56:24,820 - INFO - Driver has been saved in cache [C:\Users\mohd_\.wdm\drivers\chromedriver\win64\141.0.7390.122]
+2025-10-31 17:04:06,299 - INFO - ====== WebDriver manager ======
+2025-10-31 17:04:06,953 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 17:04:07,257 - INFO - Get LATEST chromedriver version for google-chrome
+2025-10-31 17:04:07,543 - INFO - Driver [C:\Users\mohd_\.wdm\drivers\chromedriver\win64\141.0.7390.122\chromedriver-win32/chromedriver.exe] found in cache

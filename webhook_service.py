@@ -93,89 +93,41 @@ class OrderData:
 
 def send_whatsapp_message(phone_number: str, message: str) -> bool:
     """
-    Send WhatsApp message using Selenium and WhatsApp Web
-    This runs locally without external APIs
+    Send WhatsApp message using direct WhatsApp URL (fallback method)
+    Opens WhatsApp in default browser with pre-filled message
     """
-    def send_message_thread():
-        driver = None
+    try:
+        # Format phone number (remove any non-numeric characters except +)
+        clean_number = ''.join(c for c in phone_number if c.isdigit() or c == '+')
+        if not clean_number.startswith('+'):
+            clean_number = '+91' + clean_number  # Add Indian country code if missing
+
+        # Create WhatsApp URL with pre-filled message
+        whatsapp_url = f"https://wa.me/{clean_number}?text={requests.utils.quote(message)}"
+
+        # Try to open WhatsApp URL in default browser
+        import webbrowser
+        import subprocess
+        import platform
+
         try:
-            # Set up Chrome options - try without headless first
-            chrome_options = Options()
-            # chrome_options.add_argument("--headless=new")  # Temporarily disable headless
-            chrome_options.add_argument("--no-sandbox")
-            chrome_options.add_argument("--disable-dev-shm-usage")
-            chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_argument("--user-data-dir=./chrome_profile")
-            chrome_options.add_argument("--start-minimized")  # Minimize window
-            chrome_options.add_argument("--disable-extensions")
-            chrome_options.add_argument("--disable-plugins")
-            chrome_options.add_argument("--disable-plugins-discovery")
-            # Keep JavaScript and images enabled for WhatsApp Web
+            if platform.system() == "Windows":
+                # On Windows, use start command to open URL
+                subprocess.run(["cmd", "/c", "start", whatsapp_url], check=True)
+            else:
+                # On other systems, use webbrowser
+                webbrowser.open(whatsapp_url)
 
-            # Initialize WebDriver
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
+            logger.info(f"✅ WhatsApp URL opened for {phone_number}: {whatsapp_url}")
+            return True
 
-            # Format phone number (remove any non-numeric characters except +)
-            clean_number = ''.join(c for c in phone_number if c.isdigit() or c == '+')
-            if not clean_number.startswith('+'):
-                clean_number = '+91' + clean_number  # Add Indian country code if missing
-
-            # Open WhatsApp Web with the phone number
-            whatsapp_url = f"https://web.whatsapp.com/send?phone={clean_number}&text={requests.utils.quote(message)}"
-            driver.get(whatsapp_url)
-
-            # Wait for WhatsApp Web to load
-            WebDriverWait(driver, 30).until(
-                EC.presence_of_element_located((By.XPATH, "//div[@contenteditable='true'][@data-tab='10']"))
-            )
-
-            # Wait a bit more for the page to fully load
-            time.sleep(3)
-
-            # Try to find and click the send button
-            try:
-                # Look for the send button (paper plane icon)
-                send_button = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[@data-testid='compose-btn-send'] | //span[@data-icon='send'] | //button[contains(@class, 'send')]"))
-                )
-                send_button.click()
-
-                logger.info(f"✅ WhatsApp message sent successfully to {phone_number}")
-                time.sleep(2)  # Wait for message to send
-
-            except Exception as send_error:
-                logger.error(f"❌ Failed to send WhatsApp message - could not find send button: {str(send_error)}")
-                # Try alternative approach - press Enter key
-                try:
-                    from selenium.webdriver.common.keys import Keys
-                    message_box = driver.find_element(By.XPATH, "//div[@contenteditable='true'][@data-tab='10']")
-                    message_box.send_keys(Keys.ENTER)
-                    logger.info(f"✅ WhatsApp message sent successfully to {phone_number} (using Enter key)")
-                except Exception as enter_error:
-                    logger.error(f"❌ Failed to send WhatsApp message via Enter key: {str(enter_error)}")
-                    return False
-
-        except Exception as e:
-            logger.error(f"❌ Error sending WhatsApp message: {str(e)}")
+        except Exception as browser_error:
+            logger.error(f"❌ Failed to open WhatsApp URL in browser: {str(browser_error)}")
             return False
-        finally:
-            if driver:
-                try:
-                    driver.quit()
-                except:
-                    pass
 
-    # Run the WhatsApp sending in a separate thread to avoid blocking
-    thread = threading.Thread(target=send_message_thread)
-    thread.daemon = True
-    thread.start()
-
-    # For now, return True assuming it will work (we can't wait for the thread to complete)
-    # In production, you might want to implement a callback system
-    logger.info(f"📤 WhatsApp message queued for sending to {phone_number}")
-    return True
+    except Exception as e:
+        logger.error(f"❌ Error in send_whatsapp_message: {str(e)}")
+        return False
 
 @app.post("/webhook/order-notification")
 async def receive_order_notification(request: Request):
