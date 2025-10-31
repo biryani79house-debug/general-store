@@ -59,6 +59,14 @@ WHATSAPP_WEBHOOK_SECRET = os.getenv('WHATSAPP_WEBHOOK_SECRET', 'your-webhook-sec
 WHATSAPP_API_URL = os.getenv('WHATSAPP_API_URL', '')  # Your WhatsApp API endpoint
 WHATSAPP_API_KEY = os.getenv('WHATSAPP_API_KEY', '')  # Your WhatsApp API key
 
+# Twilio WhatsApp Configuration (set in Railway environment variables for security)
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', '')
+
+# Use Twilio if credentials are available, otherwise fallback to browser method
+USE_TWILIO = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
+
 # IST timezone
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -93,6 +101,49 @@ class OrderData:
 
 def send_whatsapp_message(phone_number: str, message: str) -> bool:
     """
+    Send WhatsApp message using Twilio API (if credentials available) or browser fallback
+    """
+    # Try Twilio first if credentials are available
+    if USE_TWILIO:
+        return send_whatsapp_via_twilio(phone_number, message)
+    else:
+        # Fallback to browser method
+        return send_whatsapp_via_browser(phone_number, message)
+
+def send_whatsapp_via_twilio(phone_number: str, message: str) -> bool:
+    """
+    Send WhatsApp message using Twilio Business API (fully automated)
+    """
+    try:
+        from twilio.rest import Client
+
+        # Initialize Twilio client
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+        # Format phone number
+        clean_number = ''.join(c for c in phone_number if c.isdigit() or c == '+')
+        if not clean_number.startswith('+'):
+            clean_number = '+91' + clean_number
+
+        # Send WhatsApp message
+        twilio_message = client.messages.create(
+            from_=f'whatsapp:{TWILIO_WHATSAPP_NUMBER}',
+            body=message,
+            to=f'whatsapp:{clean_number}'
+        )
+
+        logger.info(f"✅ WhatsApp message sent via Twilio to {clean_number}: {twilio_message.sid}")
+        return True
+
+    except ImportError:
+        logger.error("❌ Twilio library not installed")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Failed to send WhatsApp via Twilio: {str(e)}")
+        return False
+
+def send_whatsapp_via_browser(phone_number: str, message: str) -> bool:
+    """
     Send WhatsApp message using direct WhatsApp URL (fallback method)
     Opens WhatsApp in default browser with pre-filled message
     """
@@ -126,7 +177,7 @@ def send_whatsapp_message(phone_number: str, message: str) -> bool:
             return False
 
     except Exception as e:
-        logger.error(f"❌ Error in send_whatsapp_message: {str(e)}")
+        logger.error(f"❌ Error in send_whatsapp_via_browser: {str(e)}")
         return False
 
 @app.post("/webhook/order-notification")
@@ -187,11 +238,14 @@ async def receive_order_notification(request: Request):
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    whatsapp_method = "twilio_whatsapp_api" if USE_TWILIO else "browser_whatsapp_fallback"
+
     return {
         "status": "healthy",
         "timestamp": datetime.now(IST).isoformat(),
-        "whatsapp_method": "selenium_whatsapp_web",
-        "selenium_available": True
+        "whatsapp_method": whatsapp_method,
+        "twilio_available": USE_TWILIO,
+        "twilio_configured": bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
     }
 
 @app.get("/orders")
