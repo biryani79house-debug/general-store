@@ -289,12 +289,38 @@
                 };
             });
 
+            // Create WhatsApp message for shopkeeper
+            let shopkeeperMessage = `*🛒 NEW CUSTOMER ORDER*\n\n`;
+            shopkeeperMessage += `👤 Customer: ${name}\n`;
+            shopkeeperMessage += `📞 Phone: ${phone}\n`;
+            shopkeeperMessage += `🏠 Address: ${address}\n`;
+
+            if (notes) shopkeeperMessage += `📝 Notes: ${notes}\n`;
+
+            shopkeeperMessage += `\n📦 ORDER DETAILS:\n────────────────────\n`;
+
+            let total = 0;
+            cartItems.forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                const subtotal = qty * product.price;
+                total += subtotal;
+                shopkeeperMessage += `${product.name} - ${qty} ${product.unit_type} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+            });
+
+            shopkeeperMessage += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
+
+            shopkeeperMessage += `✅ *Please confirm and process this order.*\n`;
+            shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+            shopkeeperMessage += `🏪 *Raza Wholesale and Retail Store*\n`;
+            shopkeeperMessage += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
+
             // Disable the button to prevent double submission
             const checkoutButton = document.getElementById('whatsapp-checkout-button');
             checkoutButton.disabled = true;
             checkoutButton.textContent = 'Processing...';
 
-            // Send order to backend - backend will handle WhatsApp messaging
+            // Send order to backend - backend will handle customer WhatsApp messaging
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -309,8 +335,12 @@
                 console.log('Order processed:', data);
 
                 if (data.status === 'success') {
-                    // Show success message with WhatsApp sent status
-                    const whatsappStatus = data.webhook_sent ? 'WhatsApp message sent!' : 'Order recorded (WhatsApp pending)';
+                    // Open WhatsApp for shopkeeper
+                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
+                    window.open(whatsappUrl, '_blank');
+
+                    // Show success message with customer WhatsApp sent status
+                    const whatsappStatus = data.webhook_sent ? 'Customer notified via WhatsApp!' : 'Order recorded (customer WhatsApp pending)';
                     showNotification(`✅ Order placed successfully! ${whatsappStatus}`);
 
                     // Reset cart and close modal
