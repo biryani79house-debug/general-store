@@ -47,21 +47,22 @@ else:
 # Initialize the HTTPBearer instance
 security = HTTPBearer()
 
-# Initialize Twilio client for WhatsApp messaging
+# WhatsApp Webhook Configuration
+WHATSAPP_WEBHOOK_URL = os.getenv('WHATSAPP_WEBHOOK_URL', '')
+WHATSAPP_WEBHOOK_SECRET = os.getenv('WHATSAPP_WEBHOOK_SECRET', '')
+
+if WHATSAPP_WEBHOOK_URL:
+    print("✅ WhatsApp webhook URL configured")
+else:
+    print("⚠️ WhatsApp webhook URL not configured - messages will be logged only")
+
+# Import requests for webhook calls
 try:
-    twilio_client = TwilioClient(
-        account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
-        auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
-    )
-    TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER')
-    if twilio_client and TWILIO_WHATSAPP_NUMBER:
-        print("✅ Twilio WhatsApp client initialized successfully")
-    else:
-        print("⚠️ Twilio WhatsApp credentials not configured")
-        twilio_client = None
-except Exception as e:
-    print(f"❌ Failed to initialize Twilio client: {str(e)}")
-    twilio_client = None
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    print("⚠️ requests library not available - webhook notifications disabled")
+    REQUESTS_AVAILABLE = False
 
 # Create a SQLAlchemy engine
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {})
@@ -1207,7 +1208,7 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
 # --- API Endpoint for WhatsApp Orders ---
 @app.post("/whatsapp-order/", status_code=status.HTTP_200_OK)
 def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = Depends(get_db)):
-    """Processes order and sends WhatsApp confirmation message."""
+    """Processes order and sends notification to webhook service for WhatsApp messaging."""
     total_bill = 0
     items_sold = []
 
@@ -1234,61 +1235,57 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
 
     db.commit()
 
-    response_message = (
-        f"Thank you, {order_request.customer_name}! Your order for {', '.join(items_sold)} "
-        f"has been placed. Your total bill is Rs. {total_bill:.2f}. "
-        "Please make the payment to proceed with your order. "
-        "We will deliver once payment is confirmed."
-    )
+    # Prepare order data for webhook
+    order_data = {
+        "customer_name": order_request.customer_name,
+        "phone_number": order_request.phone_number,
+        "items": [{"product_name": item.product_name, "quantity": item.quantity} for item in order_request.items],
+        "total_bill": total_bill,
+        "order_id": f"ORDER_{db_sale.id}"  # Use the last sale ID as order reference
+    }
 
-    # Message to send to customer via WhatsApp (formatted exactly as requested)
-    whatsapp_message = (
-        f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
-        f"📦 *Order Received:*\n"
-        f"{chr(8226)} {', '.join(f'{item.quantity}x {item.product_name}' for item in order_request.items)}\n\n"
-        f"💰 *Total Amount: ₹{total_bill:.2f}*\n\n"
-        f"📱 *Scan the QR code above with Google Pay or PhonePe*\n\n"
-        f"👤 Customer: {order_request.customer_name}\n"
-        f"📞 Phone: {order_request.phone_number}\n\n"
-        f"✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
-        f"🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
-    )
-
-    # Send automatic WhatsApp response message to customer using Twilio
-    whatsapp_sent = False
+    # Send order notification to webhook service
+    webhook_sent = False
     error_message = None
 
-    # Try to send WhatsApp message if Twilio is configured
-    if twilio_client and TWILIO_WHATSAPP_NUMBER:
+    if WHATSAPP_WEBHOOK_URL and REQUESTS_AVAILABLE:
         try:
-            # Format phone number with whatsapp: prefix
-            formatted_number = f"whatsapp:{order_request.phone_number}"
-            from_whatsapp = f"whatsapp:{TWILIO_WHATSAPP_NUMBER}"
+            headers = {}
+            if WHATSAPP_WEBHOOK_SECRET:
+                headers["Authorization"] = f"Bearer {WHATSAPP_WEBHOOK_SECRET}"
 
-            message = twilio_client.messages.create(
-                body=whatsapp_message,
-                from_=from_whatsapp,
-                to=formatted_number
+            response = requests.post(
+                f"{WHATSAPP_WEBHOOK_URL}/webhook/order-notification",
+                json=order_data,
+                headers=headers,
+                timeout=10
             )
-            print(f"✅ WhatsApp message sent successfully to {order_request.phone_number}. Message SID: {message.sid}")
-            whatsapp_sent = True
+
+            if response.status_code == 200:
+                result = response.json()
+                webhook_sent = result.get("whatsapp_sent", False)
+                print(f"✅ Webhook notification sent successfully. WhatsApp sent: {webhook_sent}")
+            else:
+                print(f"❌ Webhook returned error status: {response.status_code}")
+                error_message = f"Webhook error: {response.status_code}"
+                webhook_sent = False
         except Exception as e:
-            print(f"❌ Failed to send WhatsApp message: {str(e)}")
-            error_message = f"WhatsApp delivery failed: {str(e)}"
-            whatsapp_sent = False
+            print(f"❌ Failed to send webhook notification: {str(e)}")
+            error_message = f"Webhook delivery failed: {str(e)}"
+            webhook_sent = False
     else:
-        print("⚠️ Twilio WhatsApp not configured - message logged but not sent")
-        error_message = "WhatsApp service not configured"
-        whatsapp_sent = False
+        print("⚠️ Webhook URL not configured or requests not available - order logged but notification not sent")
+        error_message = "Webhook service not configured"
+        webhook_sent = False
 
     return {
         "status": "success",
         "message": f"Thank you {order_request.customer_name}, your order has been received!",
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
-        "whatsapp_message": whatsapp_message,
-        "whatsapp_sent": whatsapp_sent,
-        "error": error_message if not whatsapp_sent else None
+        "order_id": order_data["order_id"],
+        "webhook_sent": webhook_sent,
+        "error": error_message if not webhook_sent else None
     }
 
 # --- Dummy product data for SMS handler ---
