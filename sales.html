@@ -289,33 +289,12 @@
                 };
             });
 
-            // Create WhatsApp message
-            let message = `*🛒 NEW CUSTOMER ORDER*\n\n`;
-            message += `👤 Customer: ${name}\n`;
-            message += `📞 Phone: ${phone}\n`;
-            message += `🏠 Address: ${address}\n`;
+            // Disable the button to prevent double submission
+            const checkoutButton = document.getElementById('whatsapp-checkout-button');
+            checkoutButton.disabled = true;
+            checkoutButton.textContent = 'Processing...';
 
-            if (notes) message += `📝 Notes: ${notes}\n`;
-
-            message += `\n📦 ORDER DETAILS:\n────────────────────\n`;
-
-            let total = 0;
-            cartItems.forEach(productId => {
-                const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                const subtotal = qty * product.price;
-                total += subtotal;
-                message += `${product.name} - ${qty} ${product.unit_type} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
-            });
-
-            message += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
-
-            message += `✅ *Please confirm and process this order.*\n`;
-            message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            message += `🏪 *Raza Wholesale and Retail Store*\n`;
-            message += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
-
-            // Record sales in backend
+            // Send order to backend - backend will handle WhatsApp messaging
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -327,14 +306,12 @@
             })
             .then(res => res.json())
             .then(data => {
+                console.log('Order processed:', data);
+
                 if (data.status === 'success') {
-                    console.log('Order processed:', data);
-
-                    // Open WhatsApp with message
-                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
-                    window.open(whatsappUrl, '_blank');
-
-                    showNotification('Order placed successfully! WhatsApp opened for confirmation.');
+                    // Show success message with WhatsApp sent status
+                    const whatsappStatus = data.webhook_sent ? 'WhatsApp message sent!' : 'Order recorded (WhatsApp pending)';
+                    showNotification(`✅ Order placed successfully! ${whatsappStatus}`);
 
                     // Reset cart and close modal
                     cart = {};
@@ -348,20 +325,17 @@
                     document.getElementById('customer-notes').value = '';
 
                 } else {
-                    showNotification('Order failed: ' + (data.message || 'Unknown error'));
+                    showNotification('❌ Order failed: ' + (data.message || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Order submission error:', error);
-                showNotification('Order sent to WhatsApp (backend recording failed)');
-
-                // Still send to WhatsApp even if backend fails
-                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
-
-                cart = {};
-                updateCart();
-                cartModal.classList.add('hidden');
+                showNotification('❌ Failed to place order. Please try again.');
+            })
+            .finally(() => {
+                // Re-enable the button
+                checkoutButton.disabled = false;
+                checkoutButton.textContent = '📱 Checkout on WhatsApp';
             });
         }
 

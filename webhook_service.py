@@ -259,15 +259,22 @@ async def get_recent_orders(limit: int = 10):
         raise HTTPException(status_code=500, detail=f"Error reading orders: {str(e)}")
 
 if __name__ == "__main__":
+    # Use a simple approach without uvicorn's file watching
     import uvicorn
 
     port = int(os.environ.get("WEBHOOK_PORT", 8001))
-    logger.info(f"🚀 Starting webhook service on port {port}")
+    logger.info(f"🚀 Starting webhook service on port {port} (no file watching)")
 
+    # Disable all file watching and reloading
     uvicorn.run(
-        "webhook_service:app",
+        app,
         host="0.0.0.0",
         port=port,
-        reload=True,
-        log_level="info"
+        reload=False,
+        reload_dirs=None,
+        reload_includes=None,
+        reload_excludes=None,
+        reload_delay=None,
+        log_level="info",
+        access_log=False
     )
