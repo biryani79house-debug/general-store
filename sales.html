@@ -320,6 +320,11 @@
             checkoutButton.disabled = true;
             checkoutButton.textContent = 'Processing...';
 
+            // Open WhatsApp immediately for shopkeeper (before API call)
+            const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
+            console.log('Opening WhatsApp with URL:', whatsappUrl);
+            window.open(whatsappUrl, '_blank');
+
             // Send order to backend - backend will handle customer WhatsApp messaging
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
                 method: 'POST',
@@ -335,10 +340,6 @@
                 console.log('Order processed:', data);
 
                 if (data.status === 'success') {
-                    // Open WhatsApp for shopkeeper
-                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-                    window.open(whatsappUrl, '_blank');
-
                     // Show success message with customer WhatsApp sent status
                     const whatsappStatus = data.webhook_sent ? 'Customer notified via WhatsApp!' : 'Order recorded (customer WhatsApp pending)';
                     showNotification(`✅ Order placed successfully! ${whatsappStatus}`);
