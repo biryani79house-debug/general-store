@@ -92,7 +92,7 @@ class OrderData:
         return message
 
     def format_shopkeeper_message(self) -> str:
-        """Format message for shopkeeper containing customer confirmation text"""
+        """Format message for shopkeeper - send customer confirmation text directly"""
         # Get the customer confirmation message
         customer_message = self.format_order_message()
 
@@ -103,12 +103,11 @@ class OrderData:
 🆔 *Order ID:* {self.order_id}
 ⏰ *Time:* {datetime.now(IST).strftime('%d/%m/%Y %I:%M %p')}
 
-📝 *SEND THIS MESSAGE TO CUSTOMER:*
+📝 *REPLY WITH THIS CONFIRMATION MESSAGE:*
 
 {customer_message}
 
-📍 *Please copy the above message and send it to the customer at {self.phone_number}*
-🚚 *Then prepare and deliver the order!*
+🚚 *Reply to this message with the confirmation text above to send to customer, then prepare and deliver the order!*
 
 🏪 *Raza Wholesale and Retail*"""
 
@@ -157,7 +156,7 @@ def send_whatsapp_via_browser(phone_number: str, message: str) -> bool:
 @app.post("/webhook/order-notification")
 async def receive_order_notification(request: Request):
     """
-    Receive order notifications from the main FastAPI app
+    Receive order notifications from the main FastAPI app and directly open WhatsApp for customer confirmation
     """
     try:
         # Temporarily disable authorization for debugging
@@ -175,13 +174,13 @@ async def receive_order_notification(request: Request):
         # Parse order data
         order = OrderData(order_data)
 
-        # Format WhatsApp message for shopkeeper (contains customer confirmation text)
-        shopkeeper_message = order.format_shopkeeper_message()
+        # Format customer confirmation message
+        customer_message = order.format_order_message()
 
-        # Send WhatsApp message to shopkeeper with customer confirmation text
-        logger.info(f"📱 Attempting to send WhatsApp to shopkeeper: {SHOPKEEPER_WHATSAPP_NUMBER}")
-        shopkeeper_success = send_whatsapp_message(SHOPKEEPER_WHATSAPP_NUMBER, shopkeeper_message)
-        logger.info(f"📱 WhatsApp send result for shopkeeper: {shopkeeper_success}")
+        # Directly open WhatsApp with customer's phone number and confirmation message pre-filled
+        logger.info(f"📱 Opening WhatsApp for customer confirmation: {order.phone_number}")
+        customer_success = send_whatsapp_message(order.phone_number, customer_message)
+        logger.info(f"📱 WhatsApp opened for customer: {customer_success}")
 
         # Log the order
         log_entry = {
@@ -191,7 +190,7 @@ async def receive_order_notification(request: Request):
             "phone_number": order.phone_number,
             "total_bill": order.total_bill,
             "items": order.items,
-            "shopkeeper_whatsapp_sent": shopkeeper_success
+            "customer_whatsapp_opened": customer_success
         }
 
         # Save to log file
@@ -200,8 +199,8 @@ async def receive_order_notification(request: Request):
 
         return {
             "status": "success",
-            "message": "Order notification received",
-            "shopkeeper_whatsapp_sent": shopkeeper_success,
+            "message": "Order notification received - WhatsApp opened for customer confirmation",
+            "customer_whatsapp_opened": customer_success,
             "order_id": order.order_id
         }
 
