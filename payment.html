@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raza Wholesale and Retail - Payment</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Inter", sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(rgba(132, 206, 248, 0.85), rgba(172, 124, 20, 0.438));
+            background-size: cover;
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(236, 49, 49, 0.842);
+            backdrop-filter: blur(10px);
+        }
+        .payment-option:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .qr-code {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="w-full bg-green-500 shadow-sm p-1 sticky top-0 z-10">
+        <div class="max-w-2xl mx-auto flex justify-center items-center">
+            <div class="text-center bg-blue-500 glass-effect rounded-2xl p-3 text-white">
+                <h1 class="text-xl font-bold mb-1">Raza Wholesale and Retail</h1>
+                <p class="text-sm">Secure Payment Portal</p>
+                <p class="text-sm"><strong>📞 +91 7075210801</strong></p>
+            </div>
+        </div>
+    </header>
+
+    <div class="gradient-bg">
+        <main class="w-full max-w-md mx-auto p-4 space-y-4">
+            <h2 class="text-2xl font-semibold text-center text-white mb-6">💳 Complete Your Payment</h2>
+
+            <!-- Order Summary -->
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+                <h3 class="text-lg font-semibold mb-3 text-gray-800">📋 Order Summary</h3>
+                <div id="order-items" class="space-y-2 mb-4"></div>
+                <div class="border-t pt-3">
+                    <div class="flex justify-between font-bold text-lg text-gray-800">
+                        <span>Total Amount:</span>
+                        <span id="order-total" class="text-green-600">₹0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Details -->
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+                <h3 class="text-lg font-semibold mb-3 text-gray-800">👤 Customer Details</h3>
+                <div class="space-y-2 text-sm">
+                    <div><strong>Name:</strong> <span id="customer-name-display"></span></div>
+                    <div><strong>Phone:</strong> <span id="customer-phone-display"></span></div>
+                    <div id="customer-address-display" style="display: none;"><strong>Address:</strong> <span id="customer-address-text"></span></div>
+                </div>
+            </div>
+
+            <!-- Payment Options -->
+            <div class="bg-white p-4 rounded-lg shadow-sm">
+                <h3 class="text-lg font-semibold mb-4 text-gray-800">💰 Choose Payment Method</h3>
+
+                <div class="space-y-3">
+                    <!-- GPay Option -->
+                    <div class="payment-option bg-white border-2 border-gray-200 rounded-lg p-4 cursor-pointer transition-all duration-200" id="gpay-option">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white font-bold text-sm">G</span>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Google Pay (GPay)</div>
+                                    <div class="text-sm text-gray-500">Pay with Google Pay</div>
+                                </div>
+                            </div>
+                            <div class="text-green-500 text-xl">✓</div>
+                        </div>
+                    </div>
+
+                    <!-- PhonePe Option -->
+                    <div class="payment-option bg-white border-2 border-gray-200 rounded-lg p-4 cursor-pointer transition-all duration-200" id="phonepe-option">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white font-bold text-sm">P</span>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">PhonePe</div>
+                                    <div class="text-sm text-gray-500">Pay with PhonePe</div>
+                                </div>
+                            </div>
+                            <div class="text-green-500 text-xl">✓</div>
+                        </div>
+                    </div>
+
+                    <!-- Cash on Delivery -->
+                    <div class="payment-option bg-white border-2 border-gray-200 rounded-lg p-4 cursor-pointer transition-all duration-200" id="cod-option">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white font-bold text-sm">₹</span>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Cash on Delivery</div>
+                                    <div class="text-sm text-gray-500">Pay when you receive your order</div>
+                                </div>
+                            </div>
+                            <div class="text-green-500 text-xl">✓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Code Display -->
+            <div id="qr-section" class="bg-white p-4 rounded-lg shadow-sm hidden">
+                <h3 class="text-lg font-semibold mb-4 text-center text-gray-800" id="payment-title">Scan QR Code to Pay</h3>
+                <div class="text-center">
+                    <div class="qr-code inline-block mb-4">
+                        <div id="qr-code-container" class="w-48 h-48 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <div class="text-4xl mb-2">📱</div>
+                                <p class="text-sm text-gray-600">QR Code will be generated</p>
+                                <p class="text-xs text-gray-500">Amount: ₹<span id="qr-amount">0.00</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Scan this QR code with your <span id="payment-app-name">payment app</span> to complete the payment
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button id="confirm-payment" class="w-full bg-green-500 text-white py-3 px-4 rounded-lg shadow hover:bg-green-600 font-semibold text-lg hidden">
+                    ✅ Confirm Payment & Place Order
+                </button>
+
+                <button id="cod-confirm" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg shadow hover:bg-blue-600 font-semibold text-lg hidden">
+                    📦 Confirm Cash on Delivery Order
+                </button>
+
+                <button id="back-to-cart" class="w-full bg-gray-500 text-white py-3 px-4 rounded-lg shadow hover:bg-gray-600 font-semibold">
+                    ← Back to Cart
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <div id="notification" class="fixed top-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg hidden"></div>
+
+    <script>
+        const BACKEND_URL = "https://web-production-9d240.up.railway.app";
+        const SHOPKEEPER_NUMBER = "917075210801";
+
+        // Get order data from URL parameters or session storage
+        let orderData = null;
+
+        function init() {
+            // Try to get order data from URL parameters (fallback)
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderParam = urlParams.get('order');
+
+            if (orderParam) {
+                try {
+                    orderData = JSON.parse(decodeURIComponent(orderParam));
+                } catch (e) {
+                    console.error('Failed to parse order data from URL');
+                }
+            }
+
+            // Try to get from session storage (preferred method)
+            const storedOrder = sessionStorage.getItem('pendingOrder');
+            if (storedOrder) {
+                try {
+                    orderData = JSON.parse(storedOrder);
+                } catch (e) {
+                    console.error('Failed to parse stored order data');
+                }
+            }
+
+            if (!orderData) {
+                showNotification('No order data found. Please go back to cart.');
+                setTimeout(() => {
+                    window.location.href = 'customer.html';
+                }, 2000);
+                return;
+            }
+
+            displayOrderSummary();
+            setupEventListeners();
+        }
+
+        function displayOrderSummary() {
+            const orderItems = document.getElementById('order-items');
+            const orderTotal = document.getElementById('order-total');
+            const customerNameDisplay = document.getElementById('customer-name-display');
+            const customerPhoneDisplay = document.getElementById('customer-phone-display');
+            const customerAddressDisplay = document.getElementById('customer-address-display');
+            const customerAddressText = document.getElementById('customer-address-text');
+
+            // Display customer details
+            customerNameDisplay.textContent = orderData.customer_name || 'N/A';
+            customerPhoneDisplay.textContent = orderData.customer_phone || 'N/A';
+
+            if (orderData.customer_address) {
+                customerAddressDisplay.style.display = 'block';
+                customerAddressText.textContent = orderData.customer_address;
+            }
+
+            // Display order items
+            let total = 0;
+            orderItems.innerHTML = '';
+
+            orderData.items.forEach(item => {
+                const subtotal = item.quantity * item.price;
+                total += subtotal;
+
+                orderItems.innerHTML += `
+                    <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-800">${item.name}</div>
+                            <div class="text-sm text-gray-600">${item.quantity} × ₹${item.price.toFixed(2)}</div>
+                        </div>
+                        <div class="font-semibold text-gray-800">₹${subtotal.toFixed(2)}</div>
+                    </div>
+                `;
+            });
+
+            orderTotal.textContent = `₹${total.toFixed(2)}`;
+        }
+
+        function setupEventListeners() {
+            // Payment method selection
+            document.getElementById('gpay-option').addEventListener('click', () => selectPaymentMethod('gpay'));
+            document.getElementById('phonepe-option').addEventListener('click', () => selectPaymentMethod('phonepe'));
+            document.getElementById('cod-option').addEventListener('click', () => selectPaymentMethod('cod'));
+
+            // Action buttons
+            document.getElementById('confirm-payment').addEventListener('click', confirmPayment);
+            document.getElementById('cod-confirm').addEventListener('click', confirmCashOrder);
+            document.getElementById('back-to-cart').addEventListener('click', goBackToCart);
+        }
+
+        function selectPaymentMethod(method) {
+            // Reset all selections
+            document.querySelectorAll('.payment-option').forEach(option => {
+                option.classList.remove('border-green-500', 'bg-green-50');
+                option.classList.add('border-gray-200');
+            });
+
+            // Hide all action buttons
+            document.getElementById('confirm-payment').classList.add('hidden');
+            document.getElementById('cod-confirm').classList.add('hidden');
+            document.getElementById('qr-section').classList.add('hidden');
+
+            // Select the clicked option
+            const selectedOption = document.getElementById(`${method}-option`);
+            selectedOption.classList.remove('border-gray-200');
+            selectedOption.classList.add('border-green-500', 'bg-green-50');
+
+            if (method === 'cod') {
+                // Show COD confirmation button
+                document.getElementById('cod-confirm').classList.remove('hidden');
+            } else {
+                // Show QR code section for digital payments
+                showQRCode(method);
+                document.getElementById('confirm-payment').classList.remove('hidden');
+            }
+        }
+
+        function showQRCode(method) {
+            const qrSection = document.getElementById('qr-section');
+            const paymentTitle = document.getElementById('payment-title');
+            const paymentAppName = document.getElementById('payment-app-name');
+            const qrAmount = document.getElementById('qr-amount');
+
+            // Update UI based on payment method
+            if (method === 'gpay') {
+                paymentTitle.textContent = 'Scan QR Code with Google Pay';
+                paymentAppName.textContent = 'Google Pay';
+            } else if (method === 'phonepe') {
+                paymentTitle.textContent = 'Scan QR Code with PhonePe';
+                paymentAppName.textContent = 'PhonePe';
+            }
+
+            // Set amount
+            const totalAmount = orderData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            qrAmount.textContent = totalAmount.toFixed(2);
+
+            // Generate QR code (placeholder - you would integrate with actual payment gateway)
+            generatePaymentQR(method, totalAmount);
+
+            qrSection.classList.remove('hidden');
+        }
+
+        function generatePaymentQR(method, amount) {
+            const qrContainer = document.getElementById('qr-code-container');
+
+            // This is a placeholder - in real implementation, you would:
+            // 1. Call your payment gateway API to generate QR code
+            // 2. Use a QR code library to display it
+            // 3. Handle the payment callback
+
+            qrContainer.innerHTML = `
+                <div class="text-center">
+                    <div class="text-4xl mb-2">${method === 'gpay' ? '🟦' : '🟣'}</div>
+                    <p class="text-sm text-gray-600 font-semibold">${method.toUpperCase()} QR</p>
+                    <p class="text-xs text-gray-500">Amount: ₹${amount.toFixed(2)}</p>
+                    <p class="text-xs text-green-600 mt-2">Ready to scan</p>
+                </div>
+            `;
+        }
+
+        function confirmPayment() {
+            // In real implementation, you would:
+            // 1. Verify payment was completed via webhook/callback
+            // 2. Then proceed with order placement
+
+            showNotification('Payment confirmed! Processing your order...');
+
+            // Simulate payment processing delay
+            setTimeout(() => {
+                placeOrder('paid');
+            }, 2000);
+        }
+
+        function confirmCashOrder() {
+            showNotification('Order confirmed for Cash on Delivery!');
+            placeOrder('cod');
+        }
+
+        function placeOrder(paymentMethod) {
+            // Send order to backend
+            fetch(`${BACKEND_URL}/whatsapp-order/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_name: orderData.customer_name,
+                    phone_number: orderData.customer_phone,
+                    items: orderData.items.map(item => ({
+                        product_name: item.name,
+                        quantity: item.quantity
+                    }))
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('Order processed:', data);
+
+                    // Create WhatsApp message with payment info
+                    let message = `*NEW CUSTOMER ORDER*\n\n`;
+                    message += `👤 Customer: ${orderData.customer_name}\n`;
+                    message += `📞 Phone: ${orderData.customer_phone}\n`;
+
+                    if (orderData.customer_address) message += `🏠 Address: ${orderData.customer_address}\n`;
+
+                    message += `\n💳 Payment Method: ${paymentMethod === 'cod' ? 'Cash on Delivery' : paymentMethod.toUpperCase()}\n`;
+                    if (paymentMethod !== 'cod') message += `✅ Payment Status: Completed\n`;
+
+                    message += `\n📦 ORDER DETAILS:\n────────────────────\n`;
+
+                    let total = 0;
+                    orderData.items.forEach(item => {
+                        const subtotal = item.quantity * item.price;
+                        total += subtotal;
+                        message += `${item.name} - ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+                    });
+
+                    message += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
+
+                    if (orderData.customer_notes) message += `*NOTES:* ${orderData.customer_notes}\n\n`;
+
+                    message += `✅ Please confirm and process this order.\n`;
+                    message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+                    message += `🏪 Raza Wholesale and Retail Store`;
+
+                    // Open WhatsApp with message
+                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+                    window.open(whatsappUrl, '_blank');
+
+                    showNotification('Order placed successfully! WhatsApp opened.');
+
+                    // Clear stored order data
+                    sessionStorage.removeItem('pendingOrder');
+
+                    // Redirect back to customer page after delay
+                    setTimeout(() => {
+                        window.location.href = 'customer.html';
+                    }, 3000);
+
+                } else {
+                    showNotification('Order failed: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Order submission error:', error);
+                showNotification('Order sent to WhatsApp (backend recording failed)');
+
+                // Still send to WhatsApp even if backend fails
+                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent('Order failed to process in system, but WhatsApp opened.')}`;
+                window.open(whatsappUrl, '_blank');
+            });
+        }
+
+        function goBackToCart() {
+            // Store order data temporarily and go back to cart
+            sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+            window.location.href = 'customer.html';
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.remove('hidden');
+            setTimeout(() => notification.classList.add('hidden'), 5000);
+        }
+
+        // Start the payment page
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

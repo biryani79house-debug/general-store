@@ -72,7 +72,7 @@
                         </div>
 
                         <button id="whatsapp-order" class="w-full bg-green-500 text-white py-2 px-4 rounded shadow hover:bg-green-600">
-                            📱 Place Order on WhatsApp
+                            💳 Proceed to Payment
                         </button>
                     </div>
                 </div>
@@ -244,86 +244,32 @@
                 return;
             }
 
-            // Create sales items for API
-            const saleItems = cartItems.map(productId => ({
-                product_id: parseInt(productId),
-                quantity: cart[productId]
-            }));
-
-            // Create WhatsApp message
-            let message = `*NEW CUSTOMER ORDER*\n\n`;
-            message += `👤 Customer: ${name}\n`;
-            message += `📞 Phone: ${phone}\n`;
-
-            if (address) message += `🏠 Address: ${address}\n`;
-
-            message += `\n📦 ORDER DETAILS:\n────────────────────\n`;
-
-            let total = 0;
-            cartItems.forEach(productId => {
-                const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                const subtotal = qty * product.price;
-                total += subtotal;
-                message += `${product.name} - ${qty} ${product.unit_type} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
-            });
-
-            message += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
-
-            if (notes) message += `*NOTES:* ${notes}\n\n`;
-
-            message += `✅ Please confirm and process this order.\n`;
-            message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            message += `🏪 Raza Wholesale and Retail Store`;
-
-            // Record sales in backend
-            fetch(`${BACKEND_URL}/whatsapp-order/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customer_name: name,
-                    phone_number: '+91' + phone,
-                    items: saleItems
+            // Prepare order data for payment page
+            const orderData = {
+                customer_name: name,
+                customer_phone: '+91' + phone,
+                customer_address: address,
+                customer_notes: notes,
+                items: cartItems.map(productId => {
+                    const product = products.find(p => p.id == productId);
+                    return {
+                        id: product.id,
+                        name: product.name,
+                        price: product.price,
+                        quantity: cart[productId],
+                        unit_type: product.unit_type
+                    };
                 })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    console.log('Order processed:', data);
+            };
 
-                    // Open WhatsApp with message
-                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
-                    window.open(whatsappUrl, '_blank');
+            // Store order data in session storage
+            sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
 
-                    showNotification('Order placed successfully! WhatsApp opened.');
+            // Close cart modal
+            cartModal.classList.add('hidden');
 
-                    // Reset cart and close modal
-                    cart = {};
-                    updateCart();
-                    cartModal.classList.add('hidden');
-
-                    // Reset form
-                    document.getElementById('customer-name').value = '';
-                    document.getElementById('customer-phone').value = '';
-                    document.getElementById('customer-address').value = '';
-                    document.getElementById('customer-notes').value = '';
-
-                } else {
-                    showNotification('Order failed: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Order submission error:', error);
-                showNotification('Order sent to WhatsApp (backend recording failed)');
-
-                // Still send to WhatsApp even if backend fails
-                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
-                window.open(whatsappUrl, '_blank');
-
-                cart = {};
-                updateCart();
-                cartModal.classList.add('hidden');
-            });
+            // Redirect to payment page
+            window.location.href = 'payment.html';
         }
 
         function setupEvents() {
