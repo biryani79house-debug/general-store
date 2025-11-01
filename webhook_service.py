@@ -64,6 +64,9 @@ TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', '')
 
+# Shopkeeper WhatsApp number for notifications
+SHOPKEEPER_WHATSAPP_NUMBER = os.getenv('SHOPKEEPER_WHATSAPP_NUMBER', '917075210801')  # Default to the number from main.py
+
 # Use Twilio if credentials are available, otherwise fallback to browser method
 USE_TWILIO = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
 
@@ -96,6 +99,30 @@ class OrderData:
 🚚 *Delivery within 30-60 minutes*
 
 🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"""
+
+        return message
+
+    def format_shopkeeper_message(self) -> str:
+        """Format order notification message for shopkeeper"""
+        items_text = "\n".join([f"• {item['quantity']}x {item['product_name']}" for item in self.items])
+
+        message = f"""🔔 *NEW ORDER RECEIVED*
+
+👤 *Customer:* {self.customer_name}
+📞 *Phone:* {self.phone_number}
+
+📦 *Order Details:*
+{items_text}
+
+💰 *Total:* ₹{self.total_bill:.2f}
+🆔 *Order ID:* {self.order_id}
+
+⏰ *Time:* {datetime.now(IST).strftime('%d/%m/%Y %I:%M %p')}
+
+📍 *Please prepare and deliver the order!*
+🚚 *Contact customer for delivery details*
+
+🏪 *Raza Wholesale and Retail*"""
 
         return message
 
@@ -201,11 +228,17 @@ async def receive_order_notification(request: Request):
         # Parse order data
         order = OrderData(order_data)
 
-        # Format WhatsApp message
+        # Format WhatsApp message for customer
         whatsapp_message = order.format_order_message()
 
-        # Send WhatsApp message
-        success = send_whatsapp_message(order.phone_number, whatsapp_message)
+        # Send WhatsApp message to customer
+        customer_success = send_whatsapp_message(order.phone_number, whatsapp_message)
+
+        # Format WhatsApp message for shopkeeper
+        shopkeeper_message = order.format_shopkeeper_message()
+
+        # Send WhatsApp message to shopkeeper
+        shopkeeper_success = send_whatsapp_message(SHOPKEEPER_WHATSAPP_NUMBER, shopkeeper_message)
 
         # Log the order
         log_entry = {
@@ -215,7 +248,8 @@ async def receive_order_notification(request: Request):
             "phone_number": order.phone_number,
             "total_bill": order.total_bill,
             "items": order.items,
-            "whatsapp_sent": success
+            "customer_whatsapp_sent": customer_success,
+            "shopkeeper_whatsapp_sent": shopkeeper_success
         }
 
         # Save to log file
@@ -225,7 +259,8 @@ async def receive_order_notification(request: Request):
         return {
             "status": "success",
             "message": "Order notification received",
-            "whatsapp_sent": success,
+            "customer_whatsapp_sent": customer_success,
+            "shopkeeper_whatsapp_sent": shopkeeper_success,
             "order_id": order.order_id
         }
 
@@ -245,7 +280,8 @@ async def health_check():
         "timestamp": datetime.now(IST).isoformat(),
         "whatsapp_method": whatsapp_method,
         "twilio_available": USE_TWILIO,
-        "twilio_configured": bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
+        "twilio_configured": bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER),
+        "shopkeeper_number": SHOPKEEPER_WHATSAPP_NUMBER
     }
 
 @app.get("/orders")
