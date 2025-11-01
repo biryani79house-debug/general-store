@@ -179,7 +179,9 @@ async def receive_order_notification(request: Request):
         shopkeeper_message = order.format_shopkeeper_message()
 
         # Send WhatsApp message to shopkeeper with customer confirmation text
+        logger.info(f"📱 Attempting to send WhatsApp to shopkeeper: {SHOPKEEPER_WHATSAPP_NUMBER}")
         shopkeeper_success = send_whatsapp_message(SHOPKEEPER_WHATSAPP_NUMBER, shopkeeper_message)
+        logger.info(f"📱 WhatsApp send result for shopkeeper: {shopkeeper_success}")
 
         # Log the order
         log_entry = {
