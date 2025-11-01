@@ -92,24 +92,23 @@ class OrderData:
         return message
 
     def format_shopkeeper_message(self) -> str:
-        """Format order notification message for shopkeeper"""
-        items_text = "\n".join([f"• {item['quantity']}x {item['product_name']}" for item in self.items])
+        """Format message for shopkeeper containing customer confirmation text"""
+        # Get the customer confirmation message
+        customer_message = self.format_order_message()
 
         message = f"""🔔 *NEW ORDER RECEIVED*
 
 👤 *Customer:* {self.customer_name}
 📞 *Phone:* {self.phone_number}
-
-📦 *Order Details:*
-{items_text}
-
-💰 *Total:* ₹{self.total_bill:.2f}
 🆔 *Order ID:* {self.order_id}
-
 ⏰ *Time:* {datetime.now(IST).strftime('%d/%m/%Y %I:%M %p')}
 
-📍 *Please prepare and deliver the order!*
-🚚 *Contact customer for delivery details*
+📝 *SEND THIS MESSAGE TO CUSTOMER:*
+
+{customer_message}
+
+📍 *Please copy the above message and send it to the customer at {self.phone_number}*
+🚚 *Then prepare and deliver the order!*
 
 🏪 *Raza Wholesale and Retail*"""
 
@@ -176,16 +175,10 @@ async def receive_order_notification(request: Request):
         # Parse order data
         order = OrderData(order_data)
 
-        # Format WhatsApp message for customer
-        whatsapp_message = order.format_order_message()
-
-        # Send WhatsApp message to customer
-        customer_success = send_whatsapp_message(order.phone_number, whatsapp_message)
-
-        # Format WhatsApp message for shopkeeper
+        # Format WhatsApp message for shopkeeper (contains customer confirmation text)
         shopkeeper_message = order.format_shopkeeper_message()
 
-        # Send WhatsApp message to shopkeeper
+        # Send WhatsApp message to shopkeeper with customer confirmation text
         shopkeeper_success = send_whatsapp_message(SHOPKEEPER_WHATSAPP_NUMBER, shopkeeper_message)
 
         # Log the order
@@ -196,7 +189,6 @@ async def receive_order_notification(request: Request):
             "phone_number": order.phone_number,
             "total_bill": order.total_bill,
             "items": order.items,
-            "customer_whatsapp_sent": customer_success,
             "shopkeeper_whatsapp_sent": shopkeeper_success
         }
 
@@ -207,7 +199,6 @@ async def receive_order_notification(request: Request):
         return {
             "status": "success",
             "message": "Order notification received",
-            "customer_whatsapp_sent": customer_success,
             "shopkeeper_whatsapp_sent": shopkeeper_success,
             "order_id": order.order_id
         }

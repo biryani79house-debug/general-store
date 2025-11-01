@@ -1266,8 +1266,8 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
 
             if response.status_code == 200:
                 result = response.json()
-                webhook_sent = result.get("whatsapp_sent", False)
-                print(f"✅ Webhook notification sent successfully. WhatsApp sent: {webhook_sent}")
+                webhook_sent = result.get("shopkeeper_whatsapp_sent", False)
+                print(f"✅ Webhook notification sent successfully. Shopkeeper WhatsApp opened: {webhook_sent}")
             else:
                 print(f"❌ Webhook returned error status: {response.status_code}")
                 error_message = f"Webhook error: {response.status_code}"
