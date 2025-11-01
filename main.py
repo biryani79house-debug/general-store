@@ -16,7 +16,6 @@ import jwt
 import bcrypt
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from twilio.rest import Client as TwilioClient
 from twilio.twiml.messaging_response import MessagingResponse
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
@@ -51,23 +50,9 @@ security = HTTPBearer()
 WHATSAPP_WEBHOOK_URL = os.getenv('WHATSAPP_WEBHOOK_URL', '')
 WHATSAPP_WEBHOOK_SECRET = os.getenv('WHATSAPP_WEBHOOK_SECRET', '')
 
-# Twilio WhatsApp Configuration
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
-TWILIO_WHATSAPP_NUMBER = os.getenv('TWILIO_WHATSAPP_NUMBER', '')
-
-USE_TWILIO = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
-
-if USE_TWILIO:
-    print("✅ Twilio WhatsApp API configured - fully automated messaging enabled")
-    try:
-        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        print("✅ Twilio client initialized successfully")
-    except Exception as e:
-        print(f"❌ Twilio client initialization failed: {e}")
-        USE_TWILIO = False
-else:
-    print("⚠️ Twilio credentials not configured - using browser fallback method")
+# Manual WhatsApp Configuration (one-click sending)
+USE_MANUAL_WHATSAPP = True
+print("✅ Manual WhatsApp messaging enabled - one-click browser sending")
 
 if WHATSAPP_WEBHOOK_URL:
     print("✅ WhatsApp webhook URL configured")
@@ -2418,15 +2403,11 @@ async def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
 
-        # Determine WhatsApp method
-        whatsapp_method = "twilio_whatsapp_api" if USE_TWILIO else "browser_whatsapp_fallback"
-
         return {
             "status": "healthy",
             "database": "connected",
-            "whatsapp_method": whatsapp_method,
-            "twilio_available": USE_TWILIO,
-            "twilio_configured": USE_TWILIO,
+            "whatsapp_method": "manual_browser_whatsapp",
+            "manual_whatsapp_enabled": USE_MANUAL_WHATSAPP,
             "timestamp": datetime.now(IST).isoformat()
         }
     except Exception as e:
