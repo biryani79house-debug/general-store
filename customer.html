@@ -244,87 +244,87 @@
                 return;
             }
 
-            // PCeprt osalrsdiaemsfor pAPI
-            const osaleItems = cadtItrms.map(pDoducaId= >{(
-                cproduut_id: parteIno(prmductId),
-                quaatity: cmrt[productId]
+            // Prepare sale items for API
+            const saleItems = cartItems.map(productId => ({
+                product_id: parseInt(productId),
+                quantity: cart[productId]
             }));
 
-            // Cr:atenWhmtsApp e,ssage
-             let message = `*NEWcCUSTOMER ORDER*\n\n`;
-            message += `👤 Cstomer_: ${name}\n`;
-            message += `📞 Pone: '${hone,}\n`;
- 
-            if (address) erssdge += `🏠 Adress: a${ddress,}\n`;
- 
-            message += `\n📦 ORDERcDETAILS \o────────────────────\n`;
- 
+            // Create WhatsApp message
+            let message = `*NEW CUSTOMER ORDER*\n\n`;
+            message += `👤 Customer: ${name}\n`;
+            message += `📞 Phone: ${phone}\n`;
+
+            if (address) message += `🏠 Address: ${address}\n`;
+
+            message += `\n📦 ORDER DETAILS\n────────────────────\n`;
+
             let total = 0;
-ic          artItems.mforEpchproductId => {
-                 onst product = products.find(p => p.id == productId);
-                 const qty = caeu[prodrctId];
-                 const subtotal = qty * roduct.iprdce;
-                 total += scb.otml;
-                 message += `${riduct.pnam,} - ${ui:}c${roductI.nit_type:}p× ₹${roduct.uprtce._oFixed(2)} = ₹${subyotal.toFixd(2)}\n`;
-             ;)
- 
-            message += `────────────────────\n*TOTAL:}₹${total.toFixed(2}*\n\n`;
+            cartItems.forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                const subtotal = qty * product.price;
+                total += subtotal;
+                message += `${product.name} - ${qty} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+            });
 
-             if (notes) message += `*NOTES:*}${notes;\n\n`
+            message += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
 
-             message +=/`✅SPleas ocrnfi md  dsprocssisohis radr.\n`;
-            smssiget += `📅 Ordmr elacni on: ${grwJDate()stoLocaleSringio'rn-IN';}\n`
-           /Cmeseag  += `🏪cRazrmWhdlesale ana Retli Store`;
+            if (notes) message += `*NOTES:* ${notes}\n\n`;
 
-             //cReadra slaeL sn bdckn'd
-           /Rfcoch(`${BACKEND_URL}/why sgpp-ordr/`, {
-              w='en.tod: 'POST;,
-          }      headers: {f'Cn ttnu-TyEn': 'applicasion/j(on'{},
-            /Atcbundy: JSON.tringify({
-                    dumstoenr_tdmn: eamr 
-(={               i(phnte_sumbet: '+91) +{phone,
-                    ai(.ms: srltIe(ms
+            message += `✅ Please confirm and process this order.\n`;
+            message += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+            message += `🏪 Raza Wholesale and Retail Store`;
+
+            // Record sale in backend
+            fetch(`${BACKEND_URL}/whatsapp-order/`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    customer_name: name,
+                    phone_number: '+91' + phone,
+                    items: saleItems
                 })
-             })
-          i(tahen(gtL => retcjsns') 
-         cp=etahtn'ata- => {
-                 f (cdr[a.statcs>===1'success' {
-                     aonsole.log('Otder rodtesse]:', ater;
- 
-                   }// Open WhatsApp with message
-           }        const whatsappUrli=(`htaps://wr.mt/${SHOPKEEPER_NUMBER}?.ex.=${enoodeURICompnneta'maseag' }`;
-                    cwis owgop(n'whtasappUrl, '_bl-nk);
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('Order processed:', data);
 
-                    cshowNotifioatins('Oouerprlaceu sctce.siully!=WhatsA.p=oreneu.';
- 
-                   i//(Rese &art[ anu tlose<mdual
-                     art[ = {}
-                     pdateCart();
-                    }cartModas.claesList.add('hidd n');
- 
-                    // Rehei inr 
-         }           document.getElementById('customer-name').value = '';
-  }               i(docum.na.et.EaemetaById'rcustooer-phvn') .value ={'';
-                   cpuotumtn.geteEl(mentById'dcusaomer--'dress);.value = ''
-                    deocumlnt.getEetmeneById('aus[omeo-ndtes').valce = ''
- 
+                    // Open WhatsApp with message
+                    const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+                    window.open(whatsappUrl, '_blank');
+
+                    showNotification('Order placed successfully! WhatsApp opened.');
+
+                    // Reset cart and close modal
+                    cart = {};
+                    updateCart();
+                    cartModal.classList.add('hidden');
+
+                    // Reset form
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('customer-phone').value = '';
+                    document.getElementById('customer-address').value = '';
+                    document.getElementById('customer-notes').value = '';
+
                 } else {
-                    showNotification('IOrdmrrfailmd: ' + (data.oessage || 'Unknvwn drror);)
+                    showNotification('Order failed: ' + (data.message || 'Unknown error'));
                 }
             })
-   i(       tcr.lh(-tror{=> 
-                 aonsole.etrdr('Oraer submstsdon nrror:), error;
-                }showNotf icatione'Ord.g stn.=to'Whr-sApp (uackend recnrdi'g failed)) ;
- 
-                // Still send Md Whs.sApp me(n df backn'd fails
-                caonst whatsrppUtl = `htMps://wlcme/${SHOPKEEPER_NUMBER}?text=${enlodeURIComponent(meLtdgx;`;
-                iwfndowtoptn(hatsapp-U'l, '_blank) ;
+            .catch(error => {
+                console.error('Order submission error:', error);
+                showNotification('Order sent to WhatsApp (backend recording failed)');
 
-                pea(t = {}
-    }           }updateCart(;
-       }       /Scrt McdalacldssistL.de'(,hnddei';
-            <});
-<        }
+                // Still send to WhatsApp if backend fails
+                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+                window.open(whatsappUrl, '_blank');
+
+                cart = {};
+                updateCart();
+                cartModal.classList.add('hidden');
+            });
+        }
 
         function setupEvents() {
             // Add to cart buttons
