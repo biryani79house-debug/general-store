@@ -2848,10 +2848,7 @@ function backToHome() {
 
                 const response = await fetch(`${backendURL}/purchases/`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true'
-                    },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({
                         product_id: parseInt(productId),
                         quantity: quantity,
@@ -5226,14 +5223,16 @@ function backToHome() {
             }
         }
 
-        // ===== AUTOMATIC LOGOUT ON APP CLOSE/CLOSE =====
+        // ===== AUTOMATIC LOGOUT ON APP CLOSE ONLY =====
         window.addEventListener('beforeunload', function(e) {
-            // Clear authentication data when app is closed/navigated away from
-            // This provides security by ensuring users must login again
-            console.log('🔒 Auto-logging out due to app closure/navigation away');
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('currentUser');
-            currentUser = null;
+            // Only clear authentication data when the app is actually being closed
+            // Not on page refresh or navigation within the app
+            if (e.type === 'beforeunload' && !e.target.location) {
+                console.log('🔒 Auto-logging out due to app closure');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                currentUser = null;
+            }
         });
 
         // ===== SESSION TIMEOUT (logout after 2 hours of inactivity) =====
