@@ -1225,8 +1225,8 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     db.commit()
 
     # Generate WhatsApp thanks message in the specified format
-    # Use payment.html as the payment link
-    payment_link = "payment.html"  # Relative link as shown in the task example
+    # Use full URL to payment.html so it works in WhatsApp
+    payment_link = "https://kirana-store-maoc.onrender.com/payment.html"  # Full URL for WhatsApp
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
     whatsapp_message += "📦 *Order Received:*\n"
