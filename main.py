@@ -3,6 +3,7 @@ import os
 import io
 import csv
 import urllib.parse
+import json
 from contextlib import asynccontextmanager
 from typing import List, Optional, Any, Dict
 from dotenv import load_dotenv
@@ -1225,8 +1226,16 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     db.commit()
 
     # Generate WhatsApp thanks message in the specified format
-    # Use full URL to payment.html so it works in WhatsApp
-    payment_link = "https://general-store-kappa.vercel.app/payment"  # Full URL for WhatsApp
+    # Use full URL to payment.html with order data as URL parameters so it works in WhatsApp
+    order_data = {
+        "customer_name": order_request.customer_name,
+        "customer_phone": order_request.phone_number,
+        "items": [{"name": item.product_name, "quantity": item.quantity, "price": products_db.get(item.product_name.lower(), 100.00)} for item in order_request.items],
+        "total": total_bill,
+        "order_id": f"ORDER_{db_sale.id}"
+    }
+    order_param = urllib.parse.quote(json.dumps(order_data))
+    payment_link = f"https://general-store-kappa.vercel.app/payment?order={order_param}"
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
     whatsapp_message += "📦 *Order Received:*\n"
