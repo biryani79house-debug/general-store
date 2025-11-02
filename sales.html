@@ -370,19 +370,11 @@
                         console.log('✅ Order details sent to shopkeeper WhatsApp');
                     }
 
-                    // Second: Open WhatsApp with pre-filled thanks message for shopkeeper to copy and send
-                    console.log('Opening WhatsApp with pre-filled thanks message for shopkeeper to copy');
+                    // Second: Show thanks message in modal for shopkeeper to copy and send
+                    console.log('Showing thanks message modal for shopkeeper to copy');
                     setTimeout(() => {
-                        const thanksMessageForShopkeeper = `📝 *THANKS MESSAGE TO SEND TO CUSTOMER:*\n\n${data.whatsapp_message}`;
-                        const shopkeeperThanksUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(thanksMessageForShopkeeper)}`;
-                        const whatsappWindow2 = window.open(shopkeeperThanksUrl, '_blank');
-                        if (!whatsappWindow2) {
-                            console.error('❌ Thanks message WhatsApp window blocked!');
-                            showNotification('⚠️ Order sent, but thanks message not opened');
-                        } else {
-                            console.log('✅ Thanks message opened in shopkeeper WhatsApp for copying');
-                        }
-                    }, 1500); // Longer delay to avoid popup blocking
+                        showThanksMessageModal(data.whatsapp_message);
+                    }, 2000); // Show modal after order is sent
 
                     // Show success notification
                     showNotification('✅ Order sent! Thanks message opened in WhatsApp.');
@@ -454,6 +446,82 @@
         function closeOrderConfirmation() {
             const modal = document.querySelector('.order-confirmation-modal');
             if (modal) modal.remove();
+        }
+
+        function showThanksMessageModal(thanksMessage) {
+            // Create a modal to display the thanks message for copying
+            const existingModal = document.querySelector('.thanks-message-modal');
+            if (existingModal) existingModal.remove();
+
+            const modal = document.createElement('div');
+            modal.className = 'thanks-message-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-green-600">📝 Thanks Message Ready!</h3>
+                        <button onclick="closeThanksMessageModal()" class="text-2xl text-gray-500 hover:text-gray-700">&times;</button>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-sm text-gray-600 mb-3">Copy this message and send it to the customer:</p>
+                        <div class="bg-gray-50 border rounded-lg p-3 max-h-60 overflow-y-auto">
+                            <pre id="thanks-message-text" class="text-sm whitespace-pre-wrap font-mono">${thanksMessage}</pre>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="copyThanksMessage()" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 font-semibold">
+                            📋 Copy Message
+                        </button>
+                        <button onclick="openWhatsAppWithThanks()" class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 font-semibold">
+                            📱 Open WhatsApp
+                        </button>
+                    </div>
+
+                    <p class="text-xs text-gray-500 text-center mt-3">
+                        Send this message to confirm the order and provide payment instructions.
+                    </p>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeThanksMessageModal() {
+            const modal = document.querySelector('.thanks-message-modal');
+            if (modal) modal.remove();
+        }
+
+        function copyThanksMessage() {
+            const textElement = document.getElementById('thanks-message-text');
+            if (textElement) {
+                navigator.clipboard.writeText(textElement.textContent).then(() => {
+                    showNotification('✅ Thanks message copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = textElement.textContent;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showNotification('✅ Thanks message copied to clipboard!');
+                });
+            }
+        }
+
+        function openWhatsAppWithThanks() {
+            const textElement = document.getElementById('thanks-message-text');
+            if (textElement) {
+                const customerPhone = document.getElementById('customer-phone').value.trim();
+                if (customerPhone) {
+                    const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(textElement.textContent)}`;
+                    window.open(whatsappUrl, '_blank');
+                    closeThanksMessageModal();
+                } else {
+                    showNotification('❌ Customer phone number not found');
+                }
+            }
         }
 
         function setupEvents() {
