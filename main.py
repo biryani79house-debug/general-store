@@ -1230,7 +1230,7 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     order_data = {
         "customer_name": order_request.customer_name,
         "customer_phone": order_request.phone_number,
-        "items": [{"name": item.product_name, "quantity": item.quantity, "price": products_db.get(item.product_name.lower(), 100.00)} for item in order_request.items],
+        "items": [{"name": item.product_name, "quantity": item.quantity, "price": PRODUCTS_DB.get(item.product_name.lower(), 100.00)} for item in order_request.items],
         "total": total_bill,
         "order_id": f"ORDER_{db_sale.id}"
     }

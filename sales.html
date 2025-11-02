@@ -363,13 +363,22 @@
                     const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
                     console.log('Sending order details to shopkeeper WhatsApp:', shopkeeperUrl);
 
-                    const shopkeeperWindow = window.open(shopkeeperUrl, '_blank');
-                    if (!shopkeeperWindow) {
-                        console.error('❌ WhatsApp window blocked!');
-                        alert('Please allow popups for this site to send the order to WhatsApp');
+                    // Try to open WhatsApp - use location.href as fallback if popup blocked
+                    try {
+                        const shopkeeperWindow = window.open(shopkeeperUrl, '_blank', 'noopener,noreferrer');
+                        if (!shopkeeperWindow || shopkeeperWindow.closed) {
+                            // Popup blocked, redirect current page
+                            console.log('Popup blocked, redirecting current page to WhatsApp');
+                            window.location.href = shopkeeperUrl;
+                            return; // Exit to prevent further execution
+                        } else {
+                            console.log('✅ Order details sent to shopkeeper WhatsApp');
+                        }
+                    } catch (error) {
+                        console.error('Error opening WhatsApp:', error);
+                        // Fallback to redirect
+                        window.location.href = shopkeeperUrl;
                         return;
-                    } else {
-                        console.log('✅ Order details sent to shopkeeper WhatsApp');
                     }
 
                     // Second: Copy thanks message to clipboard automatically
