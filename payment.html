@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self' https://web-production-9d240.up.railway.app; img-src 'self' data: https:; font-src 'self' https:; frame-src 'self' https://wa.me;">
     <title>Raza Wholesale and Retail - Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -133,9 +134,10 @@
                             </div>
                         </div>
                     </div>
-                    <p class="text-sm text-gray-600 mb-4">
-                        Scan this QR code with your <span id="payment-app-name">payment app</span> to complete the payment
-                    </p>
+                    <div class="text-sm text-gray-600 mb-4">
+                        <p><strong>Option 1:</strong> Scan QR code with any UPI app on your phone</p>
+                        <p><strong>Option 2:</strong> Click "Confirm Payment" to open <span id="payment-app-name">payment app</span> (mobile only)</p>
+                    </div>
                 </div>
             </div>
 
@@ -188,16 +190,24 @@
                 }
             }
 
+            // Always setup event listeners for payment buttons
+            setupEventListeners();
+
             if (!orderData) {
-                showNotification('No order data found. Please go back to cart.');
-                setTimeout(() => {
-                    window.location.href = 'customer.html';
-                }, 2000);
-                return;
+                // Use dummy data for testing if no order data
+                orderData = {
+                    customer_name: 'Test Customer',
+                    customer_phone: '+91 9876543210',
+                    customer_address: 'Test Address, City',
+                    items: [
+                        { name: 'Test Product 1', quantity: 2, price: 50.00 },
+                        { name: 'Test Product 2', quantity: 1, price: 100.00 }
+                    ]
+                };
+                showNotification('Using test order data. Add items to cart for real orders.');
             }
 
             displayOrderSummary();
-            setupEventListeners();
         }
 
         function displayOrderSummary() {
@@ -306,32 +316,67 @@
         function generatePaymentQR(method, amount) {
             const qrContainer = document.getElementById('qr-code-container');
 
-            // This is a placeholder - in real implementation, you would:
-            // 1. Call your payment gateway API to generate QR code
-            // 2. Use a QR code library to display it
-            // 3. Handle the payment callback
+            // UPI ID for payments
+            const upiId = '78692rose-2@okicici';
+            const payeeName = 'Raza Wholesale and Retail';
+
+            // Create UPI payment string for QR code
+            const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=Payment%20for%20Order`;
+
+            // Generate QR code using QR Server API (free service)
+            const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiString)}`;
 
             qrContainer.innerHTML = `
                 <div class="text-center">
-                    <div class="text-4xl mb-2">${method === 'gpay' ? '🟦' : '🟣'}</div>
-                    <p class="text-sm text-gray-600 font-semibold">${method.toUpperCase()} QR</p>
+                    <img src="${qrCodeUrl}" alt="UPI QR Code" class="mx-auto mb-2 rounded-lg shadow-sm" style="width: 180px; height: 180px;">
+                    <p class="text-sm text-gray-600 font-semibold">${method.toUpperCase()} Payment</p>
                     <p class="text-xs text-gray-500">Amount: ₹${amount.toFixed(2)}</p>
-                    <p class="text-xs text-green-600 mt-2">Ready to scan</p>
+                    <p class="text-xs text-blue-600 mt-1">Scan with any UPI app</p>
+                    <div class="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                        <strong>UPI ID:</strong> ${upiId}<br>
+                        <strong>Payee:</strong> ${payeeName}
+                    </div>
                 </div>
             `;
         }
 
         function confirmPayment() {
-            // In real implementation, you would:
-            // 1. Verify payment was completed via webhook/callback
-            // 2. Then proceed with order placement
+            // Get selected payment method
+            const selectedMethod = document.querySelector('.payment-option.border-green-500');
+            const method = selectedMethod ? selectedMethod.id.replace('-option', '') : 'gpay';
 
-            showNotification('Payment confirmed! Processing your order...');
+            // Calculate total amount
+            const totalAmount = orderData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
 
-            // Simulate payment processing delay
-            setTimeout(() => {
-                placeOrder('paid');
-            }, 2000);
+            // UPI ID for payments
+            const upiId = '78692rose-2@okicici';
+            const payeeName = 'Raza Wholesale and Retail';
+
+            // Create UPI payment URL
+            let upiUrl = '';
+            if (method === 'gpay') {
+                // Google Pay UPI URL
+                upiUrl = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${totalAmount}&cu=INR&tn=Payment%20for%20Order`;
+            } else if (method === 'phonepe') {
+                // PhonePe UPI URL
+                upiUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${totalAmount}&cu=INR&tn=Payment%20for%20Order`;
+            }
+
+            if (upiUrl) {
+                // Try to open the payment app
+                window.location.href = upiUrl;
+
+                // Show notification
+                showNotification(`Opening ${method.toUpperCase()} for payment of ₹${totalAmount.toFixed(2)}`);
+
+                // After a delay, assume payment was completed and place order
+                // In real implementation, you would wait for payment confirmation
+                setTimeout(() => {
+                    placeOrder('paid');
+                }, 5000);
+            } else {
+                showNotification('Payment method not supported');
+            }
         }
 
         function confirmCashOrder() {
@@ -394,11 +439,6 @@
                     // Clear stored order data
                     sessionStorage.removeItem('pendingOrder');
 
-                    // Redirect back to customer page after delay
-                    setTimeout(() => {
-                        window.location.href = 'customer.html';
-                    }, 3000);
-
                 } else {
                     showNotification('Order failed: ' + (data.message || 'Unknown error'));
                 }
@@ -416,7 +456,7 @@
         function goBackToCart() {
             // Store order data temporarily and go back to cart
             sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
-            window.location.href = 'customer.html';
+            window.location.href = 'sales.html';
         }
 
         function showNotification(message) {
