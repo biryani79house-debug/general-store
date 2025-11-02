@@ -359,33 +359,10 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // First: Send order details to shopkeeper WhatsApp
-                    const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-                    console.log('Sending order details to shopkeeper WhatsApp:', shopkeeperUrl);
-
-                    // Try to open WhatsApp - use location.href as fallback if popup blocked
-                    try {
-                        const shopkeeperWindow = window.open(shopkeeperUrl, '_blank', 'noopener,noreferrer');
-                        if (!shopkeeperWindow || shopkeeperWindow.closed) {
-                            // Popup blocked, redirect current page
-                            console.log('Popup blocked, redirecting current page to WhatsApp');
-                            window.location.href = shopkeeperUrl;
-                            return; // Exit to prevent further execution
-                        } else {
-                            console.log('✅ Order details sent to shopkeeper WhatsApp');
-                        }
-                    } catch (error) {
-                        console.error('Error opening WhatsApp:', error);
-                        // Fallback to redirect
-                        window.location.href = shopkeeperUrl;
-                        return;
-                    }
-
-                    // Second: Copy thanks message to clipboard automatically
+                    // First: Copy thanks message to clipboard immediately
                     const thanksMessage = data.whatsapp_message;
                     navigator.clipboard.writeText(thanksMessage).then(() => {
                         console.log('✅ Thanks message copied to clipboard automatically');
-                        showNotification('✅ Order sent to shopkeeper! Thanks message copied to clipboard - paste into WhatsApp.');
                     }).catch(() => {
                         // Fallback for older browsers
                         const textArea = document.createElement('textarea');
@@ -395,8 +372,11 @@
                         document.execCommand('copy');
                         document.body.removeChild(textArea);
                         console.log('✅ Thanks message copied to clipboard automatically (fallback)');
-                        showNotification('✅ Order sent to shopkeeper! Thanks message copied to clipboard - paste into WhatsApp.');
                     });
+
+                    // Second: Show success message (don't open WhatsApp automatically)
+                    console.log('✅ Order processed successfully - thanks message copied to clipboard');
+                    showNotification('✅ Order sent! Thanks message copied to clipboard - paste into WhatsApp manually.');
 
                     // Reset cart and close modal
                     cart = {};
