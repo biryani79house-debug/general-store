@@ -370,15 +370,17 @@
                         console.log('✅ Order details sent to shopkeeper WhatsApp');
                     }
 
-                    // Second: Open WhatsApp with pre-filled thanks message for shopkeeper to send to customer
-                    console.log('Opening WhatsApp with pre-filled thanks message:', data.whatsapp_url);
+                    // Second: Open WhatsApp with pre-filled thanks message for shopkeeper to copy and send
+                    console.log('Opening WhatsApp with pre-filled thanks message for shopkeeper to copy');
                     setTimeout(() => {
-                        const whatsappWindow2 = window.open(data.whatsapp_url, '_blank');
+                        const thanksMessageForShopkeeper = `📝 *THANKS MESSAGE TO SEND TO CUSTOMER:*\n\n${data.whatsapp_message}`;
+                        const shopkeeperThanksUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(thanksMessageForShopkeeper)}`;
+                        const whatsappWindow2 = window.open(shopkeeperThanksUrl, '_blank');
                         if (!whatsappWindow2) {
                             console.error('❌ Thanks message WhatsApp window blocked!');
-                            showNotification('⚠️ Order sent, but please manually send thanks message to customer');
+                            showNotification('⚠️ Order sent, but thanks message not opened');
                         } else {
-                            console.log('✅ Thanks message WhatsApp opened for shopkeeper');
+                            console.log('✅ Thanks message opened in shopkeeper WhatsApp for copying');
                         }
                     }, 1500); // Longer delay to avoid popup blocking
 
