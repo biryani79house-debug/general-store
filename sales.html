@@ -340,9 +340,8 @@
                 console.log('Order processed:', data);
 
                 if (data.status === 'success') {
-                    // Show success message with customer WhatsApp sent status
-                    const whatsappStatus = data.webhook_sent ? 'Customer notified via WhatsApp!' : 'Order recorded (customer WhatsApp pending)';
-                    showNotification(`✅ Order placed successfully! ${whatsappStatus}`);
+                    // Show success message
+                    showNotification(`✅ Order placed successfully!`);
 
                     // Reset cart and close modal
                     cart = {};

@@ -46,26 +46,7 @@ else:
 # Initialize the HTTPBearer instance
 security = HTTPBearer()
 
-# WhatsApp Webhook Configuration
-WHATSAPP_WEBHOOK_URL = os.getenv('WHATSAPP_WEBHOOK_URL', '')
-WHATSAPP_WEBHOOK_SECRET = os.getenv('WHATSAPP_WEBHOOK_SECRET', '')
 
-# Manual WhatsApp Configuration (one-click sending)
-USE_MANUAL_WHATSAPP = True
-print("✅ Manual WhatsApp messaging enabled - one-click browser sending")
-
-if WHATSAPP_WEBHOOK_URL:
-    print("✅ WhatsApp webhook URL configured")
-else:
-    print("⚠️ WhatsApp webhook URL not configured - messages will be logged only")
-
-# Import requests for webhook calls
-try:
-    import requests
-    REQUESTS_AVAILABLE = True
-except ImportError:
-    print("⚠️ requests library not available - webhook notifications disabled")
-    REQUESTS_AVAILABLE = False
 
 # Create a SQLAlchemy engine
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {})
@@ -1211,7 +1192,7 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
 # --- API Endpoint for WhatsApp Orders ---
 @app.post("/whatsapp-order/", status_code=status.HTTP_200_OK)
 def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = Depends(get_db)):
-    """Processes order and sends notification to webhook service for WhatsApp messaging."""
+    """Processes WhatsApp orders and records them in the database."""
     total_bill = 0
     items_sold = []
 
@@ -1238,57 +1219,12 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
 
     db.commit()
 
-    # Prepare order data for webhook
-    order_data = {
-        "customer_name": order_request.customer_name,
-        "phone_number": order_request.phone_number,
-        "items": [{"product_name": item.product_name, "quantity": item.quantity} for item in order_request.items],
-        "total_bill": total_bill,
-        "order_id": f"ORDER_{db_sale.id}"  # Use the last sale ID as order reference
-    }
-
-    # Send order notification to webhook service
-    webhook_sent = False
-    error_message = None
-
-    if WHATSAPP_WEBHOOK_URL and REQUESTS_AVAILABLE:
-        try:
-            headers = {}
-            if WHATSAPP_WEBHOOK_SECRET:
-                headers["Authorization"] = f"Bearer {WHATSAPP_WEBHOOK_SECRET}"
-
-            response = requests.post(
-                f"{WHATSAPP_WEBHOOK_URL}/webhook/order-notification",
-                json=order_data,
-                headers=headers,
-                timeout=10
-            )
-
-            if response.status_code == 200:
-                result = response.json()
-                webhook_sent = result.get("shopkeeper_whatsapp_sent", False)
-                print(f"✅ Webhook notification sent successfully. Shopkeeper WhatsApp opened: {webhook_sent}")
-            else:
-                print(f"❌ Webhook returned error status: {response.status_code}")
-                error_message = f"Webhook error: {response.status_code}"
-                webhook_sent = False
-        except Exception as e:
-            print(f"❌ Failed to send webhook notification: {str(e)}")
-            error_message = f"Webhook delivery failed: {str(e)}"
-            webhook_sent = False
-    else:
-        print("⚠️ Webhook URL not configured or requests not available - order logged but notification not sent")
-        error_message = "Webhook service not configured"
-        webhook_sent = False
-
     return {
         "status": "success",
         "message": f"Thank you {order_request.customer_name}, your order has been received!",
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
-        "order_id": order_data["order_id"],
-        "webhook_sent": webhook_sent,
-        "error": error_message if not webhook_sent else None
+        "order_id": f"ORDER_{db_sale.id}"
     }
 
 # --- Dummy product data for SMS handler ---
@@ -2143,80 +2079,7 @@ async def delete_category(
         traceback.print_exc()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting category: {str(e)}")
 
-# --- WhatsApp Webhook Endpoint ---
-@app.post("/webhook/whatsapp")
-async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
-    """Handles incoming WhatsApp messages from Twilio webhook and sends automatic responses."""
-    try:
-        form_data = await request.form()
-        incoming_message = form_data.get('Body', '').strip().lower()
-        from_number = form_data.get('From', '')
 
-        print(f"📱 WhatsApp webhook received from {from_number}: '{incoming_message}'")
-
-        resp = MessagingResponse()
-
-        # Extract customer name from message if provided
-        customer_name = "Valued Customer"
-        if "my name is" in incoming_message or "i am" in incoming_message:
-            # Try to extract name from message
-            name_match = incoming_message.split("my name is")[-1].strip() if "my name is" in incoming_message else incoming_message.split("i am")[-1].strip()
-            if name_match and len(name_match.split()) <= 3:  # Reasonable name length
-                customer_name = name_match.title()
-
-        # Handle different types of messages
-        reply_message = None
-
-        # Check for greetings
-        if any(word in incoming_message for word in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']):
-            reply_message = f"🙏 Hello {customer_name}! Welcome to Raza Wholesale and Retail Store!\n\n🛒 *Fresh Products • Best Prices • Fast Delivery*\n\n📞 Contact: +91 7075210801\n🏪 Location: Tolichowki, Hyderabad\n\n💬 How can we help you today?"
-
-        # Check for order status inquiries
-        elif any(word in incoming_message for word in ['order', 'status', 'delivery', 'when', 'track']):
-            reply_message = f"📦 *Order Status Update*\n\nDear {customer_name},\n\nYour order has been received and is being processed.\n\n✅ *Order Confirmed*\n⏳ *Preparation Time:* 15-30 minutes\n🚚 *Delivery:* Within 1 hour\n\n💰 *Payment:* Please make payment when delivery arrives\n\n📞 Call +91 7075210801 for any questions\n\n🏪 *Thank you for choosing Raza Wholesale and Retail!*"
-
-        # Check for payment inquiries
-        elif any(word in incoming_message for word in ['payment', 'pay', 'money', 'cash', 'online']):
-            reply_message = f"💳 *Payment Information*\n\nDear {customer_name},\n\nWe accept:\n✅ *Cash on Delivery*\n✅ *Google Pay / PhonePe*\n✅ *UPI Payment*\n\n📱 *Scan QR code on delivery*\n💰 *Pay only when you receive your order*\n\n🏦 *Secure & Hassle-free Payment*\n\n📞 Contact: +91 7075210801"
-
-        # Check for product inquiries
-        elif any(word in incoming_message for word in ['price', 'cost', 'rate', 'how much']):
-            # Try to find product names in the message
-            found_products = []
-            for product_name in PRODUCTS_DB.keys():
-                if product_name in incoming_message:
-                    found_products.append(f"🍎 {product_name.capitalize()}: ₹{PRODUCTS_DB[product_name]:.2f}")
-
-            if found_products:
-                reply_message = f"💰 *Product Prices*\n\n" + "\n".join(found_products) + f"\n\n📞 Call +91 7075210801 for more products\n🏪 *Raza Wholesale and Retail*"
-            else:
-                reply_message = f"💰 *Price Inquiry*\n\nDear {customer_name},\n\n📋 *Available Products:*\n🍎 Apple: ₹100.00\n🍌 Banana: ₹50.00\n🍊 Orange: ₹80.00\n🥛 Milk: ₹65.00\n🍞 Bread: ₹40.00\n🥚 Eggs: ₹90.00\n🍚 Rice: ₹120.00\n🧂 Sugar: ₹55.00\n\n📞 Call +91 7075210801 for complete list\n🏪 *Best prices guaranteed!*"
-
-        # Check for thanks messages
-        elif any(word in incoming_message for word in ['thank', 'thanks', 'thank you', 'grateful']):
-            reply_message = f"🙏 *You're Welcome!*\n\nDear {customer_name},\n\nThank you for choosing Raza Wholesale and Retail!\n\n⭐ *We value your business*\n🚚 *Fast & Fresh Delivery*\n💯 *Quality Products*\n\n📞 Visit us again: +91 7075210801\n🏪 *Your trusted neighborhood store*"
-
-        # Check for delivery time inquiries
-        elif any(word in incoming_message for word in ['delivery', 'time', 'how long', 'when will']):
-            reply_message = f"🚚 *Delivery Information*\n\nDear {customer_name},\n\n⏰ *Delivery Time:* 30 minutes to 1 hour\n📍 *Delivery Area:* Tolichowki & nearby areas\n\n💰 *Cash on Delivery Available*\n📞 *Track your order:* Call +91 7075210801\n\n🏪 *Fresh products delivered to your doorstep!*"
-
-        # Default response for unrecognized messages
-        else:
-            reply_message = f"🙋‍♂️ *Hello {customer_name}!*\n\nWelcome to Raza Wholesale and Retail Store!\n\n🛒 *We offer:*\n✅ Fresh Fruits & Vegetables\n✅ Dairy Products\n✅ Bakery Items\n✅ Groceries\n✅ Household Items\n\n📞 *Call/WhatsApp:* +91 7075210801\n🏪 *Location:* Tolichowki, Hyderabad\n\n💬 *How can we help you today?*\n\n🏪 *Thank you for contacting us!*"
-
-        resp.message(reply_message)
-        print(f"📤 WhatsApp reply sent to {from_number}: {reply_message[:100]}...")
-
-        return JSONResponse(content=str(resp), media_type="text/xml")
-
-    except Exception as e:
-        print(f"❌ WhatsApp webhook error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-
-        resp = MessagingResponse()
-        resp.message("🙏 Thank you for contacting Raza Wholesale and Retail!\n\n📞 Please call +91 7075210801 for assistance.\n🏪 We look forward to serving you!")
-        return JSONResponse(content=str(resp), media_type="text/xml")
 
 # --- SMS Endpoint (Legacy) ---
 @app.post("/sms")
