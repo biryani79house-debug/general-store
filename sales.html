@@ -359,33 +359,22 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // First: Send order details to shopkeeper WhatsApp
+                    // Include thanks message in the order message sent to shopkeeper
+                    shopkeeperMessage += `\n\n📝 *THANKS MESSAGE TO SEND TO CUSTOMER:*\n\n${data.whatsapp_message}`;
+
+                    // Send complete order with thanks message to shopkeeper WhatsApp
                     const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-                    console.log('Sending order details to shopkeeper WhatsApp:', shopkeeperUrl);
-                    const whatsappWindow1 = window.open(shopkeeperUrl, '_blank');
-                    if (!whatsappWindow1) {
+                    console.log('Sending order with thanks message to shopkeeper WhatsApp:', shopkeeperUrl);
+                    const whatsappWindow = window.open(shopkeeperUrl, '_blank');
+                    if (!whatsappWindow) {
                         console.error('❌ WhatsApp window blocked!');
                         alert('Please allow popups for this site to send the order to WhatsApp');
                     } else {
-                        console.log('✅ Order details sent to shopkeeper WhatsApp');
+                        console.log('✅ Order with thanks message sent to shopkeeper WhatsApp');
                     }
 
-                    // Second: Send thanks message to shopkeeper WhatsApp
-                    console.log('Sending thanks message to shopkeeper WhatsApp');
-                    setTimeout(() => {
-                        const thanksMessageForShopkeeper = `📝 *THANKS MESSAGE TO SEND TO CUSTOMER:*\n\n${data.whatsapp_message}`;
-                        const shopkeeperThanksUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(thanksMessageForShopkeeper)}`;
-                        const whatsappWindow2 = window.open(shopkeeperThanksUrl, '_blank');
-                        if (!whatsappWindow2) {
-                            console.error('❌ Thanks message WhatsApp window blocked!');
-                            showNotification('⚠️ Order sent, but thanks message not opened for shopkeeper');
-                        } else {
-                            console.log('✅ Thanks message sent to shopkeeper WhatsApp');
-                        }
-                    }, 2000); // Send thanks message after order
-
                     // Show success notification
-                    showNotification('✅ Order sent! Thanks message opened in WhatsApp.');
+                    showNotification('✅ Order sent to WhatsApp! Thanks message included.');
 
                     // Reset cart and close modal
                     cart = {};
