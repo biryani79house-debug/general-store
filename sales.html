@@ -342,18 +342,7 @@
             shopkeeperMessage += `🏪 *Raza Wholesale and Retail Store*\n`;
             shopkeeperMessage += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
 
-            // Send complete order details to shopkeeper WhatsApp
-            const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-            console.log('Sending complete order details to shopkeeper WhatsApp:', shopkeeperUrl);
-            const whatsappWindow = window.open(shopkeeperUrl, '_blank');
-            if (!whatsappWindow) {
-                console.error('❌ WhatsApp window blocked!');
-                alert('Please allow popups for this site to send the order to WhatsApp');
-            } else {
-                console.log('✅ Order details sent to shopkeeper WhatsApp');
-            }
-
-            // Send order to backend
+            // Send order to backend first
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -370,8 +359,22 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // Show simple success notification (no popup)
-                    showNotification('✅ Order sent to WhatsApp! Shopkeeper will confirm soon.');
+                    // Include the thanks message in the shopkeeper's order notification
+                    shopkeeperMessage += `\n\n📝 *READY-TO-SEND THANKS MESSAGE:*\n\n${data.whatsapp_message}`;
+
+                    // Send complete order details with thanks message to shopkeeper WhatsApp
+                    const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
+                    console.log('Sending order details with thanks message to shopkeeper WhatsApp:', shopkeeperUrl);
+                    const whatsappWindow = window.open(shopkeeperUrl, '_blank');
+                    if (!whatsappWindow) {
+                        console.error('❌ WhatsApp window blocked!');
+                        alert('Please allow popups for this site to send the order to WhatsApp');
+                    } else {
+                        console.log('✅ Order details with thanks message sent to shopkeeper WhatsApp');
+                    }
+
+                    // Show success notification
+                    showNotification('✅ Order sent! Check WhatsApp for thanks message to send to customer.');
 
                     // Reset cart and close modal
                     cart = {};
