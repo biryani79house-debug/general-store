@@ -49,11 +49,7 @@ security = HTTPBearer()
 
 
 # Create a SQLAlchemy engine
-if USE_SQLITE:
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-else:
-    # For PostgreSQL, set timezone to IST to ensure timestamps are returned in IST
-    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=Asia/Kolkata"})
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for declarative models
@@ -61,6 +57,10 @@ Base = declarative_base()
 
 # --- Database Models ---
 IST = timezone(timedelta(hours=5, minutes=30))
+
+# Helper function to get current UTC time for database storage
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class UserRole(enum.Enum):
     ADMIN = "admin"
