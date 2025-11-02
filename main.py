@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 import os
 import io
 import csv
+import urllib.parse
 from contextlib import asynccontextmanager
 from typing import List, Optional, Any, Dict
 from dotenv import load_dotenv
@@ -1223,12 +1224,35 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
 
     db.commit()
 
+    # Generate WhatsApp thanks message in the specified format
+    # Use payment.html as the payment link
+    payment_link = "payment.html"  # Relative link as shown in the task example
+
+    whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
+    whatsapp_message += "📦 *Order Received:*\n"
+
+    for item in order_request.items:
+        whatsapp_message += f"• {item.quantity}x {item.product_name}\n"
+
+    whatsapp_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n\n"
+    whatsapp_message += f"💳 *Please pay ₹{total_bill:.2f} using this link*\n"
+    whatsapp_message += f"{payment_link}\n\n"
+    whatsapp_message += f"👤 Customer: {order_request.customer_name}\n"
+    whatsapp_message += f"📞 Phone: {order_request.phone_number}\n\n"
+    whatsapp_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
+    whatsapp_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
+
+    # Create WhatsApp URL with prefilled message
+    whatsapp_url = f"https://wa.me/{order_request.phone_number}?text={urllib.parse.quote(whatsapp_message)}"
+
     return {
         "status": "success",
         "message": f"Thank you {order_request.customer_name}, your order has been received!",
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
-        "order_id": f"ORDER_{db_sale.id}"
+        "order_id": f"ORDER_{db_sale.id}",
+        "whatsapp_message": whatsapp_message,
+        "whatsapp_url": whatsapp_url
     }
 
 # --- Dummy product data for SMS handler ---
