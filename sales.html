@@ -313,7 +313,12 @@
             // Store order data for payment page
             sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
 
-            // Create WhatsApp message for shopkeeper
+            // Disable the button to prevent double submission
+            const checkoutButton = document.getElementById('whatsapp-checkout-button');
+            checkoutButton.disabled = true;
+            checkoutButton.textContent = 'Processing...';
+
+            // Create order message for shopkeeper (order details only)
             let shopkeeperMessage = `*🛒 NEW CUSTOMER ORDER*\n\n`;
             shopkeeperMessage += `👤 Customer: ${name}\n`;
             shopkeeperMessage += `📞 Phone: ${phone}\n`;
@@ -335,75 +340,18 @@
             shopkeeperMessage += `✅ *Please confirm and process this order.*\n`;
             shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
             shopkeeperMessage += `🏪 *Raza Wholesale and Retail Store*\n`;
-            shopkeeperMessage += `🚚 *Fresh Products • Best Prices • Fast Delivery*\n\n`;
+            shopkeeperMessage += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
 
-            // Add payment link instructions for shopkeeper
-            shopkeeperMessage += `💳 *PAYMENT LINK:*\n`;
-            shopkeeperMessage += `Send this message to customer:\n\n`;
-            shopkeeperMessage += `*"Thank you for your order! Please complete payment here: [payment.html](payment.html)"*\n\n`;
-            shopkeeperMessage += `Customer should click the payment link to complete UPI payment.`;
-
-            // Disable the button to prevent double submission
-            const checkoutButton = document.getElementById('whatsapp-checkout-button');
-            checkoutButton.disabled = true;
-            checkoutButton.textContent = 'Processing...';
-
-            // Create combined message with order details AND ready-to-send thank you message
-            let combinedMessage = shopkeeperMessage;
-            combinedMessage += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-            combinedMessage += `📱 *READY-TO-SEND MESSAGE FOR CUSTOMER*\n`;
-            combinedMessage += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-
-            combinedMessage += `🎉 *Thank you for your order, ${name}*!\n\n`;
-            combinedMessage += `Your order has been received successfully.\n`;
-            combinedMessage += `📦 Order Total: ₹${total.toFixed(2)}\n`;
-            combinedMessage += `📞 We'll call you soon for confirmation.\n\n`;
-            combinedMessage += `💳 *Please complete your payment here:*\n`;
-            combinedMessage += `🔗 [Click here to pay](payment.html)\n\n`;
-            combinedMessage += `🏪 *Raza Wholesale and Retail Store*\n`;
-            combinedMessage += `🚚 Fresh Products • Best Prices • Fast Delivery\n\n`;
-
-            combinedMessage += `📋 *INSTRUCTIONS:*\n`;
-            combinedMessage += `1. Copy the message above\n`;
-            combinedMessage += `2. Send it to customer: +91${phone}\n`;
-            combinedMessage += `3. Customer will click the payment link`;
-
-            // First, send order details to shopkeeper
+            // Send complete order details to shopkeeper WhatsApp
             const shopkeeperUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-            console.log('Sending order details to shopkeeper first:', shopkeeperUrl);
-            window.open(shopkeeperUrl, '_blank');
-
-            // Then open thank you message to customer (shopkeeper just clicks send)
-            setTimeout(() => {
-                console.log('⏰ Timeout triggered - opening thank you message');
-                const thankYouMessage = `🎉 *Thank you for your order, ${name}*!\n\n` +
-                    `Your order has been received successfully.\n` +
-                    `📦 Order Total: ₹${total.toFixed(2)}\n` +
-                    `📞 We'll call you soon for confirmation.\n\n` +
-                    `💳 *Please complete your payment here:*\n` +
-                    `🔗 [Click here to pay](payment.html)\n\n` +
-                    `🏪 *Raza Wholesale and Retail Store*\n` +
-                    `🚚 Fresh Products • Best Prices • Fast Delivery`;
-
-                // Clean phone number for WhatsApp
-                const cleanPhone = phone.replace(/\s+/g, '').replace(/^\+91/, '').replace(/\D/g, '');
-                console.log('Phone processing:', { original: phone, cleaned: cleanPhone, length: cleanPhone.length, startsWithValid: /^[6-9]/.test(cleanPhone) });
-
-                if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
-                    const customerUrl = `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(thankYouMessage)}`;
-                    console.log('✅ Opening thank you message to customer:', customerUrl);
-                    const whatsappWindow = window.open(customerUrl, '_blank');
-                    if (!whatsappWindow) {
-                        console.error('❌ Thank you WhatsApp window blocked!');
-                        alert('Please allow popups for this site to send the thank you message');
-                    } else {
-                        console.log('✅ Thank you WhatsApp window opened successfully');
-                    }
-                } else {
-                    console.error('❌ Invalid phone number for thank you message:', cleanPhone);
-                    alert('Invalid phone number - cannot send thank you message');
-                }
-            }, 1500); // Reduced to 1.5 seconds
+            console.log('Sending complete order details to shopkeeper WhatsApp:', shopkeeperUrl);
+            const whatsappWindow = window.open(shopkeeperUrl, '_blank');
+            if (!whatsappWindow) {
+                console.error('❌ WhatsApp window blocked!');
+                alert('Please allow popups for this site to send the order to WhatsApp');
+            } else {
+                console.log('✅ Order details sent to shopkeeper WhatsApp');
+            }
 
             // Send order to backend
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
