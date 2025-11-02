@@ -49,7 +49,11 @@ security = HTTPBearer()
 
 
 # Create a SQLAlchemy engine
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {})
+if USE_SQLITE:
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    # For PostgreSQL, set timezone to IST to ensure timestamps are returned in IST
+    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=Asia/Kolkata"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for declarative models
