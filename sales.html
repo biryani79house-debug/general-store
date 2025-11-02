@@ -310,7 +310,7 @@
                 order_date: new Date().toISOString()
             };
 
-            // Store order data for payment page
+            // Store order data for payment page (both sessionStorage and URL params for cross-domain compatibility)
             sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
 
             // Disable the button to prevent double submission
@@ -450,6 +450,7 @@
         }
 
         function goToPayment() {
+            // Since both pages are on Vercel, use relative link with sessionStorage
             window.location.href = 'payment.html';
         }
 

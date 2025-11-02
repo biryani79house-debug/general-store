@@ -168,25 +168,29 @@
         let orderData = null;
 
         function init() {
-            // Try to get order data from URL parameters (fallback)
+            // Try to get order data from URL parameters (primary method for cross-domain)
             const urlParams = new URLSearchParams(window.location.search);
             const orderParam = urlParams.get('order');
 
             if (orderParam) {
                 try {
                     orderData = JSON.parse(decodeURIComponent(orderParam));
+                    console.log('✅ Order data loaded from URL parameters');
                 } catch (e) {
                     console.error('Failed to parse order data from URL');
                 }
             }
 
-            // Try to get from session storage (preferred method)
-            const storedOrder = sessionStorage.getItem('pendingOrder');
-            if (storedOrder) {
-                try {
-                    orderData = JSON.parse(storedOrder);
-                } catch (e) {
-                    console.error('Failed to parse stored order data');
+            // Try to get from session storage (fallback method)
+            if (!orderData) {
+                const storedOrder = sessionStorage.getItem('pendingOrder');
+                if (storedOrder) {
+                    try {
+                        orderData = JSON.parse(storedOrder);
+                        console.log('✅ Order data loaded from session storage');
+                    } catch (e) {
+                        console.error('Failed to parse stored order data');
+                    }
                 }
             }
 
