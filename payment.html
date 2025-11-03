@@ -271,11 +271,11 @@
         }
 
         function handleDigitalPayment(method) {
-            if (method === 'phonepe' && isMobileDevice()) {
-                // For PhonePe on mobile, directly open the app
-                openPaymentApp('phonepe');
+            if (isMobileDevice()) {
+                // On mobile, directly open the payment app
+                openPaymentApp(method);
             } else {
-                // For GPay or PhonePe on desktop, show QR code
+                // On desktop, show QR code
                 showQRCode(method);
                 document.getElementById('confirm-payment').classList.remove('hidden');
             }
