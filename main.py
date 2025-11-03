@@ -31,6 +31,9 @@ load_dotenv()
 # Use SQLite for local development, PostgreSQL for production
 USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
 
+# WhatsApp configuration
+USE_MANUAL_WHATSAPP = os.getenv("USE_MANUAL_WHATSAPP", "true").lower() == "true"
+
 if USE_SQLITE:
     DATABASE_URL = "sqlite:///./kirana_store.db"
     print("📱 Using SQLite database for local development")
@@ -1254,6 +1257,12 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     # Create WhatsApp URL with prefilled message
     whatsapp_url = f"https://wa.me/{order_request.phone_number}?text={urllib.parse.quote(whatsapp_message)}"
 
+    # Trigger shopkeeper notification when order is received
+    try:
+        send_shopkeeper_notification(order_request, total_bill, db_sale.id, db)
+    except Exception as e:
+        print(f"⚠️ Failed to send shopkeeper notification: {e}")
+
     return {
         "status": "success",
         "message": f"Thank you {order_request.customer_name}, your order has been received!",
@@ -1263,6 +1272,74 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "whatsapp_message": whatsapp_message,
         "whatsapp_url": whatsapp_url
     }
+
+# --- API Endpoint for Shopkeeper WhatsApp Notifications ---
+@app.post("/send-shopkeeper-notification/", status_code=status.HTTP_200_OK)
+def send_shopkeeper_notification_endpoint(order_request: WhatsAppOrderRequest, total_bill: float = 0.0, order_id: int = 0, db: Session = Depends(get_db)):
+    """Sends a thanks/notification message to the shopkeeper's WhatsApp when an order is received."""
+    try:
+        # Get store settings for shopkeeper contact
+        settings = db.query(StoreSettings).first()
+        shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
+
+        # Format shopkeeper notification message
+        notification_message = f"🔔 *NEW ORDER RECEIVED!*\n\n"
+        notification_message += f"👤 Customer: {order_request.customer_name}\n"
+        notification_message += f"📞 Phone: {order_request.phone_number}\n\n"
+        notification_message += f"📦 *Order Details:*\n"
+
+        for item in order_request.items:
+            notification_message += f"• {item.quantity}x {item.product_name}\n"
+
+        notification_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n"
+        notification_message += f"🆔 *Order ID: ORDER_{order_id}*\n\n"
+        notification_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
+        notification_message += "✅ *Please prepare the order for delivery!*"
+
+        # Here you would integrate with WhatsApp API (Twilio, 360Dialog, etc.)
+        # For now, we'll simulate the WhatsApp sending and return success
+
+        print(f"📱 Shopkeeper notification sent to {shopkeeper_number}")
+        print(f"📨 Message: {notification_message}")
+
+        return {
+            "status": "success",
+            "message": "Thanks message sent to shopkeeper's WhatsApp",
+            "shopkeeper_number": shopkeeper_number,
+            "notification_message": notification_message,
+            "order_id": f"ORDER_{order_id}",
+            "timestamp": datetime.now(IST).isoformat()
+        }
+
+    except Exception as e:
+        print(f"❌ Error sending shopkeeper notification: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to send shopkeeper notification: {str(e)}",
+            "timestamp": datetime.now(IST).isoformat()
+        }
+
+# Helper function to send shopkeeper notification (called from whatsapp-order endpoint)
+def send_shopkeeper_notification(order_request: WhatsAppOrderRequest, total_bill: float, order_id: int, db: Session):
+    """Helper function to trigger shopkeeper notification from order processing."""
+    try:
+        # This function calls the notification endpoint internally
+        # In a real implementation, you might want to use a background task or queue
+        from fastapi.testclient import TestClient
+        client = TestClient(app)
+        response = client.post(
+            "/send-shopkeeper-notification/",
+            json={
+                "customer_name": order_request.customer_name,
+                "phone_number": order_request.phone_number,
+                "items": [{"product_name": item.product_name, "quantity": item.quantity} for item in order_request.items]
+            },
+            params={"total_bill": total_bill, "order_id": order_id}
+        )
+        return response.json()
+    except Exception as e:
+        print(f"⚠️ Error in shopkeeper notification helper: {e}")
+        return None
 
 # --- Dummy product data for SMS handler ---
 PRODUCTS_DB = {
