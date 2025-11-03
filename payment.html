@@ -136,7 +136,7 @@
                     </div>
                     <div class="text-sm text-gray-600 mb-4">
                         <p><strong>Option 1:</strong> Scan QR code with any UPI app on your phone</p>
-                        <p><strong>Option 2:</strong> Click "Confirm Payment" to open <span id="payment-app-name">payment app</span> (mobile only)</p>
+                        <p><strong>Option 2:</strong> Click "Confirm Payment" to open <span id="payment-app-name">payment app</span></p>
                     </div>
                 </div>
             </div>
@@ -265,6 +265,57 @@
             orderTotal.textContent = `₹${total.toFixed(2)}`;
         }
 
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   window.innerWidth <= 768;
+        }
+
+        function handleDigitalPayment(method) {
+            if (method === 'phonepe' && isMobileDevice()) {
+                // For PhonePe on mobile, directly open the app
+                openPaymentApp('phonepe');
+            } else {
+                // For GPay or PhonePe on desktop, show QR code
+                showQRCode(method);
+                document.getElementById('confirm-payment').classList.remove('hidden');
+            }
+        }
+
+        function openPaymentApp(method) {
+            // Calculate total amount
+            const totalAmount = orderData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
+            // UPI ID for payments
+            const upiId = '78692rose-2@okicici';
+            const payeeName = 'Raza Wholesale and Retail';
+
+            // Create UPI payment URL
+            let upiUrl = '';
+            if (method === 'gpay') {
+                // Google Pay UPI URL
+                upiUrl = `tez://upi/pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${totalAmount}&cu=INR&tn=Payment%20for%20Order`;
+            } else if (method === 'phonepe') {
+                // PhonePe UPI URL
+                upiUrl = `phonepe://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${totalAmount}&cu=INR&tn=Payment%20for%20Order`;
+            }
+
+            if (upiUrl) {
+                // Try to open the payment app
+                window.location.href = upiUrl;
+
+                // Show notification
+                showNotification(`Opening ${method.toUpperCase()} for payment of ₹${totalAmount.toFixed(2)}`);
+
+                // After a delay, assume payment was completed and place order
+                // In real implementation, you would wait for payment confirmation
+                setTimeout(() => {
+                    placeOrder('paid');
+                }, 5000);
+            } else {
+                showNotification('Payment method not supported');
+            }
+        }
+
         function setupEventListeners() {
             // Payment method selection
             document.getElementById('gpay-option').addEventListener('click', () => selectPaymentMethod('gpay'));
@@ -298,9 +349,8 @@
                 // Show COD confirmation button
                 document.getElementById('cod-confirm').classList.remove('hidden');
             } else {
-                // Show QR code section for digital payments
-                showQRCode(method);
-                document.getElementById('confirm-payment').classList.remove('hidden');
+                // Handle digital payments
+                handleDigitalPayment(method);
             }
         }
 
@@ -470,9 +520,17 @@
         }
 
         function goBackToCart() {
-            // Store order data temporarily and go back to cart
-            sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
-            window.location.href = 'sales.html';
+            console.log('Back to cart button clicked');
+            // Store order data temporarily and go back to cart (if available)
+            if (orderData) {
+                sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+                console.log('Order data stored in session storage');
+            } else {
+                console.log('No order data available to store');
+            }
+            // Navigate back to sales page
+            console.log('Navigating to sales page');
+            window.location.href = 'https://general-store-kappa.vercel.app/sales';
         }
 
         function showNotification(message) {
