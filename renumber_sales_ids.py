@@ -83,6 +83,10 @@ def renumber_sales_ids():
             # Re-enable constraints
             db.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
 
+            # Cluster the table to reorder physically by ID
+            print("🔄 Clustering table to reorder rows physically by ID...")
+            db.execute(text("CLUSTER sales USING sales_pkey"))
+
             # Commit all changes
             db.commit()
 
