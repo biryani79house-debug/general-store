@@ -1230,15 +1230,25 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
 
     # Generate WhatsApp thanks message in the specified format
     # Use full URL to payment.html with order data as URL parameters so it works in WhatsApp
+    order_items = []
+    for item in order_request.items:
+        product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
+        if product:
+            order_items.append({
+                "name": item.product_name,
+                "quantity": item.quantity,
+                "price": product.selling_price
+            })
+
     order_data = {
         "customer_name": order_request.customer_name,
         "customer_phone": order_request.phone_number,
-        "items": [{"name": item.product_name, "quantity": item.quantity, "price": PRODUCTS_DB.get(item.product_name.lower(), 100.00)} for item in order_request.items],
+        "items": order_items,
         "total": total_bill,
         "order_id": f"ORDER_{db_sale.id}"
     }
     order_param = urllib.parse.quote(json.dumps(order_data))
-    payment_link = f"https://general-store-kappa.vercel.app/payment"
+    payment_link = f"https://general-store-kappa.vercel.app/payment?order={order_param}"
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
     whatsapp_message += "📦 *Order Received:*\n"
