@@ -417,8 +417,15 @@
         }
 
         function goToPayment() {
-            // Since both pages are on Vercel, use relative link with sessionStorage
-            window.location.href = 'payment.html';
+            // Get the stored order data and pass it via URL parameters for reliability
+            const storedOrder = sessionStorage.getItem('pendingOrder');
+            if (storedOrder) {
+                const orderParam = encodeURIComponent(storedOrder);
+                window.location.href = `payment.html?order=${orderParam}`;
+            } else {
+                // Fallback if no stored order
+                window.location.href = 'payment.html';
+            }
         }
 
         function closeOrderConfirmation() {

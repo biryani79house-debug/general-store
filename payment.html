@@ -198,17 +198,14 @@
             setupEventListeners();
 
             if (!orderData) {
-                // Use dummy data for testing if no order data
-                orderData = {
-                    customer_name: 'Test Customer',
-                    customer_phone: '+91 9876543210',
-                    customer_address: 'Test Address, City',
-                    items: [
-                        { name: 'Test Product 1', quantity: 2, price: 50.00 },
-                        { name: 'Test Product 2', quantity: 1, price: 100.00 }
-                    ]
-                };
-                showNotification('Using test order data. Add items to cart for real orders.');
+                // No order data available - show error
+                showNotification('❌ No order data found. Please go back and place an order first.');
+                console.error('No order data available in payment page');
+                // Redirect back to sales page after a delay
+                setTimeout(() => {
+                    window.location.href = 'sales.html';
+                }, 3000);
+                return;
             }
 
             displayOrderSummary();
