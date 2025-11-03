@@ -359,30 +359,11 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // Order processed successfully - now open WhatsApp with thanks message
-                    const thanksMessage = data.whatsapp_message;
-                    const customerPhone = '+91' + phone;
-
-                    // Open WhatsApp with the pre-filled thanks message
-                    const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
-                    console.log('Opening WhatsApp with URL:', whatsappUrl);
-
-                    // Open WhatsApp in a new window/tab
-                    window.open(whatsappUrl, '_blank');
+                    // Order processed successfully - show shopkeeper notification first
+                    showShopkeeperNotificationModal(data);
 
                     // Show success message
-                    showNotification('✅ Order sent! WhatsApp opened with thanks message.');
-
-                    // Reset cart and close modal
-                    cart = {};
-                    updateCart();
-                    cartModal.classList.add('hidden');
-
-                    // Reset form
-                    document.getElementById('customer-name').value = '';
-                    document.getElementById('customer-phone').value = '';
-                    document.getElementById('customer-address').value = '';
-                    document.getElementById('customer-notes').value = '';
+                    showNotification('✅ Order processed! Check shopkeeper notification below.');
                 } else {
                     showNotification('❌ Order failed: ' + (data.message || 'Unknown error'));
                 }
@@ -517,6 +498,114 @@
                     showNotification('❌ Customer phone number not found');
                 }
             }
+        }
+
+        function showShopkeeperNotificationModal(orderData) {
+            // Create a modal to display the shopkeeper notification message
+            const existingModal = document.querySelector('.shopkeeper-notification-modal');
+            if (existingModal) existingModal.remove();
+
+            // Get shopkeeper notification data from backend
+            fetch(`${BACKEND_URL}/send-shopkeeper-notification/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_name: document.getElementById('customer-name').value.trim(),
+                    phone_number: '+91' + document.getElementById('customer-phone').value.trim(),
+                    items: Object.keys(cart).filter(id => cart[id] > 0).map(productId => ({
+                        product_name: products.find(p => p.id == productId).name,
+                        quantity: cart[productId]
+                    }))
+                })
+            })
+            .then(res => res.json())
+            .then(notificationData => {
+                if (notificationData.status === 'ready') {
+                    const modal = document.createElement('div');
+                    modal.className = 'shopkeeper-notification-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
+                    modal.innerHTML = `
+                        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold text-blue-600">📢 Shopkeeper Notification</h3>
+                                <button onclick="closeShopkeeperNotificationModal()" class="text-2xl text-gray-500 hover:text-gray-700">&times;</button>
+                            </div>
+
+                            <div class="mb-4">
+                                <p class="text-sm text-gray-600 mb-3">Send this order notification to the shopkeeper:</p>
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 max-h-60 overflow-y-auto">
+                                    <pre id="shopkeeper-message-text" class="text-sm whitespace-pre-wrap font-mono">${notificationData.notification_message}</pre>
+                                </div>
+                            </div>
+
+                            <div class="flex gap-3 mb-4">
+                                <button onclick="copyShopkeeperMessage()" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 font-semibold">
+                                    📋 Copy Message
+                                </button>
+                                <button onclick="openWhatsAppWithShopkeeperNotification()" class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 font-semibold">
+                                    📱 Send to Shopkeeper
+                                </button>
+                            </div>
+
+                            <div class="border-t pt-4">
+                                <p class="text-sm text-gray-600 mb-3">After sending to shopkeeper, send thanks message to customer:</p>
+                                <button onclick="showCustomerThanksMessage('${orderData.whatsapp_message}')" class="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 font-semibold">
+                                    📝 Show Customer Thanks Message
+                                </button>
+                            </div>
+
+                            <p class="text-xs text-gray-500 text-center mt-3">
+                                Order has been saved. Send notifications to complete the process.
+                            </p>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+                } else {
+                    showNotification('❌ Failed to prepare shopkeeper notification');
+                }
+            })
+            .catch(error => {
+                console.error('Shopkeeper notification error:', error);
+                showNotification('❌ Failed to prepare shopkeeper notification');
+            });
+        }
+
+        function closeShopkeeperNotificationModal() {
+            const modal = document.querySelector('.shopkeeper-notification-modal');
+            if (modal) modal.remove();
+        }
+
+        function copyShopkeeperMessage() {
+            const textElement = document.getElementById('shopkeeper-message-text');
+            if (textElement) {
+                navigator.clipboard.writeText(textElement.textContent).then(() => {
+                    showNotification('✅ Shopkeeper message copied to clipboard!');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = textElement.textContent;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showNotification('✅ Shopkeeper message copied to clipboard!');
+                });
+            }
+        }
+
+        function openWhatsAppWithShopkeeperNotification() {
+            const textElement = document.getElementById('shopkeeper-message-text');
+            if (textElement) {
+                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(textElement.textContent)}`;
+                window.open(whatsappUrl, '_blank');
+                showNotification('📱 WhatsApp opened with shopkeeper notification!');
+            }
+        }
+
+        function showCustomerThanksMessage(thanksMessage) {
+            // Close shopkeeper modal and show customer thanks modal
+            closeShopkeeperNotificationModal();
+            showThanksMessageModal(thanksMessage);
         }
 
         function setupEvents() {

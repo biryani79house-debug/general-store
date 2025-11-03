@@ -1273,10 +1273,20 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "whatsapp_url": whatsapp_url
     }
 
+# --- API Endpoint for Thanks Message ---
+@app.get("/thanks-message")
+def get_thanks_message():
+    """Returns a thanks message response."""
+    return {
+        "message": "Thank you for your order! Your order has been received and is being processed.",
+        "status": "success",
+        "timestamp": datetime.now(IST).isoformat()
+    }
+
 # --- API Endpoint for Shopkeeper WhatsApp Notifications ---
 @app.post("/send-shopkeeper-notification/", status_code=status.HTTP_200_OK)
 def send_shopkeeper_notification_endpoint(order_request: WhatsAppOrderRequest, total_bill: float = 0.0, order_id: int = 0, db: Session = Depends(get_db)):
-    """Sends a thanks/notification message to the shopkeeper's WhatsApp when an order is received."""
+    """Returns a thanks/notification message for the shopkeeper when an order is received."""
     try:
         # Get store settings for shopkeeper contact
         settings = db.query(StoreSettings).first()
@@ -1296,26 +1306,28 @@ def send_shopkeeper_notification_endpoint(order_request: WhatsAppOrderRequest, t
         notification_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
         notification_message += "✅ *Please prepare the order for delivery!*"
 
-        # Here you would integrate with WhatsApp API (Twilio, 360Dialog, etc.)
-        # For now, we'll simulate the WhatsApp sending and return success
+        # Create WhatsApp URL for manual sending
+        whatsapp_url = f"https://wa.me/{shopkeeper_number.replace('+', '')}?text={urllib.parse.quote(notification_message)}"
 
-        print(f"📱 Shopkeeper notification sent to {shopkeeper_number}")
+        print(f"📱 Shopkeeper notification ready for {shopkeeper_number}")
+        print(f"📨 WhatsApp URL: {whatsapp_url}")
         print(f"📨 Message: {notification_message}")
 
         return {
-            "status": "success",
-            "message": "Thanks message sent to shopkeeper's WhatsApp",
+            "status": "ready",
+            "message": "Shopkeeper notification message ready - copy and send manually or use the WhatsApp URL",
             "shopkeeper_number": shopkeeper_number,
             "notification_message": notification_message,
+            "whatsapp_url": whatsapp_url,
             "order_id": f"ORDER_{order_id}",
             "timestamp": datetime.now(IST).isoformat()
         }
 
     except Exception as e:
-        print(f"❌ Error sending shopkeeper notification: {e}")
+        print(f"❌ Error preparing shopkeeper notification: {e}")
         return {
             "status": "error",
-            "message": f"Failed to send shopkeeper notification: {str(e)}",
+            "message": f"Failed to prepare shopkeeper notification: {str(e)}",
             "timestamp": datetime.now(IST).isoformat()
         }
 
