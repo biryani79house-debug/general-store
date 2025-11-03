@@ -1229,26 +1229,9 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     db.commit()
 
     # Generate WhatsApp thanks message in the specified format
-    # Use full URL to payment.html with order data as URL parameters so it works in WhatsApp
-    order_items = []
-    for item in order_request.items:
-        product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
-        if product:
-            order_items.append({
-                "name": item.product_name,
-                "quantity": item.quantity,
-                "price": product.selling_price
-            })
-
-    order_data = {
-        "customer_name": order_request.customer_name,
-        "customer_phone": order_request.phone_number,
-        "items": order_items,
-        "total": total_bill,
-        "order_id": f"ORDER_{db_sale.id}"
-    }
-    order_param = urllib.parse.quote(json.dumps(order_data))
-    payment_link = f"https://general-store-kappa.vercel.app/payment?order={order_param}"
+    # Use short payment link with order_id - payment page will fetch data from backend
+    order_id = f"ORDER_{db_sale.id}"
+    payment_link = f"https://general-store-kappa.vercel.app/payment?order_id={order_id}"
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
     whatsapp_message += "📦 *Order Received:*\n"
@@ -1282,6 +1265,51 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "whatsapp_message": whatsapp_message,
         "whatsapp_url": whatsapp_url
     }
+
+# --- API Endpoint for Order Data by Order ID ---
+@app.get("/order/{order_id}")
+def get_order_data(order_id: str, db: Session = Depends(get_db)):
+    """Fetch order data by order_id for payment page"""
+    try:
+        # Extract sale ID from order_id (format: ORDER_{sale_id})
+        if not order_id.startswith("ORDER_"):
+            raise HTTPException(status_code=400, detail="Invalid order ID format")
+
+        try:
+            sale_id = int(order_id.replace("ORDER_", ""))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid order ID")
+
+        # Find the sale record
+        sale = db.query(Sale).filter(Sale.id == sale_id).first()
+        if not sale:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        # Get the product
+        product = db.query(Product).filter(Product.id == sale.product_id).first()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        # Create order data in the format expected by payment.html
+        order_data = {
+            "customer_name": "Customer",  # We don't store customer name in sales table
+            "customer_phone": "N/A",      # We don't store customer phone in sales table
+            "items": [{
+                "name": product.name,
+                "quantity": sale.quantity,
+                "price": product.selling_price
+            }],
+            "total": sale.total_amount,
+            "order_id": order_id
+        }
+
+        return order_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching order data: {e}")
+        raise HTTPException(status_code=500, detail="Error fetching order data")
 
 # --- API Endpoint for Thanks Message ---
 @app.get("/thanks-message")

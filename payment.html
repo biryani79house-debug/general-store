@@ -164,51 +164,66 @@
         const BACKEND_URL = "https://web-production-9d240.up.railway.app";
         const SHOPKEEPER_NUMBER = "917075210801";
 
-        // Get order data from URL parameters or session storage
+        // Get order data from backend API
         let orderData = null;
 
         function init() {
-            // Try to get order data from URL parameters (primary method for cross-domain)
+            // Get order_id from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
-            const orderParam = urlParams.get('order');
+            const orderId = urlParams.get('order_id');
 
-            if (orderParam) {
-                try {
-                    orderData = JSON.parse(decodeURIComponent(orderParam));
-                    console.log('✅ Order data loaded from URL parameters');
-                } catch (e) {
-                    console.error('Failed to parse order data from URL');
-                }
-            }
-
-            // Try to get from session storage (fallback method)
-            if (!orderData) {
-                const storedOrder = sessionStorage.getItem('pendingOrder');
-                if (storedOrder) {
-                    try {
-                        orderData = JSON.parse(storedOrder);
-                        console.log('✅ Order data loaded from session storage');
-                    } catch (e) {
-                        console.error('Failed to parse stored order data');
-                    }
-                }
-            }
-
-            // Always setup event listeners for payment buttons
-            setupEventListeners();
-
-            if (!orderData) {
-                // No order data available - show error
-                showNotification('❌ No order data found. Please go back and place an order first.');
-                console.error('No order data available in payment page');
-                // Redirect back to sales page after a delay
+            if (!orderId) {
+                showNotification('❌ No order ID found. Please go back and place an order first.');
+                console.error('No order_id parameter in URL');
                 setTimeout(() => {
                     window.location.href = 'sales.html';
                 }, 3000);
                 return;
             }
 
-            displayOrderSummary();
+            // Setup event listeners first
+            setupEventListeners();
+
+            // Fetch order data from backend
+            fetchOrderData(orderId);
+        }
+
+        async function fetchOrderData(orderId) {
+            try {
+                console.log(`Fetching order data for: ${orderId}`);
+                const response = await fetch(`${BACKEND_URL}/order/${orderId}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                orderData = await response.json();
+                console.log('✅ Order data loaded from backend:', orderData);
+
+                displayOrderSummary();
+            } catch (error) {
+                console.error('Failed to fetch order data:', error);
+                showNotification('❌ Failed to load order data. Please try again.');
+
+                // Fallback: try to get from session storage
+                const storedOrder = sessionStorage.getItem('pendingOrder');
+                if (storedOrder) {
+                    try {
+                        orderData = JSON.parse(storedOrder);
+                        console.log('✅ Order data loaded from session storage (fallback)');
+                        displayOrderSummary();
+                    } catch (e) {
+                        console.error('Failed to parse stored order data');
+                        setTimeout(() => {
+                            window.location.href = 'sales.html';
+                        }, 3000);
+                    }
+                } else {
+                    setTimeout(() => {
+                        window.location.href = 'sales.html';
+                    }, 3000);
+                }
+            }
         }
 
         function displayOrderSummary() {
