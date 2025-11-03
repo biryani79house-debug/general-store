@@ -170,6 +170,9 @@ class Sale(Base):
     total_amount = Column(Float, nullable=False)
     sale_date = Column(DateTime, default=lambda: datetime.now(IST))
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # Add customer information fields
+    customer_name = Column(String, nullable=True)
+    customer_phone = Column(String, nullable=True)
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
@@ -1225,7 +1228,9 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
             product_id=product.id,
             quantity=item.quantity,
             total_amount=item_total,
-            created_by=1  # Default admin user for WhatsApp orders
+            created_by=1,  # Default admin user for WhatsApp orders
+            customer_name=order_request.customer_name,
+            customer_phone=order_request.phone_number
         )
         db.add(db_sale)
         items_sold.append(item.product_name)
@@ -1296,8 +1301,8 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
 
         # Create order data in the format expected by payment.html
         order_data = {
-            "customer_name": "Customer",  # We don't store customer name in sales table
-            "customer_phone": "N/A",      # We don't store customer phone in sales table
+            "customer_name": sale.customer_name or "Customer",
+            "customer_phone": sale.customer_phone or "N/A",
             "items": [{
                 "name": product.name,
                 "quantity": sale.quantity,
