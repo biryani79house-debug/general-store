@@ -364,7 +364,7 @@
 
                     // Small delay to show order placed message, then send shopkeeper notification
                     setTimeout(() => {
-                        sendShopkeeperNotificationAutomatically(data);
+                        sendShopkeeperNotificationAutomatically(data, orderData);
                     }, 800); // 0.8 second delay
                 } else {
                     showNotification('❌ Order failed: ' + (data.message || 'Unknown error'));
@@ -522,8 +522,8 @@
                 totalAmount += qty * product.price;
             });
 
-            // Get order ID from the response
-            const orderId = orderData.order_id ? orderData.order_id.replace('ORDER_', '') : '0';
+            // Get order ID from the backend response
+            const orderId = backendData.order_id ? backendData.order_id.replace('ORDER_', '') : '0';
 
             // Get shopkeeper notification data from backend
             fetch(`${BACKEND_URL}/send-shopkeeper-notification/?total_bill=${totalAmount}&order_id=${orderId}`, {
@@ -622,7 +622,7 @@
             }
         }
 
-        function sendShopkeeperNotificationAutomatically(orderData) {
+        function sendShopkeeperNotificationAutomatically(backendData, orderData) {
             // Automatically open WhatsApp with shopkeeper notification
             // Calculate total amount from cart
             let totalAmount = 0;
@@ -632,8 +632,8 @@
                 totalAmount += qty * product.price;
             });
 
-            // Get order ID from the response
-            const orderId = orderData.order_id ? orderData.order_id.replace('ORDER_', '') : '0';
+            // Get order ID from the backend response
+            const orderId = backendData.order_id ? backendData.order_id.replace('ORDER_', '') : '0';
 
             // Get shopkeeper notification data from backend
             fetch(`${BACKEND_URL}/send-shopkeeper-notification/?total_bill=${totalAmount}&order_id=${orderId}`, {
@@ -656,6 +656,9 @@
             })
             .then(notificationData => {
                 if (notificationData.status === 'ready') {
+                    // Copy complete message (order + thanks + payment) to clipboard before opening WhatsApp
+                    copyCompleteMessageToClipboard(orderData, notificationData);
+
                     // Automatically open WhatsApp with shopkeeper notification
                     const whatsappUrl = notificationData.whatsapp_url;
                     console.log('📱 Opening WhatsApp for shopkeeper:', whatsappUrl);
@@ -674,23 +677,121 @@
                         showNotification('❌ Failed to open WhatsApp. Please check popup settings.');
                     }
 
-                    // After a short delay, open customer thanks message
+                    // Show success message to customer
                     setTimeout(() => {
-                        openCustomerThanksAutomatically(orderData);
-                    }, 1500); // 1.5 second delay to avoid popup blockers
+                        showNotification('✅ Order sent to shopkeeper! They will contact you soon.');
+                        // Reset cart and close modal
+                        cart = {};
+                        updateCart();
+                        cartModal.classList.add('hidden');
+
+                        // Reset form
+                        document.getElementById('customer-name').value = '';
+                        document.getElementById('customer-phone').value = '';
+                        document.getElementById('customer-address').value = '';
+                        document.getElementById('customer-notes').value = '';
+                    }, 1000);
                 } else {
                     console.error('❌ Failed to prepare shopkeeper notification:', notificationData.message);
                     showNotification('❌ Failed to prepare shopkeeper notification');
-                    // Still try to open customer thanks
-                    openCustomerThanksAutomatically(orderData);
                 }
             })
             .catch(error => {
                 console.error('❌ Shopkeeper notification error:', error);
                 showNotification('❌ Failed to send shopkeeper notification');
-                // Still try to open customer thanks
-                openCustomerThanksAutomatically(orderData);
             });
+        }
+
+        function copyCompleteMessageToClipboard(orderData, backendData) {
+            // Copy only the thanks message (order details are already in WhatsApp)
+            // Use the production payment link with order_id from backend
+            const orderId = backendData && backendData.order_id ? backendData.order_id : 'ORDER_UNKNOWN';
+            const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
+
+            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
+
+            console.log('🔄 Copying thanks message to clipboard (only thanks message)...');
+            console.log('Thanks message:', thanksMessage);
+
+            // Use fallback method for better compatibility
+            const textArea = document.createElement('textarea');
+            textArea.value = thanksMessage;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const success = document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (success) {
+                    console.log('✅ Thanks message copied to clipboard successfully');
+                } else {
+                    console.error('❌ Copy command failed');
+                }
+            } catch (error) {
+                document.body.removeChild(textArea);
+                console.error('❌ Copy command error:', error);
+            }
+        }
+
+        function copyThanksMessageToClipboard(orderData) {
+            // Always create a professional thanks message
+            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
+
+            console.log('🔄 Copying thanks message to clipboard (no notifications)...');
+            console.log('Thanks message content:', thanksMessage);
+
+            // Use fallback method for better compatibility
+            const textArea = document.createElement('textarea');
+            textArea.value = thanksMessage;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const success = document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (success) {
+                    console.log('✅ Thanks message copied to clipboard successfully (silent)');
+                } else {
+                    console.error('❌ Copy command failed');
+                }
+            } catch (error) {
+                document.body.removeChild(textArea);
+                console.error('❌ Copy command error:', error);
+            }
+        }
+
+        function openThanksMessageForShopkeeper(orderData) {
+            // Open WhatsApp with thanks message pre-filled for customer
+            const thanksMessage = orderData.whatsapp_message;
+            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
+
+            if (thanksMessage && customerPhone) {
+                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
+                console.log('📱 Opening WhatsApp with thanks message for customer:', whatsappUrl);
+
+                try {
+                    const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                    if (!newWindow) {
+                        console.warn('⚠️ Popup blocked - Thanks message WhatsApp could not be opened');
+                        showNotification('⚠️ Please allow popups for WhatsApp messages');
+                    } else {
+                        console.log('✅ Thanks message WhatsApp opened successfully');
+                    }
+                } catch (error) {
+                    console.error('❌ Error opening thanks message WhatsApp:', error);
+                    showNotification('❌ Failed to open thanks message WhatsApp');
+                }
+            }
         }
 
         function openCustomerThanksAutomatically(orderData) {
