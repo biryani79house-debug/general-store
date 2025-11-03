@@ -1306,12 +1306,14 @@ def send_shopkeeper_notification_endpoint(order_request: WhatsAppOrderRequest, t
         notification_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
         notification_message += "✅ *Please prepare the order for delivery!*"
 
-        # Create WhatsApp URL for manual sending
-        whatsapp_url = f"https://wa.me/{shopkeeper_number.replace('+', '')}?text={urllib.parse.quote(notification_message)}"
+        # Create WhatsApp URL for manual sending - ensure proper formatting
+        clean_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
+        whatsapp_url = f"https://wa.me/{clean_number}?text={urllib.parse.quote(notification_message)}"
 
-        print(f"📱 Shopkeeper notification ready for {shopkeeper_number}")
+        print(f"📱 Shopkeeper notification ready for {shopkeeper_number} (cleaned: {clean_number})")
         print(f"📨 WhatsApp URL: {whatsapp_url}")
-        print(f"📨 Message: {notification_message}")
+        print(f"📨 Message length: {len(notification_message)} chars")
+        print(f"📨 Message preview: {notification_message[:100]}...")
 
         return {
             "status": "ready",

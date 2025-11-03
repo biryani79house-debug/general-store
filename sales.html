@@ -359,11 +359,13 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // Order processed successfully - show shopkeeper notification first
-                    showShopkeeperNotificationModal(data);
+                    // Order placed successfully - now send notifications
+                    showNotification('✅ Order placed! Sending WhatsApp notifications...');
 
-                    // Show success message
-                    showNotification('✅ Order processed! Check shopkeeper notification below.');
+                    // Small delay to show order placed message, then send shopkeeper notification
+                    setTimeout(() => {
+                        sendShopkeeperNotificationAutomatically(data);
+                    }, 800); // 0.8 second delay
                 } else {
                     showNotification('❌ Order failed: ' + (data.message || 'Unknown error'));
                 }
@@ -505,8 +507,19 @@
             const existingModal = document.querySelector('.shopkeeper-notification-modal');
             if (existingModal) existingModal.remove();
 
+            // Calculate total amount from cart
+            let totalAmount = 0;
+            Object.keys(cart).filter(id => cart[id] > 0).forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                totalAmount += qty * product.price;
+            });
+
+            // Get order ID from the response
+            const orderId = orderData.order_id ? orderData.order_id.replace('ORDER_', '') : '0';
+
             // Get shopkeeper notification data from backend
-            fetch(`${BACKEND_URL}/send-shopkeeper-notification/`, {
+            fetch(`${BACKEND_URL}/send-shopkeeper-notification/?total_bill=${totalAmount}&order_id=${orderId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -599,6 +612,102 @@
                 const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(textElement.textContent)}`;
                 window.open(whatsappUrl, '_blank');
                 showNotification('📱 WhatsApp opened with shopkeeper notification!');
+            }
+        }
+
+        function sendShopkeeperNotificationAutomatically(orderData) {
+            // Automatically open WhatsApp with shopkeeper notification
+            // Calculate total amount from cart
+            let totalAmount = 0;
+            Object.keys(cart).filter(id => cart[id] > 0).forEach(productId => {
+                const product = products.find(p => p.id == productId);
+                const qty = cart[productId];
+                totalAmount += qty * product.price;
+            });
+
+            // Get order ID from the response
+            const orderId = orderData.order_id ? orderData.order_id.replace('ORDER_', '') : '0';
+
+            // Get shopkeeper notification data from backend
+            fetch(`${BACKEND_URL}/send-shopkeeper-notification/?total_bill=${totalAmount}&order_id=${orderId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_name: document.getElementById('customer-name').value.trim(),
+                    phone_number: '+91' + document.getElementById('customer-phone').value.trim(),
+                    items: Object.keys(cart).filter(id => cart[id] > 0).map(productId => ({
+                        product_name: products.find(p => p.id == productId).name,
+                        quantity: cart[productId]
+                    }))
+                })
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                return res.json();
+            })
+            .then(notificationData => {
+                if (notificationData.status === 'ready') {
+                    // Automatically open WhatsApp with shopkeeper notification
+                    const whatsappUrl = notificationData.whatsapp_url;
+                    console.log('📱 Opening WhatsApp for shopkeeper:', whatsappUrl);
+
+                    // Try to open WhatsApp with error handling
+                    try {
+                        const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                        if (!newWindow) {
+                            console.warn('⚠️ Popup blocked - WhatsApp window could not be opened');
+                            showNotification('⚠️ Please allow popups to send WhatsApp messages');
+                        } else {
+                            console.log('✅ WhatsApp window opened successfully');
+                        }
+                    } catch (error) {
+                        console.error('❌ Error opening WhatsApp window:', error);
+                        showNotification('❌ Failed to open WhatsApp. Please check popup settings.');
+                    }
+
+                    // After a short delay, open customer thanks message
+                    setTimeout(() => {
+                        openCustomerThanksAutomatically(orderData);
+                    }, 1500); // 1.5 second delay to avoid popup blockers
+                } else {
+                    console.error('❌ Failed to prepare shopkeeper notification:', notificationData.message);
+                    showNotification('❌ Failed to prepare shopkeeper notification');
+                    // Still try to open customer thanks
+                    openCustomerThanksAutomatically(orderData);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Shopkeeper notification error:', error);
+                showNotification('❌ Failed to send shopkeeper notification');
+                // Still try to open customer thanks
+                openCustomerThanksAutomatically(orderData);
+            });
+        }
+
+        function openCustomerThanksAutomatically(orderData) {
+            // Automatically open WhatsApp with customer thanks message
+            const thanksMessage = orderData.whatsapp_message;
+            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
+
+            if (thanksMessage && customerPhone) {
+                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
+                console.log('Opening WhatsApp for customer:', whatsappUrl);
+                window.open(whatsappUrl, '_blank');
+
+                // Reset cart and close modal after sending
+                setTimeout(() => {
+                    cart = {};
+                    updateCart();
+                    cartModal.classList.add('hidden');
+
+                    // Reset form
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('customer-phone').value = '';
+                    document.getElementById('customer-address').value = '';
+                    document.getElementById('customer-notes').value = '';
+                }, 500);
             }
         }
 
