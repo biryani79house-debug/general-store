@@ -1238,7 +1238,7 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         "order_id": f"ORDER_{db_sale.id}"
     }
     order_param = urllib.parse.quote(json.dumps(order_data))
-    payment_link = f"https://general-store-kappa.vercel.app/payment.html?order={order_param}"
+    payment_link = f"https://general-store-kappa.vercel.app/payment"
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
     whatsapp_message += "📦 *Order Received:*\n"
