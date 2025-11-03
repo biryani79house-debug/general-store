@@ -359,24 +359,19 @@
             .then(data => {
                 console.log('Order processed:', data);
                 if (data.status === 'success') {
-                    // First: Copy thanks message to clipboard immediately
+                    // Order processed successfully - now open WhatsApp with thanks message
                     const thanksMessage = data.whatsapp_message;
-                    navigator.clipboard.writeText(thanksMessage).then(() => {
-                        console.log('✅ Thanks message copied to clipboard automatically');
-                    }).catch(() => {
-                        // Fallback for older browsers
-                        const textArea = document.createElement('textarea');
-                        textArea.value = thanksMessage;
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                        console.log('✅ Thanks message copied to clipboard automatically (fallback)');
-                    });
+                    const customerPhone = '+91' + phone;
 
-                    // Second: Show success message (don't open WhatsApp automatically)
-                    console.log('✅ Order processed successfully - thanks message copied to clipboard');
-                    showNotification('✅ Order sent! Thanks message copied to clipboard - paste into WhatsApp manually.');
+                    // Open WhatsApp with the pre-filled thanks message
+                    const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
+                    console.log('Opening WhatsApp with URL:', whatsappUrl);
+
+                    // Open WhatsApp in a new window/tab
+                    window.open(whatsappUrl, '_blank');
+
+                    // Show success message
+                    showNotification('✅ Order sent! WhatsApp opened with thanks message.');
 
                     // Reset cart and close modal
                     cart = {};
