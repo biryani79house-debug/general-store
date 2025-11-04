@@ -7,7 +7,7 @@ import json
 from contextlib import asynccontextmanager
 from typing import List, Optional, Any, Dict
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, status, Depends, Form
+from fastapi import FastAPI, HTTPException, Request, status, Depends, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, ConfigDict
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text,func
@@ -21,6 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from twilio.twiml.messaging_response import MessagingResponse
 from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
+import time
+import threading
 
 # JWT Secret Key
 SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
@@ -1205,9 +1207,53 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting purchase: {str(e)}")
 
+# Background task to send thanks message to shopkeeper
+def send_thanks_message_to_shopkeeper_background(order_request: WhatsAppOrderRequest, total_bill: float, order_id: int, shopkeeper_number: str):
+    """Background task to send thanks message to shopkeeper after delay"""
+    try:
+        # Wait 30 seconds to ensure order message is received first
+        time.sleep(30)
+
+        # Create thanks message for shopkeeper
+        payment_link = f"https://general-store-kappa.vercel.app/payment?order_id=ORDER_{order_id}"
+
+        thanks_message = f"📝 *THANKS MESSAGE FOR CUSTOMER*\n\n"
+        thanks_message += f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
+        thanks_message += "📦 *Order Received:*\n"
+
+        for item in order_request.items:
+            thanks_message += f"• {item.quantity}x {item.product_name}\n"
+
+        thanks_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n\n"
+        thanks_message += f"💳 *Please pay ₹{total_bill:.2f} using this link*\n"
+        thanks_message += f"{payment_link}\n\n"
+        thanks_message += f"👤 Customer: {order_request.customer_name}\n"
+        thanks_message += f"📞 Phone: {order_request.phone_number}\n\n"
+        thanks_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
+        thanks_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
+
+        # Create WhatsApp URL for thanks message
+        clean_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
+        thanks_whatsapp_url = f"https://wa.me/{clean_number}?text={urllib.parse.quote(thanks_message)}"
+
+        print(f"📱 Sending thanks message to shopkeeper after 30 seconds delay...")
+        print(f"📨 Thanks message URL: {thanks_whatsapp_url}")
+        print(f"📨 Thanks message preview: {thanks_message[:100]}...")
+
+        # In a real implementation, you would use a WhatsApp API or webhook here
+        # For now, we'll just log that the message is ready to be sent
+        print("✅ Thanks message prepared for shopkeeper - ready to copy and send to customer")
+
+    except Exception as e:
+        print(f"❌ Error in background thanks message task: {e}")
+
 # --- API Endpoint for WhatsApp Orders ---
 @app.post("/whatsapp-order/", status_code=status.HTTP_200_OK)
-def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = Depends(get_db)):
+def process_whatsapp_order(
+    order_request: WhatsAppOrderRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     """Processes WhatsApp orders and records them in the database."""
     total_bill = 0
     items_sold = []
@@ -1256,7 +1302,6 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     whatsapp_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
     whatsapp_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
 
-    # Create WhatsApp URL with order details for shopkeeper first
     # Get store settings for shopkeeper contact
     settings = db.query(StoreSettings).first()
     shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
@@ -1284,6 +1329,15 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
         send_shopkeeper_notification(order_request, total_bill, db_sale.id, db)
     except Exception as e:
         print(f"⚠️ Failed to send shopkeeper notification: {e}")
+
+    # Schedule background task to send thanks message to shopkeeper after 30 seconds
+    background_tasks.add_task(
+        send_thanks_message_to_shopkeeper_background,
+        order_request,
+        total_bill,
+        db_sale.id,
+        shopkeeper_number
+    )
 
     return {
         "status": "success",

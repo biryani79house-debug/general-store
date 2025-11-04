@@ -623,31 +623,31 @@
         }
 
         function sendShopkeeperNotificationAutomatically(backendData, orderData) {
-            // Send order details to shopkeeper WhatsApp and copy thanks message to clipboard for shopkeeper
+            // Send order details to shopkeeper WhatsApp and copy thanks message to clipboard
 
-            const whatsappUrl = backendData.whatsapp_url;
-            console.log('📱 Opening WhatsApp for shopkeeper with order details:', whatsappUrl);
+            const shopkeeperWhatsappUrl = backendData.whatsapp_url;
+            console.log('📱 Opening WhatsApp for shopkeeper with order details:', shopkeeperWhatsappUrl);
 
             // Copy thanks message to clipboard for shopkeeper
             copyThanksMessageToShopkeeperClipboard(orderData, backendData);
 
-            // Try to open WhatsApp with error handling
+            // Try to open WhatsApp for shopkeeper with order details
             try {
-                const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                if (!newWindow) {
-                    console.warn('⚠️ Popup blocked - WhatsApp window could not be opened');
+                const shopkeeperWindow = window.open(shopkeeperWhatsappUrl, '_blank', 'noopener,noreferrer');
+                if (!shopkeeperWindow) {
+                    console.warn('⚠️ Popup blocked - Shopkeeper WhatsApp could not be opened');
                     showNotification('⚠️ Please allow popups to send WhatsApp messages');
                 } else {
                     console.log('✅ WhatsApp window opened successfully for shopkeeper');
                 }
             } catch (error) {
-                console.error('❌ Error opening WhatsApp window:', error);
+                console.error('❌ Error opening shopkeeper WhatsApp window:', error);
                 showNotification('❌ Failed to open WhatsApp. Please check popup settings.');
             }
 
             // Show success message to customer
             setTimeout(() => {
-                showNotification('✅ Order sent to shopkeeper! Thanks message copied for them.');
+                showNotification('✅ Order sent to shopkeeper! Thanks message copied to clipboard.');
                 // Reset cart and close modal
                 cart = {};
                 updateCart();
@@ -763,6 +763,34 @@
             } catch (error) {
                 document.body.removeChild(textArea);
                 console.error('❌ Copy command error:', error);
+            }
+        }
+
+        function openThanksMessageForCustomer(orderData, backendData) {
+            // Open WhatsApp with thanks message pre-filled for customer (so shopkeeper can send it)
+            const orderId = backendData && backendData.order_id ? backendData.order_id : 'ORDER_UNKNOWN';
+            const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
+
+            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
+
+            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
+
+            if (thanksMessage && customerPhone) {
+                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
+                console.log('📱 Opening WhatsApp with thanks message for customer (shopkeeper to send):', whatsappUrl);
+
+                try {
+                    const customerWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                    if (!customerWindow) {
+                        console.warn('⚠️ Popup blocked - Thanks message WhatsApp could not be opened');
+                        showNotification('⚠️ Please allow popups for WhatsApp messages');
+                    } else {
+                        console.log('✅ Thanks message WhatsApp opened successfully for shopkeeper');
+                    }
+                } catch (error) {
+                    console.error('❌ Error opening thanks message WhatsApp:', error);
+                    showNotification('❌ Failed to open thanks message WhatsApp');
+                }
             }
         }
 
