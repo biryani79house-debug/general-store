@@ -498,10 +498,15 @@
                 // Show notification
                 showNotification(`Opening ${method.toUpperCase()} for payment of ₹${totalAmount.toFixed(2)}`);
 
-                // After a delay, assume payment was completed and place order
-                // In real implementation, you would wait for payment confirmation
+                // After a delay, assume payment was completed and send payment confirmation
+                // In real implementation, you would wait for actual payment confirmation
                 setTimeout(() => {
-                    placeOrder('paid');
+                    showNotification('✅ Payment successful! Redirecting...');
+                    sendPaymentConfirmationToShopkeeper(orderData, method);
+                    sessionStorage.removeItem('pendingOrder');
+                    setTimeout(() => {
+                        window.location.href = 'https://general-store-kappa.vercel.app/sales';
+                    }, 2000);
                 }, 5000);
             } else {
                 showNotification('Payment method not supported');
@@ -509,8 +514,18 @@
         }
 
         function confirmCashOrder() {
-            showNotification('Order confirmed for Cash on Delivery!');
-            placeOrder('cod');
+            showNotification('✅ Order confirmed for Cash on Delivery! Redirecting...');
+
+            // Send payment confirmation to shopkeeper for COD
+            sendPaymentConfirmationToShopkeeper(orderData, 'cod');
+
+            // Clear stored order data
+            sessionStorage.removeItem('pendingOrder');
+
+            // Redirect to sales page after a short delay
+            setTimeout(() => {
+                window.location.href = 'https://general-store-kappa.vercel.app/sales';
+            }, 2000);
         }
 
         function placeOrder(paymentMethod) {
@@ -677,8 +692,20 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // Payment verified, place order
-                    placeOrder('card');
+                    // Payment verified successfully
+                    showNotification('✅ Payment successful! Redirecting...');
+
+                    // Send payment confirmation to shopkeeper
+                    sendPaymentConfirmationToShopkeeper(orderData, 'card', razorpayResponse.razorpay_payment_id);
+
+                    // Clear stored order data
+                    sessionStorage.removeItem('pendingOrder');
+
+                    // Redirect to sales page after a short delay
+                    setTimeout(() => {
+                        window.location.href = 'https://general-store-kappa.vercel.app/sales';
+                    }, 2000);
+
                 } else {
                     showNotification('❌ Payment verification failed. Please contact support.');
                     console.error('Payment verification failed:', data);
@@ -688,6 +715,43 @@
                 console.error('Error verifying payment:', error);
                 showNotification('❌ Payment verification failed. Please contact support.');
             });
+        }
+
+        function sendPaymentConfirmationToShopkeeper(orderData, paymentMethod, paymentId = null) {
+            // Calculate amounts
+            const subtotal = orderData.subtotal;
+            const totalPaid = orderData.totalWithFee || subtotal;
+
+            // Create payment confirmation message for shopkeeper
+            let message = `💳 *PAYMENT RECEIVED SUCCESSFULLY!*\n\n`;
+            message += `👤 Customer: ${orderData.customer_name}\n`;
+            message += `📞 Phone: ${orderData.customer_phone}\n\n`;
+
+            if (orderData.customer_address) {
+                message += `🏠 Address: ${orderData.customer_address}\n\n`;
+            }
+
+            message += `💰 *PAYMENT DETAILS:*\n`;
+            message += `📦 Order Subtotal: ₹${subtotal.toFixed(2)}\n`;
+
+            if (paymentMethod === 'card') {
+                const fee = totalPaid - subtotal;
+                message += `💳 Processing Fee (3%): ₹${fee.toFixed(2)}\n`;
+                message += `💵 Total Paid: ₹${totalPaid.toFixed(2)}\n`;
+                message += `🆔 Payment ID: ${paymentId}\n`;
+            } else {
+                message += `💵 Amount Paid: ₹${totalPaid.toFixed(2)}\n`;
+            }
+
+            message += `\n✅ *Payment Method: ${paymentMethod.toUpperCase()}*\n`;
+            message += `📅 Payment Time: ${new Date().toLocaleString('en-IN')}\n\n`;
+            message += `🎉 *Order is ready for delivery!*`;
+
+            // Send to shopkeeper WhatsApp
+            const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+
+            console.log('Payment confirmation sent to shopkeeper:', message);
         }
 
         function showNotification(message) {
