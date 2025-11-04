@@ -1256,13 +1256,9 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     whatsapp_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
     whatsapp_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
 
-    # Get store settings for shopkeeper contact
-    settings = db.query(StoreSettings).first()
-    shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
-
-    # Create WhatsApp URL with prefilled message for shopkeeper (not customer)
-    clean_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
-    whatsapp_url = f"https://wa.me/{clean_number}?text={urllib.parse.quote(whatsapp_message)}"
+    # Create WhatsApp URL with prefilled thanks message for customer (so shopkeeper can send it)
+    clean_customer_number = order_request.phone_number.replace('+', '').replace(' ', '').replace('-', '')
+    whatsapp_url = f"https://wa.me/{clean_customer_number}?text={urllib.parse.quote(whatsapp_message)}"
 
     # Trigger shopkeeper notification when order is received
     try:
