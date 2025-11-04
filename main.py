@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 import time
 import threading
+import razorpay
 
 # JWT Secret Key
 SECRET_KEY_JWT = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
@@ -1475,6 +1476,107 @@ def send_shopkeeper_notification(order_request: WhatsAppOrderRequest, total_bill
     except Exception as e:
         print(f"⚠️ Error in shopkeeper notification helper: {e}")
         return None
+
+# --- RAZORPAY PAYMENT ENDPOINTS ---
+
+# Razorpay configuration (you'll need to set these environment variables)
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "rzp_test_your_key_id_here")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "your_secret_key_here")
+
+# Initialize Razorpay client
+try:
+    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+    print("✅ Razorpay client initialized successfully")
+except Exception as e:
+    print(f"⚠️ Razorpay client initialization failed: {e}")
+    razorpay_client = None
+
+class RazorpayOrderRequest(BaseModel):
+    amount: float
+    currency: str = "INR"
+    order_id: str
+    customer_name: str
+    customer_email: str
+
+class RazorpayPaymentVerification(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+    order_id: str
+
+@app.post("/create-razorpay-order/")
+def create_razorpay_order(order_data: RazorpayOrderRequest):
+    """Create a Razorpay order for payment"""
+    try:
+        if not razorpay_client:
+            raise HTTPException(status_code=500, detail="Payment gateway not configured")
+
+        # Convert amount to paisa (Razorpay expects amount in paisa)
+        amount_in_paisa = int(order_data.amount * 100)
+
+        # Create order data
+        order_data_dict = {
+            "amount": amount_in_paisa,
+            "currency": order_data.currency,
+            "receipt": f"order_{order_data.order_id}",
+            "notes": {
+                "order_id": order_data.order_id,
+                "customer_name": order_data.customer_name,
+                "customer_email": order_data.customer_email
+            }
+        }
+
+        # Create order
+        razorpay_order = razorpay_client.order.create(data=order_data_dict)
+
+        print(f"✅ Razorpay order created: {razorpay_order['id']} for amount ₹{order_data.amount}")
+
+        return {
+            "status": "success",
+            "razorpay_key_id": RAZORPAY_KEY_ID,
+            "amount": razorpay_order["amount"],
+            "currency": razorpay_order["currency"],
+            "razorpay_order_id": razorpay_order["id"],
+            "order_id": order_data.order_id
+        }
+
+    except Exception as e:
+        print(f"❌ Error creating Razorpay order: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create payment order: {str(e)}")
+
+@app.post("/verify-razorpay-payment/")
+def verify_razorpay_payment(verification_data: RazorpayPaymentVerification):
+    """Verify Razorpay payment signature"""
+    try:
+        if not razorpay_client:
+            raise HTTPException(status_code=500, detail="Payment gateway not configured")
+
+        # Verify payment signature
+        params_dict = {
+            'razorpay_order_id': verification_data.razorpay_order_id,
+            'razorpay_payment_id': verification_data.razorpay_payment_id,
+            'razorpay_signature': verification_data.razorpay_signature
+        }
+
+        # Verify signature
+        razorpay_client.utility.verify_payment_signature(params_dict)
+
+        print(f"✅ Payment verified successfully: {verification_data.razorpay_payment_id}")
+
+        return {
+            "status": "success",
+            "message": "Payment verified successfully",
+            "payment_id": verification_data.razorpay_payment_id,
+            "order_id": verification_data.order_id
+        }
+
+    except razorpay.errors.SignatureVerificationError as e:
+        print(f"❌ Payment signature verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Payment verification failed")
+
+    except Exception as e:
+        print(f"❌ Error verifying payment: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment verification error: {str(e)}")
 
 # --- Dummy product data for SMS handler ---
 PRODUCTS_DB = {

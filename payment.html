@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self' https://web-production-9d240.up.railway.app; img-src 'self' data: https:; font-src 'self' https:; frame-src 'self' https://wa.me;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self' https://web-production-9d240.up.railway.app https://api.razorpay.com; img-src 'self' data: https:; font-src 'self' https:; frame-src 'self' https://wa.me;">
     <title>Raza Wholesale and Retail - Payment</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <style>
         body { font-family: "Inter", sans-serif; }
         .gradient-bg {
@@ -97,6 +98,22 @@
                                 <div>
                                     <div class="font-semibold text-gray-800">PhonePe</div>
                                     <div class="text-sm text-gray-500">Pay with PhonePe</div>
+                                </div>
+                            </div>
+                            <div class="text-green-500 text-xl">✓</div>
+                        </div>
+                    </div>
+
+                    <!-- Credit/Debit Card Option -->
+                    <div class="payment-option bg-white border-2 border-gray-200 rounded-lg p-4 cursor-pointer transition-all duration-200" id="card-option">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
+                                    <span class="text-white font-bold text-sm">💳</span>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-gray-800">Credit/Debit Card</div>
+                                    <div class="text-sm text-gray-500">Pay with Card (Razorpay)</div>
                                 </div>
                             </div>
                             <div class="text-green-500 text-xl">✓</div>
@@ -320,6 +337,7 @@
             // Payment method selection
             document.getElementById('gpay-option').addEventListener('click', () => selectPaymentMethod('gpay'));
             document.getElementById('phonepe-option').addEventListener('click', () => selectPaymentMethod('phonepe'));
+            document.getElementById('card-option').addEventListener('click', () => selectPaymentMethod('card'));
             document.getElementById('cod-option').addEventListener('click', () => selectPaymentMethod('cod'));
 
             // Action buttons
@@ -348,8 +366,11 @@
             if (method === 'cod') {
                 // Show COD confirmation button
                 document.getElementById('cod-confirm').classList.remove('hidden');
+            } else if (method === 'card') {
+                // Handle card payment with Razorpay
+                handleCardPayment();
             } else {
-                // Handle digital payments
+                // Handle digital payments (GPay, PhonePe)
                 handleDigitalPayment(method);
             }
         }
@@ -531,6 +552,100 @@
             // Navigate back to sales page
             console.log('Navigating to sales page');
             window.location.href = 'https://general-store-kappa.vercel.app/sales';
+        }
+
+        function handleCardPayment() {
+            // Calculate total amount
+            const totalAmount = orderData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+
+            // Show loading notification
+            showNotification('🔄 Initializing secure payment...');
+
+            // Create Razorpay order via backend
+            fetch(`${BACKEND_URL}/create-razorpay-order/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: totalAmount,
+                    currency: 'INR',
+                    order_id: orderData.order_id,
+                    customer_name: orderData.customer_name,
+                    customer_email: orderData.customer_phone ? `${orderData.customer_phone.replace('+91', '')}@temp.com` : 'customer@temp.com'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Initialize Razorpay checkout
+                    const options = {
+                        key: data.razorpay_key_id,
+                        amount: data.amount,
+                        currency: data.currency,
+                        name: 'Raza Wholesale and Retail',
+                        description: `Order Payment - ${orderData.order_id}`,
+                        order_id: data.razorpay_order_id,
+                        handler: function (response) {
+                            // Payment successful
+                            console.log('Payment successful:', response);
+                            showNotification('✅ Payment successful! Processing order...');
+
+                            // Verify payment on backend
+                            verifyRazorpayPayment(response, orderData);
+                        },
+                        prefill: {
+                            name: orderData.customer_name,
+                            email: orderData.customer_phone ? `${orderData.customer_phone.replace('+91', '')}@temp.com` : 'customer@temp.com',
+                            contact: orderData.customer_phone
+                        },
+                        theme: {
+                            color: '#10B981'
+                        },
+                        modal: {
+                            ondismiss: function() {
+                                showNotification('⚠️ Payment cancelled by user');
+                            }
+                        }
+                    };
+
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } else {
+                    showNotification('❌ Failed to initialize payment. Please try again.');
+                    console.error('Razorpay order creation failed:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error creating Razorpay order:', error);
+                showNotification('❌ Payment initialization failed. Please try again.');
+            });
+        }
+
+        function verifyRazorpayPayment(razorpayResponse, orderData) {
+            // Verify payment with backend
+            fetch(`${BACKEND_URL}/verify-razorpay-payment/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+                    razorpay_order_id: razorpayResponse.razorpay_order_id,
+                    razorpay_signature: razorpayResponse.razorpay_signature,
+                    order_id: orderData.order_id
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Payment verified, place order
+                    placeOrder('card');
+                } else {
+                    showNotification('❌ Payment verification failed. Please contact support.');
+                    console.error('Payment verification failed:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error verifying payment:', error);
+                showNotification('❌ Payment verification failed. Please contact support.');
+            });
         }
 
         function showNotification(message) {
