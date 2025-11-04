@@ -749,9 +749,64 @@
 
             // Send to shopkeeper WhatsApp
             const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
 
-            console.log('Payment confirmation sent to shopkeeper:', message);
+            try {
+                const whatsappWindow = window.open(whatsappUrl, '_blank');
+                if (!whatsappWindow || whatsappWindow.closed || typeof whatsappWindow.closed == 'undefined') {
+                    // Popup was blocked
+                    console.warn('WhatsApp popup was blocked by browser');
+                    showNotification('⚠️ Please allow popups to send WhatsApp message to shopkeeper');
+                    // Copy message to clipboard as fallback
+                    copyToClipboard(message);
+                    showNotification('📋 Payment confirmation copied to clipboard - please send to shopkeeper manually');
+                } else {
+                    console.log('Payment confirmation sent to shopkeeper via WhatsApp');
+                }
+            } catch (error) {
+                console.error('Error opening WhatsApp:', error);
+                // Fallback: copy to clipboard
+                copyToClipboard(message);
+                showNotification('📋 Payment confirmation copied to clipboard - please send to shopkeeper manually');
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                // Use the Clipboard API when available and in secure context
+                navigator.clipboard.writeText(text).then(() => {
+                    console.log('Message copied to clipboard');
+                }).catch(err => {
+                    console.error('Failed to copy to clipboard:', err);
+                    fallbackCopyToClipboard(text);
+                });
+            } else {
+                // Fallback for older browsers or non-secure contexts
+                fallbackCopyToClipboard(text);
+            }
+        }
+
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    console.log('Message copied to clipboard using fallback method');
+                } else {
+                    console.error('Fallback copy method failed');
+                }
+            } catch (err) {
+                console.error('Fallback copy method error:', err);
+            }
+
+            document.body.removeChild(textArea);
         }
 
         function showNotification(message) {
