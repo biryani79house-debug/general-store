@@ -1256,9 +1256,28 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     whatsapp_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
     whatsapp_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
 
-    # Create WhatsApp URL with prefilled thanks message for customer (so shopkeeper can send it)
-    clean_customer_number = order_request.phone_number.replace('+', '').replace(' ', '').replace('-', '')
-    whatsapp_url = f"https://wa.me/{clean_customer_number}?text={urllib.parse.quote(whatsapp_message)}"
+    # Create WhatsApp URL with order details for shopkeeper first
+    # Get store settings for shopkeeper contact
+    settings = db.query(StoreSettings).first()
+    shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
+
+    # Create order details message for shopkeeper
+    shopkeeper_message = f"🔔 *NEW ORDER RECEIVED!*\n\n"
+    shopkeeper_message += f"👤 Customer: {order_request.customer_name}\n"
+    shopkeeper_message += f"📞 Phone: {order_request.phone_number}\n\n"
+    shopkeeper_message += f"📦 *Order Details:*\n"
+
+    for item in order_request.items:
+        shopkeeper_message += f"• {item.quantity}x {item.product_name}\n"
+
+    shopkeeper_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n"
+    shopkeeper_message += f"🆔 *Order ID: ORDER_{db_sale.id}*\n\n"
+    shopkeeper_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
+    shopkeeper_message += "✅ *Please prepare the order for delivery!*"
+
+    # Create WhatsApp URL for shopkeeper with order details
+    clean_shopkeeper_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
+    whatsapp_url = f"https://wa.me/{clean_shopkeeper_number}?text={urllib.parse.quote(shopkeeper_message)}"
 
     # Trigger shopkeeper notification when order is received
     try:

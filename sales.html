@@ -623,13 +623,15 @@
         }
 
         function sendShopkeeperNotificationAutomatically(backendData, orderData) {
-            // Automatically open WhatsApp with thanks message for shopkeeper
-            // Use the backend's whatsapp_url which now contains the shopkeeper's number
-            const whatsappUrl = backendData.whatsapp_url;
-            console.log('📱 Opening WhatsApp for shopkeeper with thanks message:', whatsappUrl);
+            // First open WhatsApp with order details for shopkeeper to review
+            // Then copy thanks message to clipboard for when they reply to customer
 
-            // Copy thanks message to clipboard for shopkeeper
+            // Copy thanks message to clipboard first
             copyThanksMessageToShopkeeperClipboard(orderData, backendData);
+
+            // Open WhatsApp with order details for shopkeeper
+            const whatsappUrl = backendData.whatsapp_url;
+            console.log('📱 Opening WhatsApp for shopkeeper with order details:', whatsappUrl);
 
             // Try to open WhatsApp with error handling
             try {
