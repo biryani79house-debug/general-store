@@ -623,11 +623,13 @@
         }
 
         function sendShopkeeperNotificationAutomatically(backendData, orderData) {
-            // Open WhatsApp with order details and thanks message for shopkeeper
-            // The thanks message is included in the WhatsApp message for shopkeeper to copy
+            // Send order details to shopkeeper WhatsApp and copy thanks message to clipboard for shopkeeper
 
             const whatsappUrl = backendData.whatsapp_url;
-            console.log('📱 Opening WhatsApp for shopkeeper with order details and thanks message:', whatsappUrl);
+            console.log('📱 Opening WhatsApp for shopkeeper with order details:', whatsappUrl);
+
+            // Copy thanks message to clipboard for shopkeeper
+            copyThanksMessageToShopkeeperClipboard(orderData, backendData);
 
             // Try to open WhatsApp with error handling
             try {
@@ -645,7 +647,7 @@
 
             // Show success message to customer
             setTimeout(() => {
-                showNotification('✅ Order sent to shopkeeper! They will contact you soon.');
+                showNotification('✅ Order sent to shopkeeper! Thanks message copied for them.');
                 // Reset cart and close modal
                 cart = {};
                 updateCart();

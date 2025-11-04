@@ -1261,7 +1261,7 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     settings = db.query(StoreSettings).first()
     shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
 
-    # Create order details message for shopkeeper
+    # Create order details message for shopkeeper (only order details, no thanks message)
     shopkeeper_message = f"🔔 *NEW ORDER RECEIVED!*\n\n"
     shopkeeper_message += f"👤 Customer: {order_request.customer_name}\n"
     shopkeeper_message += f"📞 Phone: {order_request.phone_number}\n\n"
@@ -1273,21 +1273,7 @@ def process_whatsapp_order(order_request: WhatsAppOrderRequest, db: Session = De
     shopkeeper_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n"
     shopkeeper_message += f"🆔 *Order ID: ORDER_{db_sale.id}*\n\n"
     shopkeeper_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
-    shopkeeper_message += "✅ *Please prepare the order for delivery!*\n\n"
-
-    # Add thanks message for shopkeeper to copy and send to customer
-    shopkeeper_message += "📝 *COPY AND SEND THIS MESSAGE TO CUSTOMER:*\n\n"
-    shopkeeper_message += f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
-    shopkeeper_message += "📦 *Order Received:*\n"
-
-    for item in order_request.items:
-        shopkeeper_message += f"• {item.quantity}x {item.product_name}\n"
-
-    shopkeeper_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n\n"
-    shopkeeper_message += f"💳 *Please pay ₹{total_bill:.2f} using this link*\n"
-    shopkeeper_message += f"https://general-store-kappa.vercel.app/payment?order_id=ORDER_{db_sale.id}\n\n"
-    shopkeeper_message += "✅ *Once payment is received, we will confirm and deliver to your doorstep!*\n\n"
-    shopkeeper_message += "🏪 *Thank you for choosing Raza Wholesale and Retail!* 🛒"
+    shopkeeper_message += "✅ *Please prepare the order for delivery!*"
 
     # Create WhatsApp URL for shopkeeper with order details
     clean_shopkeeper_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
