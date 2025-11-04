@@ -50,7 +50,15 @@
                 <h3 class="text-lg font-semibold mb-3 text-gray-800">📋 Order Summary</h3>
                 <div id="order-items" class="space-y-2 mb-4"></div>
                 <div class="border-t pt-3">
-                    <div class="flex justify-between font-bold text-lg text-gray-800">
+                    <div class="flex justify-between text-gray-800">
+                        <span>Subtotal:</span>
+                        <span id="order-subtotal">₹0.00</span>
+                    </div>
+                    <div id="processing-fee-row" class="flex justify-between text-gray-600 text-sm hidden">
+                        <span>Processing Fee (3%):</span>
+                        <span id="processing-fee">₹0.00</span>
+                    </div>
+                    <div class="flex justify-between font-bold text-lg text-gray-800 mt-2 pt-2 border-t">
                         <span>Total Amount:</span>
                         <span id="order-total" class="text-green-600">₹0.00</span>
                     </div>
@@ -245,6 +253,7 @@
 
         function displayOrderSummary() {
             const orderItems = document.getElementById('order-items');
+            const orderSubtotal = document.getElementById('order-subtotal');
             const orderTotal = document.getElementById('order-total');
             const customerNameDisplay = document.getElementById('customer-name-display');
             const customerPhoneDisplay = document.getElementById('customer-phone-display');
@@ -261,12 +270,12 @@
             }
 
             // Display order items
-            let total = 0;
+            let subtotal = 0;
             orderItems.innerHTML = '';
 
             orderData.items.forEach(item => {
-                const subtotal = item.quantity * item.price;
-                total += subtotal;
+                const itemSubtotal = item.quantity * item.price;
+                subtotal += itemSubtotal;
 
                 orderItems.innerHTML += `
                     <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
@@ -274,12 +283,15 @@
                             <div class="font-medium text-gray-800">${item.name}</div>
                             <div class="text-sm text-gray-600">${item.quantity} × ₹${item.price.toFixed(2)}</div>
                         </div>
-                        <div class="font-semibold text-gray-800">₹${subtotal.toFixed(2)}</div>
+                        <div class="font-semibold text-gray-800">₹${itemSubtotal.toFixed(2)}</div>
                     </div>
                 `;
             });
 
-            orderTotal.textContent = `₹${total.toFixed(2)}`;
+            // Store subtotal for calculations
+            orderData.subtotal = subtotal;
+            orderSubtotal.textContent = `₹${subtotal.toFixed(2)}`;
+            orderTotal.textContent = `₹${subtotal.toFixed(2)}`;
         }
 
         function isMobileDevice() {
@@ -358,10 +370,16 @@
             document.getElementById('cod-confirm').classList.add('hidden');
             document.getElementById('qr-section').classList.add('hidden');
 
+            // Hide processing fee by default
+            document.getElementById('processing-fee-row').classList.add('hidden');
+
             // Select the clicked option
             const selectedOption = document.getElementById(`${method}-option`);
             selectedOption.classList.remove('border-gray-200');
             selectedOption.classList.add('border-green-500', 'bg-green-50');
+
+            // Update total based on payment method
+            updateTotalForPaymentMethod(method);
 
             if (method === 'cod') {
                 // Show COD confirmation button
@@ -372,6 +390,30 @@
             } else {
                 // Handle digital payments (GPay, PhonePe)
                 handleDigitalPayment(method);
+            }
+        }
+
+        function updateTotalForPaymentMethod(method) {
+            const subtotal = orderData.subtotal;
+            const orderTotal = document.getElementById('order-total');
+            const processingFeeRow = document.getElementById('processing-fee-row');
+            const processingFee = document.getElementById('processing-fee');
+
+            if (method === 'card') {
+                // Add 3% processing fee for card payments
+                const fee = subtotal * 0.03;
+                const total = subtotal + fee;
+
+                processingFee.textContent = `₹${fee.toFixed(2)}`;
+                processingFeeRow.classList.remove('hidden');
+                orderTotal.textContent = `₹${total.toFixed(2)}`;
+
+                // Store the total with fee for payment processing
+                orderData.totalWithFee = total;
+            } else {
+                // No processing fee for other methods
+                orderTotal.textContent = `₹${subtotal.toFixed(2)}`;
+                orderData.totalWithFee = subtotal;
             }
         }
 
@@ -555,8 +597,8 @@
         }
 
         function handleCardPayment() {
-            // Calculate total amount
-            const totalAmount = orderData.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+            // Use the total amount including 3% processing fee
+            const totalAmount = orderData.totalWithFee || orderData.subtotal;
 
             // Show loading notification
             showNotification('🔄 Initializing secure payment...');
