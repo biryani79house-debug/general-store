@@ -1360,30 +1360,48 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=400, detail="Invalid order ID format")
 
         try:
-            sale_id = int(order_id.replace("ORDER_", ""))
+            base_sale_id = int(order_id.replace("ORDER_", ""))
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid order ID")
 
-        # Find the sale record
-        sale = db.query(Sale).filter(Sale.id == sale_id).first()
-        if not sale:
+        # Find the base sale record to get customer info and timestamp
+        base_sale = db.query(Sale).filter(Sale.id == base_sale_id).first()
+        if not base_sale:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        # Get the product
-        product = db.query(Product).filter(Product.id == sale.product_id).first()
-        if not product:
-            raise HTTPException(status_code=404, detail="Product not found")
+        # Find all sales that belong to the same order
+        # Group by customer_name, customer_phone, and similar creation time (within 1 minute)
+        order_sales = db.query(Sale).filter(
+            Sale.customer_name == base_sale.customer_name,
+            Sale.customer_phone == base_sale.customer_phone,
+            Sale.sale_date >= base_sale.sale_date - timedelta(minutes=1),
+            Sale.sale_date <= base_sale.sale_date + timedelta(minutes=1)
+        ).all()
+
+        if not order_sales:
+            raise HTTPException(status_code=404, detail="Order items not found")
+
+        # Build items array from all sales in the order
+        items = []
+        total_amount = 0
+
+        for sale in order_sales:
+            product = db.query(Product).filter(Product.id == sale.product_id).first()
+            if product:
+                items.append({
+                    "name": product.name,
+                    "quantity": sale.quantity,
+                    "price": product.selling_price
+                })
+                total_amount += sale.total_amount
 
         # Create order data in the format expected by payment.html
         order_data = {
-            "customer_name": sale.customer_name or "Customer",
-            "customer_phone": sale.customer_phone or "N/A",
-            "items": [{
-                "name": product.name,
-                "quantity": sale.quantity,
-                "price": product.selling_price
-            }],
-            "total": sale.total_amount,
+            "customer_name": base_sale.customer_name or "Customer",
+            "customer_phone": base_sale.customer_phone or "N/A",
+            "customer_address": getattr(base_sale, 'customer_address', None),  # Add address if available
+            "items": items,
+            "total": total_amount,
             "order_id": order_id
         }
 
