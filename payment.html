@@ -514,7 +514,9 @@
         }
 
         function confirmCashOrder() {
-            showNotification('✅ Order confirmed for Cash on Delivery! Redirecting...');
+            // Calculate total amount for COD
+            const totalAmount = orderData.total || orderData.subtotal || 0;
+            showNotification(`✅ Order confirmed for Cash on Delivery! Amount due: ₹${totalAmount.toFixed(2)} (customer will pay at delivery time). Redirecting...`);
 
             // Send payment confirmation to shopkeeper for COD
             sendPaymentConfirmationToShopkeeper(orderData, 'cod');
@@ -723,7 +725,13 @@
             const totalPaid = orderData.totalWithFee || subtotal;
 
             // Create payment confirmation message for shopkeeper
-            let message = `💳 *PAYMENT RECEIVED SUCCESSFULLY!*\n\n`;
+            let message = '';
+            if (paymentMethod === 'cod') {
+                message = `💰 *PAYMENT DUE - CASH ON DELIVERY*\n\n`;
+            } else {
+                message = `💳 *PAYMENT RECEIVED SUCCESSFULLY!*\n\n`;
+            }
+
             message += `👤 Customer: ${orderData.customer_name}\n`;
             message += `📞 Phone: ${orderData.customer_phone}\n\n`;
 
@@ -739,13 +747,20 @@
                 message += `💳 Processing Fee (3%): ₹${fee.toFixed(2)}\n`;
                 message += `💵 Total Paid: ₹${totalPaid.toFixed(2)}\n`;
                 message += `🆔 Payment ID: ${paymentId}\n`;
+            } else if (paymentMethod === 'cod') {
+                message += `💵 Amount Due: ₹${totalPaid.toFixed(2)} (customer will pay at delivery)\n`;
             } else {
                 message += `💵 Amount Paid: ₹${totalPaid.toFixed(2)}\n`;
             }
 
             message += `\n✅ *Payment Method: ${paymentMethod.toUpperCase()}*\n`;
-            message += `📅 Payment Time: ${new Date().toLocaleString('en-IN')}\n\n`;
-            message += `🎉 *Order is ready for delivery!*`;
+            message += `📅 Order Time: ${new Date().toLocaleString('en-IN')}\n\n`;
+
+            if (paymentMethod === 'cod') {
+                message += `🚚 *Collect payment ₹${totalPaid.toFixed(2)} at delivery!*`;
+            } else {
+                message += `🎉 *Order is ready for delivery!*`;
+            }
 
             // Send to shopkeeper WhatsApp
             const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(message)}`;
