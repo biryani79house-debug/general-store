@@ -1308,18 +1308,28 @@ def process_whatsapp_order(
     shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
 
     # Create order details message for shopkeeper (only order details, no thanks message)
-    shopkeeper_message = f"🔔 *NEW ORDER RECEIVED!*\n\n"
+    shopkeeper_message = f"*NEW CUSTOMER ORDER*\n\n"
     shopkeeper_message += f"👤 Customer: {order_request.customer_name}\n"
-    shopkeeper_message += f"📞 Phone: {order_request.phone_number}\n\n"
-    shopkeeper_message += f"📦 *Order Details:*\n"
+    shopkeeper_message += f"📞 Phone: +91{order_request.phone_number}\n"
+    shopkeeper_message += f"💳 Payment Method: Cash on Delivery\n\n"
+    shopkeeper_message += f"📦 ORDER DETAILS:\n"
+    shopkeeper_message += "────────────────────\n"
 
     for item in order_request.items:
-        shopkeeper_message += f"• {item.quantity}x {item.product_name}\n"
+        # Get product details to include price and unit info
+        product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
+        if product:
+            unit_price = product.selling_price
+            subtotal = item.quantity * unit_price
+            shopkeeper_message += f"{item.product_name} - {item.quantity} × ₹{unit_price:.2f} = ₹{subtotal:.2f}\n"
+        else:
+            shopkeeper_message += f"• {item.quantity}x {item.product_name}\n"
 
-    shopkeeper_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n"
-    shopkeeper_message += f"🆔 *Order ID: ORDER_{db_sale.id}*\n\n"
-    shopkeeper_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
-    shopkeeper_message += "✅ *Please prepare the order for delivery!*"
+    shopkeeper_message += f"────────────────────\n"
+    shopkeeper_message += f"*TOTAL: ₹{total_bill:.2f}*\n\n"
+    shopkeeper_message += f"✅ Please confirm and process this order.\n"
+    shopkeeper_message += f"📅 Order placed on: {datetime.now(IST).strftime('%d/%m/%Y %I:%M:%S %p').lower()}\n"
+    shopkeeper_message += f"🏪 Raza Wholesale and Retail Store"
 
     # Create WhatsApp URL for shopkeeper with order details
     clean_shopkeeper_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
@@ -1433,18 +1443,28 @@ def send_shopkeeper_notification_endpoint(order_request: WhatsAppOrderRequest, t
         shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
 
         # Format shopkeeper notification message
-        notification_message = f"🔔 *NEW ORDER RECEIVED!*\n\n"
+        notification_message = f"*NEW CUSTOMER ORDER*\n\n"
         notification_message += f"👤 Customer: {order_request.customer_name}\n"
-        notification_message += f"📞 Phone: {order_request.phone_number}\n\n"
-        notification_message += f"📦 *Order Details:*\n"
+        notification_message += f"📞 Phone: +91{order_request.phone_number}\n"
+        notification_message += f"💳 Payment Method: Cash on Delivery\n\n"
+        notification_message += f"📦 ORDER DETAILS:\n"
+        notification_message += "────────────────────\n"
 
         for item in order_request.items:
-            notification_message += f"• {item.quantity}x {item.product_name}\n"
+            # Get product details to include price and unit info
+            product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
+            if product:
+                unit_price = product.selling_price
+                subtotal = item.quantity * unit_price
+                notification_message += f"{item.product_name} - {item.quantity} × ₹{unit_price:.2f} = ₹{subtotal:.2f}\n"
+            else:
+                notification_message += f"• {item.quantity}x {item.product_name}\n"
 
-        notification_message += f"\n💰 *Total Amount: ₹{total_bill:.2f}*\n"
-        notification_message += f"🆔 *Order ID: ORDER_{order_id}*\n\n"
-        notification_message += f"⏰ *Time: {datetime.now(IST).strftime('%d/%m/%Y %H:%M:%S')}*\n\n"
-        notification_message += "✅ *Please prepare the order for delivery!*"
+        notification_message += f"────────────────────\n"
+        notification_message += f"*TOTAL: ₹{total_bill:.2f}*\n\n"
+        notification_message += f"✅ Please confirm and process this order.\n"
+        notification_message += f"📅 Order placed on: {datetime.now(IST).strftime('%d/%m/%Y %I:%M:%S %p').lower()}\n"
+        notification_message += f"🏪 Raza Wholesale and Retail Store"
 
         # Create WhatsApp URL for manual sending - ensure proper formatting
         clean_number = shopkeeper_number.replace('+', '').replace(' ', '').replace('-', '')
