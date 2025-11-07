@@ -319,28 +319,25 @@
             checkoutButton.textContent = 'Processing...';
 
             // Create order message for shopkeeper (order details only)
-            let shopkeeperMessage = `*🛒 NEW CUSTOMER ORDER*\n\n`;
+            let shopkeeperMessage = `*NEW CUSTOMER ORDER*\n\n`;
             shopkeeperMessage += `👤 Customer: ${name}\n`;
-            shopkeeperMessage += `📞 Phone: ${phone}\n`;
-            shopkeeperMessage += `🏠 Address: ${address}\n`;
+            shopkeeperMessage += `📞 Phone: +91${phone}\n`;
+            shopkeeperMessage += `💳 Payment Method: Cash on Delivery\n\n`;
 
-            if (notes) shopkeeperMessage += `📝 Notes: ${notes}\n`;
-
-            shopkeeperMessage += `\n📦 ORDER DETAILS:\n────────────────────\n`;
+            shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
 
             cartItems.forEach(productId => {
                 const product = products.find(p => p.id == productId);
                 const qty = cart[productId];
                 const subtotal = qty * product.price;
-                shopkeeperMessage += `${product.name} - ${qty} ${product.unit_type} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+                shopkeeperMessage += `${product.name} - ${qty} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
             });
 
             shopkeeperMessage += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
 
-            shopkeeperMessage += `✅ *Please confirm and process this order.*\n`;
+            shopkeeperMessage += `✅ Please confirm and process this order.\n`;
             shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            shopkeeperMessage += `🏪 *Raza Wholesale and Retail Store*\n`;
-            shopkeeperMessage += `🚚 *Fresh Products • Best Prices • Fast Delivery*`;
+            shopkeeperMessage += `🏪 Raza Wholesale and Retail Store\n`;
 
             // Send order to backend first
             fetch(`${BACKEND_URL}/whatsapp-order/`, {
