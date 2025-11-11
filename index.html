@@ -1720,35 +1720,68 @@ function backToHome() {
         function renderProductsHelper(productsToRender, productListEl) {
             productListEl.innerHTML = productsToRender.map(product => {
                 const isOutOfStock = product.stock <= 0;
-                const buttonClass = isOutOfStock
-                    ? "w-full bg-gray-400 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-not-allowed"
-                    : "w-full bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors duration-300";
-                const buttonText = isOutOfStock ? "Out of Stock" : "Add to Cart";
                 const unitDisplay = getUnitDisplay(product.unit_type || 'pcs', product.stock || 0);
 
-                // Build product name with proportion if available
-                let displayName = product.name;
-                if (product.proportion) {
-                    displayName += ` (${product.proportion})`;
-                }
+                // Check if product has multiple proportions
+                if (product.proportions && Array.isArray(product.proportions) && product.proportions.length > 0) {
+                    // Product with multiple proportions - show proportion selection
+                    const proportionButtons = product.proportions.map(proportion => {
+                        const proportionStock = product.proportion_stocks ? product.proportion_stocks[proportion] || 0 : product.stock || 0;
+                        const isProportionOutOfStock = proportionStock <= 0;
+                        const proportionButtonClass = isProportionOutOfStock
+                            ? "bg-gray-400 text-white text-xs font-bold py-1 px-2 rounded cursor-not-allowed"
+                            : "bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-blue-600 transition-colors";
 
-                const imageUrl = generateProductImage(product.name);
+                        return `
+                            <button class="add-to-cart-btn ${proportionButtonClass}"
+                                    data-id="${product.id}"
+                                    data-proportion="${proportion}"
+                                    data-price="${product.price}"
+                                    ${isProportionOutOfStock ? 'disabled' : ''}>
+                                ${proportion} ${isProportionOutOfStock ? '(Out)' : ''}
+                            </button>
+                        `;
+                    }).join('');
 
-                return `
-                    <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105 ${isOutOfStock ? 'opacity-70' : ''}">
-                        <h4 class="text-sm font-semibold text-gray-700">${displayName}</h4>
-                        <p class="text-lg font-bold text-gray-800 my-1">₹${product.price.toFixed(2)}</p>
-                        <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
-                            <span>Stock: ${unitDisplay}</span>
-                            ${isOutOfStock ? '<span class="text-red-500 font-bold">Out of Stock</span>' : ''}
+                    const imageUrl = generateProductImage(product.name);
+
+                    return `
+                        <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            <h4 class="text-sm font-semibold text-gray-700">${product.name}</h4>
+                            <p class="text-lg font-bold text-gray-800 my-1">₹${product.price.toFixed(2)}</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                <span>Stock: ${unitDisplay}</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1">
+                                ${proportionButtons}
+                            </div>
                         </div>
-                        <button class="add-to-cart-btn mt-2 ${buttonClass}"
-                                data-id="${product.id}"
-                                ${isOutOfStock ? 'disabled' : ''}>
-                            ${buttonText}
-                        </button>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Single product without proportions
+                    const buttonClass = isOutOfStock
+                        ? "w-full bg-gray-400 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-not-allowed"
+                        : "w-full bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors duration-300";
+                    const buttonText = isOutOfStock ? "Out of Stock" : "Add to Cart";
+
+                    const imageUrl = generateProductImage(product.name);
+
+                    return `
+                        <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105 ${isOutOfStock ? 'opacity-70' : ''}">
+                            <h4 class="text-sm font-semibold text-gray-700">${product.name}</h4>
+                            <p class="text-lg font-bold text-gray-800 my-1">₹${product.price.toFixed(2)}</p>
+                            <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                <span>Stock: ${unitDisplay}</span>
+                                ${isOutOfStock ? '<span class="text-red-500 font-bold">Out of Stock</span>' : ''}
+                            </div>
+                            <button class="add-to-cart-btn mt-2 ${buttonClass}"
+                                    data-id="${product.id}"
+                                    ${isOutOfStock ? 'disabled' : ''}>
+                                ${buttonText}
+                            </button>
+                        </div>
+                    `;
+                }
             }).join('');
         }
 
@@ -1776,19 +1809,28 @@ function backToHome() {
             let total = 0;
             let totalCount = 0;
 
-            for (const productId in cart) {
-                if (cart[productId] > 0) {
-                    const product = products.find(p => p.id === parseInt(productId));
+            for (const cartKey in cart) {
+                if (cart[cartKey] > 0) {
+                    // Parse cart key to get product ID and proportion
+                    let productId, proportion = null;
+                    if (cartKey.includes('_')) {
+                        [productId, proportion] = cartKey.split('_');
+                        productId = parseInt(productId);
+                    } else {
+                        productId = parseInt(cartKey);
+                    }
+
+                    const product = products.find(p => p.id === productId);
                     if (product) {
-                        const quantity = cart[productId];
+                        const quantity = cart[cartKey];
                         const itemTotal = quantity * product.price;
                         total += itemTotal;
                         totalCount += quantity;
 
                         // Build product name with proportion if available
                         let displayName = product.name;
-                        if (product.proportion) {
-                            displayName += ` (${product.proportion})`;
+                        if (proportion) {
+                            displayName += ` (${proportion})`;
                         }
 
                         const cartItem = document.createElement('div');
@@ -1800,18 +1842,18 @@ function backToHome() {
                             </div>
                             <div class="flex items-center space-x-2">
                                 <button class="decrease-quantity w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                                        data-id="${product.id}">
+                                        data-id="${cartKey}">
                                     -
                                 </button>
                                 <span class="quantity-display w-8 text-center font-medium">${quantity}</span>
                                 <button class="increase-quantity w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
-                                        data-id="${product.id}">
+                                        data-id="${cartKey}">
                                     +
                                 </button>
                             </div>
                             <div class="text-right ml-4">
                                 <div class="font-medium text-gray-800">₹${itemTotal.toFixed(2)}</div>
-                                <button class="remove-item text-xs text-red-500 hover:text-red-700 mt-1" data-id="${product.id}">
+                                <button class="remove-item text-xs text-red-500 hover:text-red-700 mt-1" data-id="${cartKey}">
                                     Remove
                                 </button>
                             </div>
@@ -1828,7 +1870,7 @@ function backToHome() {
                 : "w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300";
         }
 
-        function addToCart(productId) {
+        function addToCart(productId, proportion = null) {
             // Input validation
             if (!productId || isNaN(parseInt(productId))) {
                 showNotification("Invalid product selection!");
@@ -1852,30 +1894,45 @@ function backToHome() {
                 return;
             }
 
-            if (product.stock === undefined || product.stock === null || product.stock <= 0) {
-                showNotification(`Sorry, ${product.name} is out of stock!`);
+            // Create a unique cart key that includes proportion if specified
+            const cartKey = proportion ? `${productId}_${proportion}` : productId;
+
+            // Check stock based on proportion or overall stock
+            let availableStock = product.stock || 0;
+            let displayName = product.name;
+
+            if (proportion) {
+                // For products with proportions, check proportion-specific stock
+                if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                    availableStock = product.proportion_stocks[proportion];
+                }
+                displayName = `${product.name} (${proportion})`;
+            }
+
+            if (availableStock <= 0) {
+                showNotification(`Sorry, ${displayName} is out of stock!`);
                 return;
             }
 
-            const currentCartQuantity = cart[productId] || 0;
-            if (currentCartQuantity + 1 > product.stock) {
-                showNotification(`Sorry, only ${product.stock} units of ${product.name} are available!`);
+            const currentCartQuantity = cart[cartKey] || 0;
+            if (currentCartQuantity + 1 > availableStock) {
+                showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
                 return;
             }
 
-            cart[productId] = currentCartQuantity + 1;
+            cart[cartKey] = currentCartQuantity + 1;
             updateCartUI();
-            showNotification(`Added ${product.name} to cart!`);
+            showNotification(`Added ${displayName} to cart!`);
         }
 
-        function increaseQuantity(productId) {
+        function increaseQuantity(cartKey) {
             // Input validation
-            if (!productId || isNaN(parseInt(productId))) {
-                showNotification("Invalid product selection!");
+            if (!cartKey) {
+                showNotification("Invalid cart item!");
                 return;
             }
 
-            if (!cart[productId] || cart[productId] <= 0) {
+            if (!cart[cartKey] || cart[cartKey] <= 0) {
                 showNotification("Item not in cart!");
                 return;
             }
@@ -1885,7 +1942,16 @@ function backToHome() {
                 return;
             }
 
-            const product = products.find(p => p.id === parseInt(productId));
+            // Parse cart key to get product ID and proportion
+            let productId, proportion = null;
+            if (cartKey.includes('_')) {
+                [productId, proportion] = cartKey.split('_');
+                productId = parseInt(productId);
+            } else {
+                productId = parseInt(cartKey);
+            }
+
+            const product = products.find(p => p.id === productId);
 
             if (!product) {
                 showNotification("Product not found!");
@@ -1895,6 +1961,17 @@ function backToHome() {
             if (!product.name || product.name.trim() === '') {
                 showNotification("Invalid product data!");
                 return;
+            }
+
+            // Check stock based on proportion or overall stock
+            let availableStock = product.stock || 0;
+            let displayName = product.name;
+
+            if (proportion) {
+                if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                    availableStock = product.proportion_stocks[proportion];
+                }
+                displayName = `${product.name} (${proportion})`;
             }
 
             if (product.stock === undefined || product.stock === null) {
@@ -1902,53 +1979,55 @@ function backToHome() {
                 return;
             }
 
-            const currentCartQuantity = cart[productId] || 0;
-            if (currentCartQuantity + 1 > product.stock) {
-                showNotification(`Sorry, only ${product.stock} units of ${product.name} are available!`);
+            const currentCartQuantity = cart[cartKey] || 0;
+            if (currentCartQuantity + 1 > availableStock) {
+                showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
                 return;
             }
 
-            cart[productId] = currentCartQuantity + 1;
+            cart[cartKey] = currentCartQuantity + 1;
             updateCartUI();
         }
 
-        function decreaseQuantity(productId) {
+        function decreaseQuantity(cartKey) {
             // Input validation
-            if (!productId || isNaN(parseInt(productId))) {
-                showNotification("Invalid product selection!");
+            if (!cartKey) {
+                showNotification("Invalid cart item!");
                 return;
             }
 
-            if (!cart[productId] || cart[productId] <= 0) {
+            if (!cart[cartKey] || cart[cartKey] <= 0) {
                 showNotification("Item not in cart!");
                 return;
             }
 
-            if (cart[productId] <= 1) {
+            if (cart[cartKey] <= 1) {
                 showNotification("Cannot decrease quantity below 1. Use remove button instead!");
                 return;
             }
 
-            cart[productId] -= 1;
+            cart[cartKey] -= 1;
             updateCartUI();
         }
 
-        function removeFromCart(productId) {
+        function removeFromCart(cartKey) {
             // Input validation
-            if (!productId || isNaN(parseInt(productId))) {
-                showNotification("Invalid product selection!");
+            if (!cartKey) {
+                showNotification("Invalid cart item!");
                 return;
             }
 
-            if (!cart[productId] || cart[productId] <= 0) {
+            if (!cart[cartKey] || cart[cartKey] <= 0) {
                 showNotification("Item not in cart!");
                 return;
             }
 
-            delete cart[productId];
+            delete cart[cartKey];
             updateCartUI();
             showNotification("Item removed from cart!");
         }
+
+
 
         async function recordSale(saleItems) {
             console.log('📦 Recording sale items:', saleItems);
@@ -2007,16 +2086,25 @@ function backToHome() {
             const saleItems = [];
             let hasValidItems = false;
 
-            for (const productId in cart) {
-                if (cart[productId] > 0) {
-                    const product = products.find(p => p.id === parseInt(productId));
+            for (const cartKey in cart) {
+                if (cart[cartKey] > 0) {
+                    // Parse cart key to get product ID and proportion
+                    let productId, proportion = null;
+                    if (cartKey.includes('_')) {
+                        [productId, proportion] = cartKey.split('_');
+                        productId = parseInt(productId);
+                    } else {
+                        productId = parseInt(cartKey);
+                    }
+
+                    const product = products.find(p => p.id === productId);
                     if (product) {
                         if (!product.name || product.name.trim() === '') {
                             showNotification("Invalid product data found in cart!");
                             return;
                         }
 
-                        const quantity = cart[productId];
+                        const quantity = cart[cartKey];
                         if (isNaN(quantity) || quantity <= 0) {
                             showNotification("Invalid quantity in cart!");
                             return;
@@ -2030,14 +2118,22 @@ function backToHome() {
 
                         const itemTotal = quantity * price;
                         total += itemTotal;
-                        message += `• ${quantity}x ${product.name} - ₹${itemTotal.toFixed(2)}%0a`;
+
+                        // Build product name with proportion if available
+                        let displayName = product.name;
+                        if (proportion) {
+                            displayName += ` (${proportion})`;
+                        }
+
+                        message += `• ${quantity}x ${displayName} - ₹${itemTotal.toFixed(2)}%0a`;
 
                         saleItems.push({
                             product_id: product.id,
-                            product_name: product.name,
+                            product_name: displayName,
                             quantity: quantity,
                             price: price,
-                            total: itemTotal
+                            total: itemTotal,
+                            proportion: proportion
                         });
 
                         hasValidItems = true;
@@ -2612,31 +2708,24 @@ function backToHome() {
             try {
                 console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, selectedProportions, categoryId, categoryName });
 
-                // Create products for each selected proportion
-                const createPromises = selectedProportions.length > 0 ? selectedProportions.map(proportion => {
-                    const productData = {
-                        name: `${name} ${proportion}`,
-                        purchase_price: purchasePrice,
-                        selling_price: sellingPrice,
-                        unit_type: unitType,
-                        proportion: proportion
-                    };
-                    return createProduct(productData);
-                }) : [
-                    // If no proportions selected (for 'pcs'), create single product
-                    createProduct({
-                        name: name,
-                        purchase_price: purchasePrice,
-                        selling_price: sellingPrice,
-                        unit_type: unitType,
-                        proportion: null
-                    })
-                ];
+                // Create single product with proportions array
+                const productData = {
+                    name: name,
+                    purchase_price: purchasePrice,
+                    selling_price: sellingPrice,
+                    unit_type: unitType,
+                    proportions: selectedProportions.length > 0 ? selectedProportions : null,
+                    category: categoryName,
+                    stock: stock
+                };
 
-                const results = await Promise.all(createPromises);
+                const result = await createProduct(productData);
 
-                const successCount = results.filter(result => result).length;
-                showNotification(`✅ ${successCount} product${successCount > 1 ? 's' : ''} created successfully!`);
+                if (result) {
+                    showNotification(`✅ Product "${name}" created successfully!`);
+                } else {
+                    throw new Error('Product creation failed');
+                }
 
                 // Clear form
                 document.getElementById('product-name').value = '';
