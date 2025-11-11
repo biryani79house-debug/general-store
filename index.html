@@ -5729,6 +5729,10 @@ function backToHome() {
                         if (selectedUnitType === 'kgs') {
                             proportionCheckboxes.innerHTML = `
                                 <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="1kg" class="mr-2">
+                                    <span class="text-sm">1 kg</span>
+                                </label>
+                                <label class="flex items-center">
                                     <input type="checkbox" name="proportions" value="750gm" class="mr-2">
                                     <span class="text-sm">750gm</span>
                                 </label>
@@ -5743,6 +5747,10 @@ function backToHome() {
                             `;
                         } else if (selectedUnitType === 'ltr') {
                             proportionCheckboxes.innerHTML = `
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="1ltr" class="mr-2">
+                                    <span class="text-sm">1 ltr</span>
+                                </label>
                                 <label class="flex items-center">
                                     <input type="checkbox" name="proportions" value="750ml" class="mr-2">
                                     <span class="text-sm">750ml</span>

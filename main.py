@@ -156,9 +156,10 @@ class Product(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     purchase_price = Column(Float, nullable=False)  # Cost price when buying from supplier
-    selling_price = Column(Float, nullable=False)   # Selling price to customers
+    selling_price = Column(Float, nullable=False)   # Base selling price for 1kg/1ltr (used for calculations)
     unit_type = Column(String, nullable=False)      # Unit type: kgs, ltr, or pcs
-    proportions = Column(String, nullable=True)     # JSON array of proportions: ["750gm", "500gm", "250gm"] for kgs; ["750ml", "500ml", "250ml"] for ltr
+    proportions = Column(String, nullable=True)     # JSON array of proportions: ["1kg", "750gm", "500gm", "250gm"] for kgs; ["1ltr", "750ml", "500ml", "250ml"] for ltr
+    proportion_prices = Column(String, nullable=True)  # JSON object of proportion prices: {"1kg": 100.00, "750gm": 75.00, "500gm": 50.00, "250gm": 25.00}
     category = Column(String, nullable=True)        # Category name (optional)
     stock = Column(Float, default=0)                # Current stock level (changes with sales/purchases)
     initial_stock = Column(Float, default=0)        # Initial stock when product was created (immutable)
@@ -676,6 +677,14 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 except:
                     proportions_list = None
 
+            # Parse proportion_prices JSON string back to dict
+            proportion_prices_dict = None
+            if product.proportion_prices:
+                try:
+                    proportion_prices_dict = json.loads(product.proportion_prices)
+                except:
+                    proportion_prices_dict = None
+
             frontend_products.append({
                 "id": product.id,
                 "name": product.name,
@@ -684,6 +693,7 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 "selling_price": float(product.selling_price),
                 "unit_type": str(product.unit_type),  # Ensure it's returned as string
                 "proportions": proportions_list,  # Include proportions as list for display
+                "proportion_prices": proportion_prices_dict,  # Include proportion prices as dict
                 "imageUrl": "",  # Let frontend generate dynamic images
                 "stock": product.stock,
                 "category": product.category  # Include category for filtering
@@ -720,8 +730,37 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
 
     # Convert proportions list to JSON string for storage
     proportions_json = None
+    proportion_prices_json = None
+
     if hasattr(product, 'proportions') and product.proportions:
         proportions_json = json.dumps(product.proportions)
+
+        # Calculate proportional prices based on the base selling_price
+        # The selling_price entered is for the base unit (1kg or 1ltr)
+        proportion_prices = {}
+
+        for proportion in product.proportions:
+            if product.unit_type == 'kgs':
+                if proportion == '1kg':
+                    proportion_prices[proportion] = product.selling_price
+                elif proportion == '750gm':
+                    proportion_prices[proportion] = round(product.selling_price * 0.75, 2)
+                elif proportion == '500gm':
+                    proportion_prices[proportion] = round(product.selling_price * 0.50, 2)
+                elif proportion == '250gm':
+                    proportion_prices[proportion] = round(product.selling_price * 0.25, 2)
+            elif product.unit_type == 'ltr':
+                if proportion == '1ltr':
+                    proportion_prices[proportion] = product.selling_price
+                elif proportion == '750ml':
+                    proportion_prices[proportion] = round(product.selling_price * 0.75, 2)
+                elif proportion == '500ml':
+                    proportion_prices[proportion] = round(product.selling_price * 0.50, 2)
+                elif proportion == '250ml':
+                    proportion_prices[proportion] = round(product.selling_price * 0.25, 2)
+
+        proportion_prices_json = json.dumps(proportion_prices)
+        print(f"💰 Calculated proportion prices: {proportion_prices}")
 
     # Create product with initial stock set to current stock (which defaults to 0)
     db_product = Product(
@@ -730,6 +769,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
         selling_price=product.selling_price,
         unit_type=product.unit_type,
         proportions=proportions_json,  # Store as JSON string
+        proportion_prices=proportion_prices_json,  # Store calculated prices
         category=product.category if hasattr(product, 'category') and product.category else None,
         stock=product.stock,  # Set to provided initial stock
         initial_stock=product.stock  # Set initial stock to provided value
@@ -1017,8 +1057,44 @@ def update_product(product_id: int, product_data: ProductUpdate, db: Session = D
     if 'proportions' in update_data and update_data['proportions'] is not None:
         update_data['proportions'] = json.dumps(update_data['proportions'])
 
+    # Check if selling_price or proportions are being updated
+    selling_price_updated = 'selling_price' in update_data
+    proportions_updated = 'proportions' in update_data
+
     for key, value in update_data.items():
         setattr(db_product, key, value)
+
+    # Recalculate proportion prices if selling_price or proportions changed
+    if (selling_price_updated or proportions_updated) and db_product.proportions:
+        try:
+            proportions_list = json.loads(db_product.proportions)
+            if proportions_list:
+                proportion_prices = {}
+
+                for proportion in proportions_list:
+                    if db_product.unit_type == 'kgs':
+                        if proportion == '1kg':
+                            proportion_prices[proportion] = db_product.selling_price
+                        elif proportion == '750gm':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.75, 2)
+                        elif proportion == '500gm':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.50, 2)
+                        elif proportion == '250gm':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.25, 2)
+                    elif db_product.unit_type == 'ltr':
+                        if proportion == '1ltr':
+                            proportion_prices[proportion] = db_product.selling_price
+                        elif proportion == '750ml':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.75, 2)
+                        elif proportion == '500ml':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.50, 2)
+                        elif proportion == '250ml':
+                            proportion_prices[proportion] = round(db_product.selling_price * 0.25, 2)
+
+                db_product.proportion_prices = json.dumps(proportion_prices)
+                print(f"💰 Recalculated proportion prices: {proportion_prices}")
+        except Exception as e:
+            print(f"⚠️ Error recalculating proportion prices: {e}")
 
     db.commit()
     db.refresh(db_product)
