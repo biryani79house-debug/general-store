@@ -164,27 +164,54 @@
 
         function displayProducts(productList) {
             productsGrid.innerHTML = productList.map(product => {
-                const isOutOfStock = product.stock <= 0;
-                const btnClass = isOutOfStock ?
-                    'w-full bg-gray-400 text-white py-2 px-3 rounded cursor-not-allowed text-sm' :
-                    'w-full bg-blue-500 text-white py-2 px-3 rounded hover:bg-blue-600 text-sm font-medium';
+                // Check if product has multiple proportions
+                if (product.proportions && Array.isArray(product.proportions) && product.proportions.length > 0) {
+                    // Product with multiple proportions - show proportion selection
+                    const proportionButtons = product.proportions.map(proportion => {
+                        const proportionStock = product.proportion_stocks ? product.proportion_stocks[proportion] || 0 : product.stock || 0;
+                        const isProportionOutOfStock = proportionStock <= 0;
+                        const proportionButtonClass = isProportionOutOfStock
+                            ? "bg-gray-400 text-white text-xs font-bold py-1 px-2 rounded cursor-not-allowed"
+                            : "bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-blue-600 transition-colors";
 
-                // Build product name with proportion if available
-                let displayName = product.name;
-                if (product.proportion) {
-                    displayName += ` (${product.proportion})`;
+                        return `
+                            <button class="add-to-cart ${proportionButtonClass}"
+                                    data-id="${product.id}_${proportion}"
+                                    data-price="${product.price}"
+                                    ${isProportionOutOfStock ? 'disabled' : ''}>
+                                ${proportion} ${isProportionOutOfStock ? '(Out)' : ''}
+                            </button>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="bg-white p-4 rounded-lg shadow card-hover">
+                            <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
+                            <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
+                            <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
+                            <div class="grid grid-cols-3 gap-1">
+                                ${proportionButtons}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Single product without proportions
+                    const isOutOfStock = product.stock <= 0;
+                    const btnClass = isOutOfStock ?
+                        'w-full bg-gray-400 text-white py-2 px-3 rounded cursor-not-allowed text-sm' :
+                        'w-full bg-blue-500 text-white py-2 px-3 rounded hover:bg-blue-600 text-sm font-medium';
+
+                    return `
+                        <div class="bg-white p-4 rounded-lg shadow card-hover">
+                            <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
+                            <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
+                            <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
+                            <button class="add-to-cart ${btnClass}" data-id="${product.id}" ${isOutOfStock ? 'disabled' : ''}>
+                                ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                            </button>
+                        </div>
+                    `;
                 }
-
-                return `
-                    <div class="bg-white p-4 rounded-lg shadow card-hover">
-                        <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${displayName}</h4>
-                        <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
-                        <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
-                        <button class="add-to-cart ${btnClass}" data-id="${product.id}" ${isOutOfStock ? 'disabled' : ''}>
-                            ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                        </button>
-                    </div>
-                `;
             }).join('');
         }
 
@@ -201,48 +228,117 @@
                 .catch(() => displayProducts(products.filter(p => p.category_name === category)));
         }
 
-        function addToCart(productId) {
-            const product = products.find(p => p.id == productId);
-            if (!product || product.stock <= 0) return;
+        async function addToCart(cartKey) {
+            // Parse cart key to get product ID and proportion
+            let productId, proportion = null;
+            if (cartKey.includes('_')) {
+                [productId, proportion] = cartKey.split('_');
+                productId = parseInt(productId);
+            } else {
+                productId = parseInt(cartKey);
+            }
 
-            const currentQty = cart[productId] || 0;
-            if (currentQty + 1 > product.stock) {
-                showNotification(`Only ${product.stock} items available in stock`);
+            const product = products.find(p => p.id == productId);
+            if (!product) {
+                showNotification("Product not found!");
                 return;
             }
 
-            cart[productId] = currentQty + 1;
+            // Check stock based on proportion or overall stock
+            let availableStock = product.stock || 0;
+            let displayName = product.name;
+            let itemPrice = product.price; // Default to base price
+
+            if (proportion) {
+                // For products with proportions, check proportion-specific stock
+                if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                    availableStock = product.proportion_stocks[proportion];
+                }
+                displayName = `${product.name} (${proportion})`;
+
+                // Fetch the correct proportion-specific price from API
+                try {
+                    const priceResponse = await fetch(`${BACKEND_URL}/products/${productId}/price/${proportion}`);
+                    if (priceResponse.ok) {
+                        const priceData = await priceResponse.json();
+                        itemPrice = priceData.price; // Use the correct proportion price
+                        console.log(`✅ Using proportion price for ${displayName}: ₹${itemPrice}`);
+                    } else {
+                        console.warn(`⚠️ Could not fetch proportion price for ${displayName}, using base price`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Error fetching proportion price for ${displayName}:`, error);
+                    // Continue with base price as fallback
+                }
+            }
+
+            if (availableStock <= 0) {
+                showNotification(`Sorry, ${displayName} is out of stock!`);
+                return;
+            }
+
+            const currentQty = cart[cartKey] ? cart[cartKey].quantity : 0;
+            if (currentQty + 1 > availableStock) {
+                showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
+                return;
+            }
+
+            // Store the price in cart for this item (for future use in cart display)
+            if (!cart[cartKey]) {
+                cart[cartKey] = { quantity: 0, price: itemPrice };
+            }
+            cart[cartKey].quantity += 1;
+
             updateCart();
-            showNotification(`Added ${product.name} to your order`);
+            showNotification(`Added ${displayName} to your order`);
         }
 
         function updateCart() {
-            const items = Object.keys(cart).filter(id => cart[id] > 0);
+            const items = Object.keys(cart).filter(cartKey => cart[cartKey] && cart[cartKey].quantity > 0);
             cartItems.innerHTML = '';
             let total = 0;
             let count = 0;
 
-            items.forEach(productId => {
+            items.forEach(cartKey => {
+                // Parse cart key to get product ID and proportion
+                let productId, proportion = null;
+                if (cartKey.includes('_')) {
+                    [productId, proportion] = cartKey.split('_');
+                    productId = parseInt(productId);
+                } else {
+                    productId = parseInt(cartKey);
+                }
+
                 const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                const subtotal = qty * product.price;
+                if (!product) return;
+
+                const cartItem = cart[cartKey];
+                const qty = cartItem.quantity;
+                const itemPrice = cartItem.price;
+                const subtotal = qty * itemPrice;
                 total += subtotal;
                 count += qty;
+
+                // Build display name with proportion if available
+                let displayName = product.name;
+                if (proportion) {
+                    displayName += ` (${proportion})`;
+                }
 
                 cartItems.innerHTML += `
                     <div class="flex justify-between items-center bg-gray-50 p-3 rounded">
                         <div class="flex-1">
-                            <div class="font-medium text-sm">${product.name}</div>
-                            <div class="text-sm text-gray-600">₹${product.price} each</div>
+                            <div class="font-medium text-sm">${displayName}</div>
+                            <div class="text-sm text-gray-600">₹${itemPrice.toFixed(2)} each</div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button class="decrease w-6 h-6 rounded bg-red-500 text-white text-xs" data-id="${productId}">-</button>
+                            <button class="decrease w-6 h-6 rounded bg-red-500 text-white text-xs" data-id="${cartKey}">-</button>
                             <span class="w-6 text-center text-sm">${qty}</span>
-                            <button class="increase w-6 h-6 rounded bg-green-500 text-white text-xs" data-id="${productId}">+</button>
+                            <button class="increase w-6 h-6 rounded bg-green-500 text-white text-xs" data-id="${cartKey}">+</button>
                         </div>
                         <div class="text-right ml-4">
                             <div class="font-medium text-sm">₹${subtotal.toFixed(2)}</div>
-                            <button class="text-red-500 text-xs remove" data-id="${productId}">Remove</button>
+                            <button class="text-red-500 text-xs remove" data-id="${cartKey}">Remove</button>
                         </div>
                     </div>
                 `;
@@ -866,27 +962,44 @@
                 }
 
                 if (e.target.classList.contains('decrease')) {
-                    const productId = e.target.getAttribute('data-id');
-                    if (cart[productId] > 1) {
-                        cart[productId]--;
+                    const cartKey = e.target.getAttribute('data-id');
+                    if (cart[cartKey] && cart[cartKey].quantity > 1) {
+                        cart[cartKey].quantity--;
                         updateCart();
                     }
                 }
 
                 if (e.target.classList.contains('increase')) {
-                    const productId = e.target.getAttribute('data-id');
-                    const product = products.find(p => p.id == productId);
-                    if (product && cart[productId] < product.stock) {
-                        cart[productId]++;
-                        updateCart();
-                    } else {
-                        showNotification('Maximum stock available');
+                    const cartKey = e.target.getAttribute('data-id');
+                    if (cart[cartKey]) {
+                        // Parse cart key to get product ID and check stock
+                        let productId, proportion = null;
+                        if (cartKey.includes('_')) {
+                            [productId, proportion] = cartKey.split('_');
+                            productId = parseInt(productId);
+                        } else {
+                            productId = parseInt(cartKey);
+                        }
+
+                        const product = products.find(p => p.id == productId);
+                        let availableStock = product ? product.stock || 0 : 0;
+
+                        if (proportion && product && product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                            availableStock = product.proportion_stocks[proportion];
+                        }
+
+                        if (cart[cartKey].quantity < availableStock) {
+                            cart[cartKey].quantity++;
+                            updateCart();
+                        } else {
+                            showNotification('Maximum stock available');
+                        }
                     }
                 }
 
                 if (e.target.classList.contains('remove')) {
-                    const productId = e.target.getAttribute('data-id');
-                    delete cart[productId];
+                    const cartKey = e.target.getAttribute('data-id');
+                    delete cart[cartKey];
                     updateCart();
                     showNotification('Item removed from cart');
                 }
