@@ -377,7 +377,7 @@
                 return;
             }
 
-            const cartItems = Object.keys(cart).filter(id => cart[id] > 0);
+            const cartItems = Object.keys(cart).filter(cartKey => cart[cartKey] && cart[cartKey].quantity > 0);
             if (cartItems.length === 0) {
                 showNotification('Your cart is empty. Please add some products.');
                 return;
@@ -385,10 +385,11 @@
 
             // Calculate total
             let total = 0;
-            cartItems.forEach(productId => {
-                const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                const subtotal = qty * product.price;
+            cartItems.forEach(cartKey => {
+                const cartItem = cart[cartKey];
+                const qty = cartItem.quantity;
+                const itemPrice = cartItem.price;
+                const subtotal = qty * itemPrice;
                 total += subtotal;
             });
 
@@ -398,13 +399,30 @@
                 customer_phone: '+91' + phone,
                 customer_address: address,
                 customer_notes: notes,
-                items: cartItems.map(productId => {
+                items: cartItems.map(cartKey => {
+                    // Parse cart key to get product info
+                    let productId, proportion = null;
+                    if (cartKey.includes('_')) {
+                        [productId, proportion] = cartKey.split('_');
+                        productId = parseInt(productId);
+                    } else {
+                        productId = parseInt(cartKey);
+                    }
+
                     const product = products.find(p => p.id == productId);
+                    const cartItem = cart[cartKey];
+
+                    // Build display name with proportion if available
+                    let displayName = product.name;
+                    if (proportion) {
+                        displayName += ` (${proportion})`;
+                    }
+
                     return {
                         id: product.id,
-                        name: product.name,
-                        quantity: cart[productId],
-                        price: product.price,
+                        name: displayName,
+                        quantity: cartItem.quantity,
+                        price: cartItem.price,
                         unit_type: product.unit_type
                     };
                 }),
@@ -428,11 +446,29 @@
 
             shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
 
-            cartItems.forEach(productId => {
+            cartItems.forEach(cartKey => {
+                // Parse cart key to get product info
+                let productId, proportion = null;
+                if (cartKey.includes('_')) {
+                    [productId, proportion] = cartKey.split('_');
+                    productId = parseInt(productId);
+                } else {
+                    productId = parseInt(cartKey);
+                }
+
                 const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                const subtotal = qty * product.price;
-                shopkeeperMessage += `${product.name} - ${qty} × ₹${product.price.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
+                const cartItem = cart[cartKey];
+                const qty = cartItem.quantity;
+                const itemPrice = cartItem.price;
+                const subtotal = qty * itemPrice;
+
+                // Build display name with proportion if available
+                let displayName = product.name;
+                if (proportion) {
+                    displayName += ` (${proportion})`;
+                }
+
+                shopkeeperMessage += `${displayName} - ${qty} × ₹${itemPrice.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
             });
 
             shopkeeperMessage += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
@@ -448,10 +484,30 @@
                 body: JSON.stringify({
                     customer_name: name,
                     phone_number: '+91' + phone,
-                    items: cartItems.map(productId => ({
-                        product_name: products.find(p => p.id == productId).name,
-                        quantity: cart[productId]
-                    }))
+                    items: cartItems.map(cartKey => {
+                        // Parse cart key to get product info
+                        let productId, proportion = null;
+                        if (cartKey.includes('_')) {
+                            [productId, proportion] = cartKey.split('_');
+                            productId = parseInt(productId);
+                        } else {
+                            productId = parseInt(cartKey);
+                        }
+
+                        const product = products.find(p => p.id == productId);
+                        const cartItem = cart[cartKey];
+
+                        // Build display name with proportion if available
+                        let displayName = product.name;
+                        if (proportion) {
+                            displayName += ` (${proportion})`;
+                        }
+
+                        return {
+                            product_name: displayName,
+                            quantity: cartItem.quantity
+                        };
+                    })
                 })
             })
             .then(res => res.json())
