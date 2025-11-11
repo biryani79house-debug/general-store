@@ -178,6 +178,7 @@ class Sale(Base):
     # Add customer information fields
     customer_name = Column(String, nullable=True)
     customer_phone = Column(String, nullable=True)
+    customer_address = Column(String, nullable=True)  # Add missing customer_address field
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
@@ -1518,11 +1519,20 @@ def process_whatsapp_order(
         total_bill += item_total
         product.stock -= item.quantity
 
+        # Find a valid user ID for created_by (prefer admin user, fallback to any user)
+        admin_user = db.query(User).filter(User.username == "raza123").first()
+        if admin_user:
+            created_by = admin_user.id
+        else:
+            # Fallback to first available user
+            first_user = db.query(User).first()
+            created_by = first_user.id if first_user else None
+
         db_sale = Sale(
             product_id=product.id,
             quantity=item.quantity,
             total_amount=item_total,
-            created_by=1,  # Default admin user for WhatsApp orders
+            created_by=created_by,  # Use valid user ID or None
             customer_name=order_request.customer_name,
             customer_phone=order_request.phone_number
         )
