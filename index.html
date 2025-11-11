@@ -1883,9 +1883,9 @@ function backToHome() {
                 : "w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300";
         }
 
-        async function addToCart(productId, proportion = null) {
+        async function addToCart(cartKey) {
             // Input validation
-            if (!productId || isNaN(parseInt(productId))) {
+            if (!cartKey || cartKey.trim() === '') {
                 showNotification("Invalid product selection!");
                 return;
             }
@@ -1895,7 +1895,16 @@ function backToHome() {
                 return;
             }
 
-            const product = products.find(p => p.id === parseInt(productId));
+            // Parse cart key to get product ID and proportion
+            let productId, proportion = null;
+            if (cartKey.includes('_')) {
+                [productId, proportion] = cartKey.split('_');
+                productId = parseInt(productId);
+            } else {
+                productId = parseInt(cartKey);
+            }
+
+            const product = products.find(p => p.id === productId);
 
             if (!product) {
                 showNotification("Product not found!");
@@ -1906,9 +1915,6 @@ function backToHome() {
                 showNotification("Invalid product data!");
                 return;
             }
-
-            // Create a unique cart key that includes proportion if specified
-            const cartKey = proportion ? `${productId}_${proportion}` : productId;
 
             // Check stock based on proportion or overall stock
             let availableStock = product.stock || 0;
@@ -1946,7 +1952,7 @@ function backToHome() {
                 return;
             }
 
-            const currentCartQuantity = cart[cartKey] || 0;
+            const currentCartQuantity = cart[cartKey] ? cart[cartKey].quantity : 0;
             if (currentCartQuantity + 1 > availableStock) {
                 showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
                 return;
