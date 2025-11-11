@@ -1515,7 +1515,34 @@ def process_whatsapp_order(
         if product.stock < item.quantity:
             return {"status": "error", "message": f"Insufficient stock for '{item.product_name}'."}
 
-        item_total = product.selling_price * item.quantity
+        # Calculate item total based on proportion prices if available
+        # The frontend sends proportion-specific prices, but we need to validate them
+        item_total = 0
+
+        # Check if this is a proportion-based item (name contains parentheses)
+        if '(' in item.product_name and ')' in item.product_name:
+            # Extract proportion from product name like "gold drop oil (500ml)"
+            base_name = item.product_name.split(' (')[0].strip()
+            proportion_part = item.product_name.split(' (')[1].split(')')[0].strip()
+
+            # Find the proportion price from the product's proportion_prices
+            if product.proportion_prices:
+                try:
+                    proportion_prices = json.loads(product.proportion_prices)
+                    if proportion_part in proportion_prices:
+                        item_price = float(proportion_prices[proportion_part])
+                        item_total = item_price * item.quantity
+                    else:
+                        # Fallback to base price if proportion not found
+                        item_total = product.selling_price * item.quantity
+                except:
+                    item_total = product.selling_price * item.quantity
+            else:
+                item_total = product.selling_price * item.quantity
+        else:
+            # No proportion specified, use base price
+            item_total = product.selling_price * item.quantity
+
         total_bill += item_total
         product.stock -= item.quantity
 
@@ -1581,7 +1608,23 @@ def process_whatsapp_order(
         # Get product details to include price and unit info
         product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
         if product:
-            unit_price = product.selling_price
+            # Calculate the correct unit price based on proportion
+            unit_price = product.selling_price  # Default to base price
+
+            # Check if this is a proportion-based item (name contains parentheses)
+            if '(' in item.product_name and ')' in item.product_name:
+                # Extract proportion from product name like "gold drop oil (500ml)"
+                proportion_part = item.product_name.split(' (')[1].split(')')[0].strip()
+
+                # Find the proportion price from the product's proportion_prices
+                if product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(product.proportion_prices)
+                        if proportion_part in proportion_prices:
+                            unit_price = float(proportion_prices[proportion_part])
+                    except:
+                        pass  # Fall back to base price
+
             subtotal = item.quantity * unit_price
             shopkeeper_message += f"{item.product_name} - {item.quantity} × ₹{unit_price:.2f} = ₹{subtotal:.2f}\n"
         else:
@@ -1661,20 +1704,22 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
         for sale in order_sales:
             product = db.query(Product).filter(Product.id == sale.product_id).first()
             if product:
-                # Try to reconstruct the original item name and price
-                item_name = product.name
-                item_price = product.selling_price
+                # Calculate the unit price from the sale total
                 quantity = sale.quantity
                 item_total = sale.total_amount
+                unit_price = item_total / quantity if quantity > 0 else 0
 
-                # Check if this sale was for a proportion by comparing with proportion prices
+                # Try to reconstruct the original item name and proportion
+                item_name = product.name
+                item_price = unit_price  # Default to the actual sale price
+
+                # Check if this sale was for a proportion by comparing unit prices with proportion prices
                 if product.proportion_prices:
                     try:
                         proportion_prices = json.loads(product.proportion_prices)
-                        # Check each proportion to see if the sale amount matches
+                        # Check each proportion to see if the unit price matches
                         for prop_name, prop_price in proportion_prices.items():
-                            expected_prop_total = float(prop_price) * quantity
-                            if abs(item_total - expected_prop_total) < 0.01:  # Allow for small rounding differences
+                            if abs(float(prop_price) - unit_price) < 0.01:  # Allow for small rounding differences
                                 # Found matching proportion
                                 item_name = f"{product.name} ({prop_name})"
                                 item_price = float(prop_price)
@@ -1684,13 +1729,12 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
                         # Fall back to base price if proportion parsing fails
                         pass
 
-                # If no proportion matched, check if the sale amount matches base price
-                # If not, it might be a manual price override or error
-                expected_base_total = product.selling_price * quantity
-                if abs(item_total - expected_base_total) > 0.01 and item_price == product.selling_price:
-                    # Sale amount doesn't match base price and we didn't find a proportion match
-                    # This could be a custom price - use the actual sale price
-                    item_price = item_total / quantity if quantity > 0 else product.selling_price
+                # If no proportion matched, check if it matches the base selling price
+                if abs(product.selling_price - unit_price) < 0.01:
+                    # It's the base price, no proportion needed
+                    item_name = product.name
+                    item_price = product.selling_price
+                # If it doesn't match anything, keep the calculated unit_price
 
                 items.append({
                     "name": item_name,
