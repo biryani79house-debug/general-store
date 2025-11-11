@@ -460,10 +460,10 @@
                         </select>
                     </div>
                     <div id="proportion-container" style="display: none;">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Proportion</label>
-                        <select id="product-proportion" class="w-full p-2 border border-gray-300 rounded-lg">
-                            <option value="">Select Proportion</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Proportions</label>
+                        <div id="proportion-checkboxes" class="space-y-2">
+                            <!-- Checkboxes will be dynamically generated based on unit type -->
+                        </div>
                     </div>
                     <button type="submit" class="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
                         Create Product
@@ -2559,11 +2559,17 @@ function backToHome() {
             const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
             const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
             const unitType = document.getElementById('product-unit-type').value;
-            const proportion = document.getElementById('product-proportion').value;
             const categoryDropdown = document.getElementById('product-category');
             const categoryId = categoryDropdown.value;
             const categoryName = categoryDropdown.options[categoryDropdown.selectedIndex]?.textContent || '';
             const stock = 0; // Default initial stock to 0
+
+            // Get selected proportions from checkboxes
+            const selectedProportions = [];
+            const proportionCheckboxes = document.querySelectorAll('input[name="proportions"]:checked');
+            proportionCheckboxes.forEach(checkbox => {
+                selectedProportions.push(checkbox.value);
+            });
 
             // Validation
             if (!name) {
@@ -2586,9 +2592,9 @@ function backToHome() {
                 return;
             }
 
-            // Check if proportion is required and selected
-            if ((unitType === 'kgs' || unitType === 'ltr') && !proportion) {
-                showNotification('❌ Please select a proportion for this unit type');
+            // Check if proportions are required and selected
+            if ((unitType === 'kgs' || unitType === 'ltr') && selectedProportions.length === 0) {
+                showNotification('❌ Please select at least one proportion for this unit type');
                 return;
             }
 
@@ -2604,27 +2610,46 @@ function backToHome() {
             submitBtn.disabled = true;
 
             try {
-                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, proportion, categoryId, categoryName });
+                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, selectedProportions, categoryId, categoryName });
 
-                const productData = {
-                    name: name,
-                    purchase_price: purchasePrice,
-                    selling_price: sellingPrice,
-                    unit_type: unitType,
-                    proportion: proportion || null
-                };
+                // Create products for each selected proportion
+                const createPromises = selectedProportions.length > 0 ? selectedProportions.map(proportion => {
+                    const productData = {
+                        name: `${name} ${proportion}`,
+                        purchase_price: purchasePrice,
+                        selling_price: sellingPrice,
+                        unit_type: unitType,
+                        proportion: proportion
+                    };
+                    return createProduct(productData);
+                }) : [
+                    // If no proportions selected (for 'pcs'), create single product
+                    createProduct({
+                        name: name,
+                        purchase_price: purchasePrice,
+                        selling_price: sellingPrice,
+                        unit_type: unitType,
+                        proportion: null
+                    })
+                ];
 
-                const result = await createProduct(productData);
+                const results = await Promise.all(createPromises);
 
-                showNotification(`✅ Product "${name}" created successfully!`);
+                const successCount = results.filter(result => result).length;
+                showNotification(`✅ ${successCount} product${successCount > 1 ? 's' : ''} created successfully!`);
 
                 // Clear form
                 document.getElementById('product-name').value = '';
                 document.getElementById('product-purchase-price').value = '';
                 document.getElementById('product-selling-price').value = '';
                 document.getElementById('product-unit-type').value = '';
-                document.getElementById('product-proportion').value = '';
                 document.getElementById('product-category').value = '';
+
+                // Uncheck all proportion checkboxes
+                const allCheckboxes = document.querySelectorAll('input[name="proportions"]');
+                allCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
 
                 // Hide proportion container
                 document.getElementById('proportion-container').style.display = 'none';
@@ -5595,30 +5620,47 @@ function backToHome() {
                 unitTypeDropdown.addEventListener('change', function() {
                     const selectedUnitType = this.value;
                     const proportionContainer = document.getElementById('proportion-container');
-                    const proportionDropdown = document.getElementById('product-proportion');
+                    const proportionCheckboxes = document.getElementById('proportion-checkboxes');
 
                     if (selectedUnitType === 'kgs' || selectedUnitType === 'ltr') {
-                        // Show proportion dropdown and populate options
+                        // Show proportion checkboxes and populate options
                         proportionContainer.style.display = 'block';
-                        proportionDropdown.innerHTML = '<option value="">Select Proportion</option>';
 
                         if (selectedUnitType === 'kgs') {
-                            proportionDropdown.innerHTML += `
-                                <option value="750gm">750gm</option>
-                                <option value="500gm">500gm</option>
-                                <option value="250gm">250gm</option>
+                            proportionCheckboxes.innerHTML = `
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="750gm" class="mr-2">
+                                    <span class="text-sm">750gm</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="500gm" class="mr-2">
+                                    <span class="text-sm">500gm</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="250gm" class="mr-2">
+                                    <span class="text-sm">250gm</span>
+                                </label>
                             `;
                         } else if (selectedUnitType === 'ltr') {
-                            proportionDropdown.innerHTML += `
-                                <option value="750ml">750ml</option>
-                                <option value="500ml">500ml</option>
-                                <option value="250ml">250ml</option>
+                            proportionCheckboxes.innerHTML = `
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="750ml" class="mr-2">
+                                    <span class="text-sm">750ml</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="500ml" class="mr-2">
+                                    <span class="text-sm">500ml</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="proportions" value="250ml" class="mr-2">
+                                    <span class="text-sm">250ml</span>
+                                </label>
                             `;
                         }
                     } else {
-                        // Hide proportion dropdown for 'pcs' or empty selection
+                        // Hide proportion checkboxes for 'pcs' or empty selection
                         proportionContainer.style.display = 'none';
-                        proportionDropdown.innerHTML = '<option value="">Select Proportion</option>';
+                        proportionCheckboxes.innerHTML = '';
                     }
                 });
             }

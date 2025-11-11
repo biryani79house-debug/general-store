@@ -39,17 +39,17 @@ USE_MANUAL_WHATSAPP = os.getenv("USE_MANUAL_WHATSAPP", "true").lower() == "true"
 
 if USE_SQLITE:
     DATABASE_URL = "sqlite:///./kirana_store.db"
-    print("📱 Using SQLite database for local development")
+    print("Using SQLite database for local development")
 else:
     DATABASE_URL = os.getenv("DATABASE_URL")
     if not DATABASE_URL:
-        print("❌ ERROR: DATABASE_URL not set in environment variables!")
+        print("ERROR: DATABASE_URL not set in environment variables!")
         print("Please set your DATABASE_URL environment variable to connect to PostgreSQL")
         print("Example: postgresql://username:password@hostname:port/database_name")
         print("For local development, create a .env file with your DATABASE_URL")
         # Don't crash the app, but it won't work without database
     else:
-        print(f"📡 Connecting to database: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'Local database'}")
+        print(f"Connecting to database: {DATABASE_URL.split('@')[1] if '@' in DATABASE_URL else 'Local database'}")
 
 # Initialize the HTTPBearer instance
 security = HTTPBearer()
@@ -158,7 +158,7 @@ class Product(Base):
     purchase_price = Column(Float, nullable=False)  # Cost price when buying from supplier
     selling_price = Column(Float, nullable=False)   # Selling price to customers
     unit_type = Column(String, nullable=False)      # Unit type: kgs, ltr, or pcs
-    proportion = Column(String, nullable=True)      # Proportion: 750gm, 500gm, 250gm for kgs; 750ml, 500ml, 250ml for ltr
+    proportions = Column(String, nullable=True)     # JSON array of proportions: ["750gm", "500gm", "250gm"] for kgs; ["750ml", "500ml", "250ml"] for ltr
     category = Column(String, nullable=True)        # Category name (optional)
     stock = Column(Float, default=0)                # Current stock level (changes with sales/purchases)
     initial_stock = Column(Float, default=0)        # Initial stock when product was created (immutable)
@@ -207,7 +207,7 @@ class ProductBase(BaseModel):
     purchase_price: float = Field(..., gt=0, description="Purchase price must be a positive number")
     selling_price: float = Field(..., gt=0, description="Selling price must be a positive number")
     unit_type: str = Field(..., description="Unit type: kgs, ltr, or pcs")
-    proportion: Optional[str] = Field(None, description="Proportion: 750gm, 500gm, 250gm for kgs; 750ml, 500ml, 250ml for ltr")
+    proportions: Optional[List[str]] = Field(None, description="List of proportions: ['750gm', '500gm', '250gm'] for kgs; ['750ml', '500ml', '250ml'] for ltr")
 
 class ProductCreate(ProductBase):
     category: Optional[str] = Field(None, description="Product category")
@@ -218,11 +218,18 @@ class ProductUpdate(BaseModel):
     purchase_price: Optional[float] = None
     selling_price: Optional[float] = None
     unit_type: Optional[str] = None
-    proportion: Optional[str] = None
+    proportions: Optional[List[str]] = None
     stock: Optional[int] = None
 
-class ProductResponse(ProductCreate):
+class ProductResponse(BaseModel):
     id: int
+    name: str
+    purchase_price: float
+    selling_price: float
+    unit_type: str
+    proportions: Optional[List[str]] = None
+    category: Optional[str] = None
+    stock: int
     created_at: datetime
 
 class SaleCreate(BaseModel):
@@ -661,6 +668,14 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
         frontend_products = []
 
         for product in db_products:
+            # Parse proportions JSON string back to list
+            proportions_list = None
+            if product.proportions:
+                try:
+                    proportions_list = json.loads(product.proportions)
+                except:
+                    proportions_list = None
+
             frontend_products.append({
                 "id": product.id,
                 "name": product.name,
@@ -668,7 +683,7 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 "purchase_price": float(product.purchase_price),
                 "selling_price": float(product.selling_price),
                 "unit_type": str(product.unit_type),  # Ensure it's returned as string
-                "proportion": product.proportion,  # Include proportion for display
+                "proportions": proportions_list,  # Include proportions as list for display
                 "imageUrl": "",  # Let frontend generate dynamic images
                 "stock": product.stock,
                 "category": product.category  # Include category for filtering
@@ -703,13 +718,18 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
         else:
             print(f"📁 Using existing category: '{existing_category.name}' (ID: {existing_category.id})")
 
+    # Convert proportions list to JSON string for storage
+    proportions_json = None
+    if hasattr(product, 'proportions') and product.proportions:
+        proportions_json = json.dumps(product.proportions)
+
     # Create product with initial stock set to current stock (which defaults to 0)
     db_product = Product(
         name=product.name,
         purchase_price=product.purchase_price,
         selling_price=product.selling_price,
         unit_type=product.unit_type,
-        proportion=product.proportion if hasattr(product, 'proportion') and product.proportion else None,
+        proportions=proportions_json,  # Store as JSON string
         category=product.category if hasattr(product, 'category') and product.category else None,
         stock=product.stock,  # Set to provided initial stock
         initial_stock=product.stock  # Set initial stock to provided value
@@ -717,7 +737,26 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
-    return db_product
+
+    # Convert back to list for response
+    proportions_list = None
+    if db_product.proportions:
+        try:
+            proportions_list = json.loads(db_product.proportions)
+        except:
+            proportions_list = None
+
+    return ProductResponse(
+        id=db_product.id,
+        name=db_product.name,
+        purchase_price=db_product.purchase_price,
+        selling_price=db_product.selling_price,
+        unit_type=db_product.unit_type,
+        proportions=proportions_list,
+        category=db_product.category,
+        stock=db_product.stock,
+        created_at=db_product.created_at
+    )
 
 # 2. ADD THE STOCK-SNAPSHOT ENDPOINT HERE (BEFORE THE DYNAMIC ROUTE)
 # --- API Endpoint for Opening Stock Register ---
@@ -973,12 +1012,36 @@ def update_product(product_id: int, product_data: ProductUpdate, db: Session = D
     if db_product is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    for key, value in product_data.dict(exclude_unset=True).items():
+    # Handle proportions specially - convert list to JSON string
+    update_data = product_data.dict(exclude_unset=True)
+    if 'proportions' in update_data and update_data['proportions'] is not None:
+        update_data['proportions'] = json.dumps(update_data['proportions'])
+
+    for key, value in update_data.items():
         setattr(db_product, key, value)
-    
+
     db.commit()
     db.refresh(db_product)
-    return db_product
+
+    # Convert proportions back to list for response
+    proportions_list = None
+    if db_product.proportions:
+        try:
+            proportions_list = json.loads(db_product.proportions)
+        except:
+            proportions_list = None
+
+    return ProductResponse(
+        id=db_product.id,
+        name=db_product.name,
+        purchase_price=db_product.purchase_price,
+        selling_price=db_product.selling_price,
+        unit_type=db_product.unit_type,
+        proportions=proportions_list,
+        category=db_product.category,
+        stock=db_product.stock,
+        created_at=db_product.created_at
+    )
 
 @app.delete("/products/{product_id}", status_code=status.HTTP_200_OK)
 def delete_product(product_id: int, db: Session = Depends(get_db), username: str = Depends(verify_token)):
