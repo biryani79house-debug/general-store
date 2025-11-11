@@ -459,6 +459,12 @@
                             <option value="pcs">Pieces (pcs)</option>
                         </select>
                     </div>
+                    <div id="proportion-container" style="display: none;">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Proportion</label>
+                        <select id="product-proportion" class="w-full p-2 border border-gray-300 rounded-lg">
+                            <option value="">Select Proportion</option>
+                        </select>
+                    </div>
                     <button type="submit" class="w-full bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
                         Create Product
                     </button>
@@ -1720,11 +1726,17 @@ function backToHome() {
                 const buttonText = isOutOfStock ? "Out of Stock" : "Add to Cart";
                 const unitDisplay = getUnitDisplay(product.unit_type || 'pcs', product.stock || 0);
 
+                // Build product name with proportion if available
+                let displayName = product.name;
+                if (product.proportion) {
+                    displayName += ` (${product.proportion})`;
+                }
+
                 const imageUrl = generateProductImage(product.name);
 
                 return `
                     <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105 ${isOutOfStock ? 'opacity-70' : ''}">
-                        <h4 class="text-sm font-semibold text-gray-700">${product.name}</h4>
+                        <h4 class="text-sm font-semibold text-gray-700">${displayName}</h4>
                         <p class="text-lg font-bold text-gray-800 my-1">₹${product.price.toFixed(2)}</p>
                         <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
                             <span>Stock: ${unitDisplay}</span>
@@ -1759,7 +1771,7 @@ function backToHome() {
             const cartItemsEl = document.getElementById('cart-items');
             const cartTotalEl = document.getElementById('cart-total');
             const whatsappCheckoutButtonEl = document.getElementById('whatsapp-checkout-button');
-            
+
             cartItemsEl.innerHTML = '';
             let total = 0;
             let totalCount = 0;
@@ -1773,20 +1785,26 @@ function backToHome() {
                         total += itemTotal;
                         totalCount += quantity;
 
+                        // Build product name with proportion if available
+                        let displayName = product.name;
+                        if (product.proportion) {
+                            displayName += ` (${product.proportion})`;
+                        }
+
                         const cartItem = document.createElement('div');
                         cartItem.className = "flex justify-between items-center p-3 bg-gray-50 rounded-lg";
                         cartItem.innerHTML = `
                             <div class="flex-1">
-                                <div class="font-medium text-gray-800">${product.name}</div>
+                                <div class="font-medium text-gray-800">${displayName}</div>
                                 <div class="text-sm text-gray-600">₹${product.price.toFixed(2)} each</div>
                             </div>
                             <div class="flex items-center space-x-2">
-                                <button class="decrease-quantity w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors" 
+                                <button class="decrease-quantity w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                                         data-id="${product.id}">
                                     -
                                 </button>
                                 <span class="quantity-display w-8 text-center font-medium">${quantity}</span>
-                                <button class="increase-quantity w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors" 
+                                <button class="increase-quantity w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
                                         data-id="${product.id}">
                                     +
                                 </button>
@@ -1805,7 +1823,7 @@ function backToHome() {
 
             cartTotalEl.textContent = `₹${total.toFixed(2)}`;
             whatsappCheckoutButtonEl.disabled = totalCount === 0;
-            whatsappCheckoutButtonEl.className = totalCount === 0 
+            whatsappCheckoutButtonEl.className = totalCount === 0
                 ? "w-full mt-4 bg-gray-400 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed"
                 : "w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300";
         }
@@ -2541,6 +2559,7 @@ function backToHome() {
             const purchasePrice = parseFloat(document.getElementById('product-purchase-price').value);
             const sellingPrice = parseFloat(document.getElementById('product-selling-price').value);
             const unitType = document.getElementById('product-unit-type').value;
+            const proportion = document.getElementById('product-proportion').value;
             const categoryDropdown = document.getElementById('product-category');
             const categoryId = categoryDropdown.value;
             const categoryName = categoryDropdown.options[categoryDropdown.selectedIndex]?.textContent || '';
@@ -2567,6 +2586,12 @@ function backToHome() {
                 return;
             }
 
+            // Check if proportion is required and selected
+            if ((unitType === 'kgs' || unitType === 'ltr') && !proportion) {
+                showNotification('❌ Please select a proportion for this unit type');
+                return;
+            }
+
             if (!categoryId || !categoryName) {
                 showNotification('❌ Please select a category');
                 return;
@@ -2579,13 +2604,14 @@ function backToHome() {
             submitBtn.disabled = true;
 
             try {
-                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, categoryId, categoryName });
+                console.log('➕ Creating product:', { name, purchasePrice, sellingPrice, unitType, proportion, categoryId, categoryName });
 
                 const productData = {
                     name: name,
                     purchase_price: purchasePrice,
                     selling_price: sellingPrice,
-                    unit_type: unitType
+                    unit_type: unitType,
+                    proportion: proportion || null
                 };
 
                 const result = await createProduct(productData);
@@ -2597,7 +2623,11 @@ function backToHome() {
                 document.getElementById('product-purchase-price').value = '';
                 document.getElementById('product-selling-price').value = '';
                 document.getElementById('product-unit-type').value = '';
+                document.getElementById('product-proportion').value = '';
                 document.getElementById('product-category').value = '';
+
+                // Hide proportion container
+                document.getElementById('proportion-container').style.display = 'none';
 
                 // Refresh existing products list
                 await loadExistingProducts();
@@ -5555,6 +5585,40 @@ function backToHome() {
                     const deleteBtn = document.getElementById('delete-category-btn');
                     if (deleteBtn) {
                         deleteBtn.style.display = selectedValue && selectedValue !== "" ? "block" : "none";
+                    }
+                });
+            }
+
+            // Unit type dropdown change event for proportion field
+            const unitTypeDropdown = document.getElementById('product-unit-type');
+            if (unitTypeDropdown) {
+                unitTypeDropdown.addEventListener('change', function() {
+                    const selectedUnitType = this.value;
+                    const proportionContainer = document.getElementById('proportion-container');
+                    const proportionDropdown = document.getElementById('product-proportion');
+
+                    if (selectedUnitType === 'kgs' || selectedUnitType === 'ltr') {
+                        // Show proportion dropdown and populate options
+                        proportionContainer.style.display = 'block';
+                        proportionDropdown.innerHTML = '<option value="">Select Proportion</option>';
+
+                        if (selectedUnitType === 'kgs') {
+                            proportionDropdown.innerHTML += `
+                                <option value="750gm">750gm</option>
+                                <option value="500gm">500gm</option>
+                                <option value="250gm">250gm</option>
+                            `;
+                        } else if (selectedUnitType === 'ltr') {
+                            proportionDropdown.innerHTML += `
+                                <option value="750ml">750ml</option>
+                                <option value="500ml">500ml</option>
+                                <option value="250ml">250ml</option>
+                            `;
+                        }
+                    } else {
+                        // Hide proportion dropdown for 'pcs' or empty selection
+                        proportionContainer.style.display = 'none';
+                        proportionDropdown.innerHTML = '<option value="">Select Proportion</option>';
                     }
                 });
             }

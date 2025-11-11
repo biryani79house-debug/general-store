@@ -158,6 +158,7 @@ class Product(Base):
     purchase_price = Column(Float, nullable=False)  # Cost price when buying from supplier
     selling_price = Column(Float, nullable=False)   # Selling price to customers
     unit_type = Column(String, nullable=False)      # Unit type: kgs, ltr, or pcs
+    proportion = Column(String, nullable=True)      # Proportion: 750gm, 500gm, 250gm for kgs; 750ml, 500ml, 250ml for ltr
     category = Column(String, nullable=True)        # Category name (optional)
     stock = Column(Float, default=0)                # Current stock level (changes with sales/purchases)
     initial_stock = Column(Float, default=0)        # Initial stock when product was created (immutable)
@@ -206,6 +207,7 @@ class ProductBase(BaseModel):
     purchase_price: float = Field(..., gt=0, description="Purchase price must be a positive number")
     selling_price: float = Field(..., gt=0, description="Selling price must be a positive number")
     unit_type: str = Field(..., description="Unit type: kgs, ltr, or pcs")
+    proportion: Optional[str] = Field(None, description="Proportion: 750gm, 500gm, 250gm for kgs; 750ml, 500ml, 250ml for ltr")
 
 class ProductCreate(ProductBase):
     category: Optional[str] = Field(None, description="Product category")
@@ -216,6 +218,7 @@ class ProductUpdate(BaseModel):
     purchase_price: Optional[float] = None
     selling_price: Optional[float] = None
     unit_type: Optional[str] = None
+    proportion: Optional[str] = None
     stock: Optional[int] = None
 
 class ProductResponse(ProductCreate):
@@ -665,6 +668,7 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 "purchase_price": float(product.purchase_price),
                 "selling_price": float(product.selling_price),
                 "unit_type": str(product.unit_type),  # Ensure it's returned as string
+                "proportion": product.proportion,  # Include proportion for display
                 "imageUrl": "",  # Let frontend generate dynamic images
                 "stock": product.stock,
                 "category": product.category  # Include category for filtering
@@ -705,6 +709,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
         purchase_price=product.purchase_price,
         selling_price=product.selling_price,
         unit_type=product.unit_type,
+        proportion=product.proportion if hasattr(product, 'proportion') and product.proportion else None,
         category=product.category if hasattr(product, 'category') and product.category else None,
         stock=product.stock,  # Set to provided initial stock
         initial_stock=product.stock  # Set initial stock to provided value
