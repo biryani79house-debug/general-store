@@ -497,14 +497,9 @@
                         const product = products.find(p => p.id == productId);
                         const cartItem = cart[cartKey];
 
-                        // Build display name with proportion if available
-                        let displayName = product.name;
-                        if (proportion) {
-                            displayName += ` (${proportion})`;
-                        }
-
+                        // Send base product name without proportion for backend lookup
                         return {
-                            product_name: displayName,
+                            product_name: product.name,  // Use base product name, not display name with proportion
                             quantity: cartItem.quantity
                         };
                     })
@@ -780,7 +775,25 @@
         function sendShopkeeperNotificationAutomatically(backendData, orderData) {
             // Send order details to shopkeeper WhatsApp and copy thanks message to clipboard
 
-            const shopkeeperWhatsappUrl = backendData.whatsapp_url;
+            // Create the WhatsApp URL directly using the shopkeeper message
+            let shopkeeperMessage = `*NEW CUSTOMER ORDER*\n\n`;
+            shopkeeperMessage += `👤 Customer: ${orderData.customer_name}\n`;
+            shopkeeperMessage += `📞 Phone: ${orderData.customer_phone}\n`;
+            shopkeeperMessage += `💳 Payment Method: Cash on Delivery\n\n`;
+
+            shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
+
+            orderData.items.forEach(item => {
+                shopkeeperMessage += `${item.name} - ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${(item.quantity * item.price).toFixed(2)}\n`;
+            });
+
+            shopkeeperMessage += `────────────────────\n*TOTAL: ₹${orderData.total.toFixed(2)}*\n\n`;
+
+            shopkeeperMessage += `✅ Please confirm and process this order.\n`;
+            shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+            shopkeeperMessage += `🏪 Raza Wholesale and Retail Store\n`;
+
+            const shopkeeperWhatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
             console.log('📱 Opening WhatsApp for shopkeeper with order details:', shopkeeperWhatsappUrl);
 
             // Copy thanks message to clipboard for shopkeeper

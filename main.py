@@ -1644,18 +1644,50 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Order items not found")
 
         # Build items array from all sales in the order
+        # We need to reconstruct the original item names and prices from the sale records
         items = []
         total_amount = 0
 
         for sale in order_sales:
             product = db.query(Product).filter(Product.id == sale.product_id).first()
             if product:
+                # Try to reconstruct the original item name and price
+                item_name = product.name
+                item_price = product.selling_price
+                quantity = sale.quantity
+                item_total = sale.total_amount
+
+                # Check if this sale was for a proportion by comparing with proportion prices
+                if product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(product.proportion_prices)
+                        # Check each proportion to see if the sale amount matches
+                        for prop_name, prop_price in proportion_prices.items():
+                            expected_prop_total = float(prop_price) * quantity
+                            if abs(item_total - expected_prop_total) < 0.01:  # Allow for small rounding differences
+                                # Found matching proportion
+                                item_name = f"{product.name} ({prop_name})"
+                                item_price = float(prop_price)
+                                break
+                    except Exception as e:
+                        print(f"Error parsing proportion prices for product {product.id}: {e}")
+                        # Fall back to base price if proportion parsing fails
+                        pass
+
+                # If no proportion matched, check if the sale amount matches base price
+                # If not, it might be a manual price override or error
+                expected_base_total = product.selling_price * quantity
+                if abs(item_total - expected_base_total) > 0.01 and item_price == product.selling_price:
+                    # Sale amount doesn't match base price and we didn't find a proportion match
+                    # This could be a custom price - use the actual sale price
+                    item_price = item_total / quantity if quantity > 0 else product.selling_price
+
                 items.append({
-                    "name": product.name,
-                    "quantity": sale.quantity,
-                    "price": product.selling_price
+                    "name": item_name,
+                    "quantity": quantity,
+                    "price": item_price
                 })
-                total_amount += sale.total_amount
+                total_amount += item_total
 
         # Create order data in the format expected by payment.html
         order_data = {
