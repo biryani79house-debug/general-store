@@ -1080,6 +1080,41 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return db_product
 
+@app.get("/products/{product_id}/price/{proportion}")
+def get_product_proportion_price(product_id: int, proportion: str, db: Session = Depends(get_db)):
+    """Get the correct price for a specific product and proportion combination"""
+    db_product = db.query(Product).filter(Product.id == product_id).first()
+    if db_product is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    # Parse proportion_prices JSON
+    proportion_prices_dict = None
+    if db_product.proportion_prices:
+        try:
+            proportion_prices_dict = json.loads(db_product.proportion_prices)
+        except:
+            proportion_prices_dict = None
+
+    # Get the price for the specific proportion
+    if proportion_prices_dict and proportion in proportion_prices_dict:
+        price = proportion_prices_dict[proportion]
+        return {
+            "product_id": product_id,
+            "product_name": db_product.name,
+            "proportion": proportion,
+            "price": float(price),
+            "unit_type": db_product.unit_type
+        }
+    else:
+        # Fallback to base price if proportion not found
+        return {
+            "product_id": product_id,
+            "product_name": db_product.name,
+            "proportion": proportion,
+            "price": float(db_product.selling_price),
+            "unit_type": db_product.unit_type
+        }
+
 @app.put("/products/{product_id}", response_model=ProductResponse)
 def update_product(product_id: int, product_data: ProductUpdate, db: Session = Depends(get_db)):
     db_product = db.query(Product).filter(Product.id == product_id).first()

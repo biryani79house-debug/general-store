@@ -1821,7 +1821,8 @@ function backToHome() {
             let totalCount = 0;
 
             for (const cartKey in cart) {
-                if (cart[cartKey] > 0) {
+                const cartItem = cart[cartKey];
+                if (cartItem && cartItem.quantity > 0) {
                     // Parse cart key to get product ID and proportion
                     let productId, proportion = null;
                     if (cartKey.includes('_')) {
@@ -1833,8 +1834,9 @@ function backToHome() {
 
                     const product = products.find(p => p.id === productId);
                     if (product) {
-                        const quantity = cart[cartKey];
-                        const itemTotal = quantity * product.price;
+                        const quantity = cartItem.quantity;
+                        const itemPrice = cartItem.price; // Use the stored proportion-specific price
+                        const itemTotal = quantity * itemPrice;
                         total += itemTotal;
                         totalCount += quantity;
 
@@ -1844,12 +1846,12 @@ function backToHome() {
                             displayName += ` (${proportion})`;
                         }
 
-                        const cartItem = document.createElement('div');
-                        cartItem.className = "flex justify-between items-center p-3 bg-gray-50 rounded-lg";
-                        cartItem.innerHTML = `
+                        const cartItemEl = document.createElement('div');
+                        cartItemEl.className = "flex justify-between items-center p-3 bg-gray-50 rounded-lg";
+                        cartItemEl.innerHTML = `
                             <div class="flex-1">
                                 <div class="font-medium text-gray-800">${displayName}</div>
-                                <div class="text-sm text-gray-600">₹${product.price.toFixed(2)} each</div>
+                                <div class="text-sm text-gray-600">₹${itemPrice.toFixed(2)} each</div>
                             </div>
                             <div class="flex items-center space-x-2">
                                 <button class="decrease-quantity w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
@@ -1869,7 +1871,7 @@ function backToHome() {
                                 </button>
                             </div>
                         `;
-                        cartItemsEl.appendChild(cartItem);
+                        cartItemsEl.appendChild(cartItemEl);
                     }
                 }
             }
@@ -1881,7 +1883,7 @@ function backToHome() {
                 : "w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300";
         }
 
-        function addToCart(productId, proportion = null) {
+        async function addToCart(productId, proportion = null) {
             // Input validation
             if (!productId || isNaN(parseInt(productId))) {
                 showNotification("Invalid product selection!");
@@ -1911,6 +1913,7 @@ function backToHome() {
             // Check stock based on proportion or overall stock
             let availableStock = product.stock || 0;
             let displayName = product.name;
+            let itemPrice = product.price; // Default to base price
 
             if (proportion) {
                 // For products with proportions, check proportion-specific stock
@@ -1918,6 +1921,24 @@ function backToHome() {
                     availableStock = product.proportion_stocks[proportion];
                 }
                 displayName = `${product.name} (${proportion})`;
+
+                // Fetch the correct proportion-specific price from API
+                try {
+                    const priceResponse = await fetch(`${backendURL}/products/${productId}/price/${proportion}`, {
+                        headers: getAuthHeaders()
+                    });
+
+                    if (priceResponse.ok) {
+                        const priceData = await priceResponse.json();
+                        itemPrice = priceData.price; // Use the correct proportion price
+                        console.log(`✅ Using proportion price for ${displayName}: ₹${itemPrice}`);
+                    } else {
+                        console.warn(`⚠️ Could not fetch proportion price for ${displayName}, using base price`);
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Error fetching proportion price for ${displayName}:`, error);
+                    // Continue with base price as fallback
+                }
             }
 
             if (availableStock <= 0) {
@@ -1931,7 +1952,12 @@ function backToHome() {
                 return;
             }
 
-            cart[cartKey] = currentCartQuantity + 1;
+            // Store the price in cart for this item (for future use in cart display)
+            if (!cart[cartKey]) {
+                cart[cartKey] = { quantity: 0, price: itemPrice };
+            }
+            cart[cartKey].quantity += 1;
+
             updateCartUI();
             showNotification(`Added ${displayName} to cart!`);
         }
@@ -2098,7 +2124,8 @@ function backToHome() {
             let hasValidItems = false;
 
             for (const cartKey in cart) {
-                if (cart[cartKey] > 0) {
+                const cartItem = cart[cartKey];
+                if (cartItem && cartItem.quantity > 0) {
                     // Parse cart key to get product ID and proportion
                     let productId, proportion = null;
                     if (cartKey.includes('_')) {
@@ -2115,13 +2142,13 @@ function backToHome() {
                             return;
                         }
 
-                        const quantity = cart[cartKey];
+                        const quantity = cartItem.quantity;
                         if (isNaN(quantity) || quantity <= 0) {
                             showNotification("Invalid quantity in cart!");
                             return;
                         }
 
-                        const price = product.price;
+                        const price = cartItem.price; // Use the stored proportion-specific price
                         if (isNaN(price) || price <= 0) {
                             showNotification("Invalid price for product in cart!");
                             return;
