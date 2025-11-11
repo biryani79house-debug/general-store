@@ -685,43 +685,19 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 except:
                     proportion_prices_dict = None
 
-            # Create proportion-specific product entries for frontend cart
-            if proportions_list and proportion_prices_dict:
-                # For products with proportions, create separate entries for each proportion
-                for proportion in proportions_list:
-                    proportion_price = proportion_prices_dict.get(proportion, product.selling_price)
-                    frontend_products.append({
-                        "id": f"{product.id}_{proportion}",  # Unique ID for cart
-                        "product_id": product.id,  # Original product ID
-                        "name": f"{product.name} ({proportion})",  # Display name with proportion
-                        "price": float(proportion_price),  # Proportion-specific price
-                        "purchase_price": float(product.purchase_price),
-                        "selling_price": float(proportion_price),  # Proportion-specific price
-                        "unit_type": str(product.unit_type),
-                        "proportions": proportions_list,
-                        "proportion_prices": proportion_prices_dict,
-                        "current_proportion": proportion,  # Current proportion being displayed
-                        "imageUrl": "",
-                        "stock": product.stock,
-                        "category": product.category,
-                        "is_proportion": True  # Flag to indicate this is a proportion variant
-                    })
-            else:
-                # For products without proportions, use the base product
-                frontend_products.append({
-                    "id": product.id,
-                    "name": product.name,
-                    "price": float(product.selling_price),
-                    "purchase_price": float(product.purchase_price),
-                    "selling_price": float(product.selling_price),
-                    "unit_type": str(product.unit_type),
-                    "proportions": proportions_list,
-                    "proportion_prices": proportion_prices_dict,
-                    "imageUrl": "",
-                    "stock": product.stock,
-                    "category": product.category,
-                    "is_proportion": False
-                })
+            frontend_products.append({
+                "id": product.id,
+                "name": product.name,
+                "price": float(product.selling_price),  # Base price for display
+                "purchase_price": float(product.purchase_price),
+                "selling_price": float(product.selling_price),
+                "unit_type": str(product.unit_type),  # Ensure it's returned as string
+                "proportions": proportions_list,  # Include proportions as list for selection
+                "proportion_prices": proportion_prices_dict,  # Include proportion prices as dict for cart calculation
+                "imageUrl": "",  # Let frontend generate dynamic images
+                "stock": product.stock,
+                "category": product.category  # Include category for filtering
+            })
 
         print("✅ Successfully formatted products for frontend")
         return JSONResponse(content=frontend_products, media_type="application/json")
