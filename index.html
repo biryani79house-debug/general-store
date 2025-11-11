@@ -1597,6 +1597,8 @@ function backToHome() {
                 console.log(`📊 Status: ${response.status}`);
 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`❌ API Error: ${response.status} - ${errorText}`);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
@@ -1604,7 +1606,11 @@ function backToHome() {
                 console.log("✅ Products fetched:", products.length, "items");
 
                 if (!Array.isArray(products) || products.length === 0) {
-                    throw new Error("No products received");
+                    console.log("⚠️ No products found in database");
+                    // Show empty state instead of mock data
+                    renderProducts(category);
+                    showCartButton();
+                    return;
                 }
 
                 renderProducts(category);
@@ -1612,7 +1618,17 @@ function backToHome() {
 
             } catch (error) {
                 console.error("💥 Fetch error:", error);
-                loadMockProducts();
+                // Only show mock data if it's a network/connectivity issue, not authentication
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    console.log("🌐 Network error - showing mock data for demo");
+                    loadMockProducts();
+                } else {
+                    // For authentication or API errors, show empty state
+                    console.log("🔒 Authentication/API error - showing empty state");
+                    products = [];
+                    renderProducts(category);
+                    showCartButton();
+                }
             }
         }
 
@@ -1734,16 +1750,13 @@ function backToHome() {
 
                         return `
                             <button class="add-to-cart-btn ${proportionButtonClass}"
-                                    data-id="${product.id}"
-                                    data-proportion="${proportion}"
+                                    data-id="${product.id}_${proportion}"
                                     data-price="${product.price}"
                                     ${isProportionOutOfStock ? 'disabled' : ''}>
                                 ${proportion} ${isProportionOutOfStock ? '(Out)' : ''}
                             </button>
                         `;
                     }).join('');
-
-                    const imageUrl = generateProductImage(product.name);
 
                     return `
                         <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105">
@@ -1763,8 +1776,6 @@ function backToHome() {
                         ? "w-full bg-gray-400 text-white text-xs font-bold py-2 px-3 rounded-lg cursor-not-allowed"
                         : "w-full bg-blue-500 text-white text-xs font-bold py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors duration-300";
                     const buttonText = isOutOfStock ? "Out of Stock" : "Add to Cart";
-
-                    const imageUrl = generateProductImage(product.name);
 
                     return `
                         <div class="bg-white p-4 rounded-xl shadow-lg transition-transform transform hover:scale-105 ${isOutOfStock ? 'opacity-70' : ''}">
