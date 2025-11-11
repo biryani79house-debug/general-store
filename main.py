@@ -1552,7 +1552,12 @@ def process_whatsapp_order(
 
     # Get store settings for shopkeeper contact
     settings = db.query(StoreSettings).first()
-    shopkeeper_number = settings.store_contact if settings else "+919876543210"  # fallback
+    if not settings:
+        settings = StoreSettings()
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    shopkeeper_number = settings.store_contact
 
     # Create order details message for shopkeeper (only order details, no thanks message)
     shopkeeper_message = f"*NEW CUSTOMER ORDER*\n\n"
