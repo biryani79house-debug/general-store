@@ -740,24 +740,58 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db), userna
         proportion_prices = {}
 
         for proportion in product.proportions:
+            # Parse proportion string to extract numeric value and unit
+            proportion_lower = proportion.lower().strip()
+
+            # Handle different proportion formats dynamically
             if product.unit_type == 'kgs':
-                if proportion == '1kg':
+                # Base unit is 1kg = 1000g
+                if proportion_lower == '1kg':
                     proportion_prices[proportion] = product.selling_price
-                elif proportion == '750gm':
-                    proportion_prices[proportion] = round(product.selling_price * 0.75, 2)
-                elif proportion == '500gm':
-                    proportion_prices[proportion] = round(product.selling_price * 0.50, 2)
-                elif proportion == '250gm':
-                    proportion_prices[proportion] = round(product.selling_price * 0.25, 2)
+                elif proportion_lower.endswith('kg'):
+                    # Extract kg value (e.g., "2kg" -> 2.0)
+                    try:
+                        kg_value = float(proportion_lower.replace('kg', ''))
+                        proportion_prices[proportion] = round(product.selling_price * kg_value, 2)
+                    except ValueError:
+                        proportion_prices[proportion] = product.selling_price  # fallback
+                elif proportion_lower.endswith('gm') or proportion_lower.endswith('g'):
+                    # Extract gram value and convert to kg ratio (e.g., "500gm" -> 0.5)
+                    try:
+                        gram_value = float(proportion_lower.replace('gm', '').replace('g', ''))
+                        kg_ratio = gram_value / 1000.0
+                        proportion_prices[proportion] = round(product.selling_price * kg_ratio, 2)
+                    except ValueError:
+                        proportion_prices[proportion] = product.selling_price  # fallback
+                else:
+                    # Unknown format, use base price
+                    proportion_prices[proportion] = product.selling_price
+
             elif product.unit_type == 'ltr':
-                if proportion == '1ltr':
+                # Base unit is 1ltr = 1000ml
+                if proportion_lower == '1ltr':
                     proportion_prices[proportion] = product.selling_price
-                elif proportion == '750ml':
-                    proportion_prices[proportion] = round(product.selling_price * 0.75, 2)
-                elif proportion == '500ml':
-                    proportion_prices[proportion] = round(product.selling_price * 0.50, 2)
-                elif proportion == '250ml':
-                    proportion_prices[proportion] = round(product.selling_price * 0.25, 2)
+                elif proportion_lower.endswith('ltr'):
+                    # Extract ltr value (e.g., "2ltr" -> 2.0)
+                    try:
+                        ltr_value = float(proportion_lower.replace('ltr', ''))
+                        proportion_prices[proportion] = round(product.selling_price * ltr_value, 2)
+                    except ValueError:
+                        proportion_prices[proportion] = product.selling_price  # fallback
+                elif proportion_lower.endswith('ml'):
+                    # Extract ml value and convert to ltr ratio (e.g., "500ml" -> 0.5)
+                    try:
+                        ml_value = float(proportion_lower.replace('ml', ''))
+                        ltr_ratio = ml_value / 1000.0
+                        proportion_prices[proportion] = round(product.selling_price * ltr_ratio, 2)
+                    except ValueError:
+                        proportion_prices[proportion] = product.selling_price  # fallback
+                else:
+                    # Unknown format, use base price
+                    proportion_prices[proportion] = product.selling_price
+            else:
+                # For other unit types (pcs, etc.), use base price for all proportions
+                proportion_prices[proportion] = product.selling_price
 
         proportion_prices_json = json.dumps(proportion_prices)
         print(f"💰 Calculated proportion prices: {proportion_prices}")
@@ -1072,24 +1106,58 @@ def update_product(product_id: int, product_data: ProductUpdate, db: Session = D
                 proportion_prices = {}
 
                 for proportion in proportions_list:
+                    # Parse proportion string to extract numeric value and unit
+                    proportion_lower = proportion.lower().strip()
+
+                    # Handle different proportion formats dynamically
                     if db_product.unit_type == 'kgs':
-                        if proportion == '1kg':
+                        # Base unit is 1kg = 1000g
+                        if proportion_lower == '1kg':
                             proportion_prices[proportion] = db_product.selling_price
-                        elif proportion == '750gm':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.75, 2)
-                        elif proportion == '500gm':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.50, 2)
-                        elif proportion == '250gm':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.25, 2)
+                        elif proportion_lower.endswith('kg'):
+                            # Extract kg value (e.g., "2kg" -> 2.0)
+                            try:
+                                kg_value = float(proportion_lower.replace('kg', ''))
+                                proportion_prices[proportion] = round(db_product.selling_price * kg_value, 2)
+                            except ValueError:
+                                proportion_prices[proportion] = db_product.selling_price  # fallback
+                        elif proportion_lower.endswith('gm') or proportion_lower.endswith('g'):
+                            # Extract gram value and convert to kg ratio (e.g., "500gm" -> 0.5)
+                            try:
+                                gram_value = float(proportion_lower.replace('gm', '').replace('g', ''))
+                                kg_ratio = gram_value / 1000.0
+                                proportion_prices[proportion] = round(db_product.selling_price * kg_ratio, 2)
+                            except ValueError:
+                                proportion_prices[proportion] = db_product.selling_price  # fallback
+                        else:
+                            # Unknown format, use base price
+                            proportion_prices[proportion] = db_product.selling_price
+
                     elif db_product.unit_type == 'ltr':
-                        if proportion == '1ltr':
+                        # Base unit is 1ltr = 1000ml
+                        if proportion_lower == '1ltr':
                             proportion_prices[proportion] = db_product.selling_price
-                        elif proportion == '750ml':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.75, 2)
-                        elif proportion == '500ml':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.50, 2)
-                        elif proportion == '250ml':
-                            proportion_prices[proportion] = round(db_product.selling_price * 0.25, 2)
+                        elif proportion_lower.endswith('ltr'):
+                            # Extract ltr value (e.g., "2ltr" -> 2.0)
+                            try:
+                                ltr_value = float(proportion_lower.replace('ltr', ''))
+                                proportion_prices[proportion] = round(db_product.selling_price * ltr_value, 2)
+                            except ValueError:
+                                proportion_prices[proportion] = db_product.selling_price  # fallback
+                        elif proportion_lower.endswith('ml'):
+                            # Extract ml value and convert to ltr ratio (e.g., "500ml" -> 0.5)
+                            try:
+                                ml_value = float(proportion_lower.replace('ml', ''))
+                                ltr_ratio = ml_value / 1000.0
+                                proportion_prices[proportion] = round(db_product.selling_price * ltr_ratio, 2)
+                            except ValueError:
+                                proportion_prices[proportion] = db_product.selling_price  # fallback
+                        else:
+                            # Unknown format, use base price
+                            proportion_prices[proportion] = db_product.selling_price
+                    else:
+                        # For other unit types (pcs, etc.), use base price for all proportions
+                        proportion_prices[proportion] = db_product.selling_price
 
                 db_product.proportion_prices = json.dumps(proportion_prices)
                 print(f"💰 Recalculated proportion prices: {proportion_prices}")
