@@ -634,14 +634,8 @@ async def options_handler(request: Request, path: str):
     # Get the origin from the request headers
     origin = request.headers.get("origin", "")
 
-    # Check if the origin is in our allowed origins list
+    # For simplicity, allow all origins since we have "*" in CORS middleware
     allowed_origin = "*"
-    if origin and origin != "*":
-        # Check if origin matches any of our allowed patterns
-        for allowed in origins:
-            if allowed == "*" or allowed == origin or (allowed.startswith("https://*.") and origin.startswith(allowed.replace("*.", ""))):
-                allowed_origin = origin
-                break
 
     return JSONResponse(
         content={},
@@ -1552,16 +1546,31 @@ def process_whatsapp_order(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    # Add explicit CORS headers for this endpoint
-    response = process_whatsapp_order_logic(order_request, background_tasks, db)
-    return JSONResponse(
-        content=response,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
+    try:
+        # Process the WhatsApp order
+        response = process_whatsapp_order_logic(order_request, background_tasks, db)
+        return JSONResponse(
+            content=response,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    except Exception as e:
+        # Ensure CORS headers are always included even on errors
+        print(f"❌ Error processing WhatsApp order: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            content={"status": "error", "message": f"Failed to process order: {str(e)}"},
+            status_code=500,
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
 
 def process_whatsapp_order_logic(
     order_request: WhatsAppOrderRequest,
