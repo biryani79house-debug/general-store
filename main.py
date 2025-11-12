@@ -3091,6 +3091,13 @@ async def root():
         "timestamp": datetime.now(IST).isoformat()
     }
 
+# --- Favicon Endpoint ---
+@app.get("/favicon.ico")
+async def favicon():
+    """Return empty response for favicon requests to prevent 404 errors"""
+    from fastapi.responses import Response
+    return Response(content="", media_type="image/x-icon")
+
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     try:
