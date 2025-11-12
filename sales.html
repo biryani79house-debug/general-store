@@ -357,10 +357,14 @@
         }
 
         function generateWhatsAppOrder() {
+            console.log('🎯 WhatsApp order button clicked');
+
             const name = document.getElementById('customer-name').value.trim();
             const phone = document.getElementById('customer-phone').value.trim();
             const address = document.getElementById('customer-address').value.trim();
             const notes = document.getElementById('customer-notes').value.trim();
+
+            console.log('📋 Form data:', { name, phone, address, notes, cart });
 
             if (!name) {
                 alert('Please enter your full name');
@@ -378,6 +382,8 @@
             }
 
             const cartItems = Object.keys(cart).filter(cartKey => cart[cartKey] && cart[cartKey].quantity > 0);
+            console.log('🛒 Cart items:', cartItems);
+
             if (cartItems.length === 0) {
                 showNotification('Your cart is empty. Please add some products.');
                 return;

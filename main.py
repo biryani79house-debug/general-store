@@ -1570,9 +1570,15 @@ def process_whatsapp_order(
     bill_id = generate_bill_id(db)
 
     for item in order_request.items:
-        product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
+        # Extract base product name from proportion format like "masoor dal (750gm)"
+        product_name_to_find = item.product_name
+        if '(' in item.product_name and ')' in item.product_name:
+            # Remove the proportion part to get the base product name
+            product_name_to_find = item.product_name.split(' (')[0].strip()
+
+        product = db.query(Product).filter(Product.name.ilike(product_name_to_find)).first()
         if not product:
-            return {"status": "error", "message": f"Product '{item.product_name}' not found."}
+            return {"status": "error", "message": f"Product '{product_name_to_find}' not found."}
 
         if product.stock < item.quantity:
             return {"status": "error", "message": f"Insufficient stock for '{item.product_name}'."}
