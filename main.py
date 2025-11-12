@@ -1556,6 +1556,9 @@ def process_whatsapp_order(
     total_bill = 0
     items_sold = []
 
+    # Generate ONE unique bill_id for the entire transaction (all products in this bill)
+    bill_id = generate_bill_id(db)
+
     for item in order_request.items:
         product = db.query(Product).filter(Product.name.ilike(item.product_name)).first()
         if not product:
@@ -1604,7 +1607,9 @@ def process_whatsapp_order(
             first_user = db.query(User).first()
             created_by = first_user.id if first_user else None
 
+        # Create sale record with the SAME bill_id for all products in this transaction
         db_sale = Sale(
+            bill_id=bill_id,
             product_id=product.id,
             quantity=item.quantity,
             total_amount=item_total,
