@@ -181,7 +181,7 @@ class Sale(Base):
     id = Column(Integer, primary_key=True, index=True)
     bill_id = Column(Integer, nullable=False, index=True)  # Groups multiple products under one bill
     product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Float, nullable=False)  # Changed from Integer to Float to support decimal quantities like 0.5kg, 1.5ltr
     total_amount = Column(Float, nullable=False)
     sale_date = Column(DateTime, default=lambda: datetime.now(IST))
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -249,7 +249,7 @@ class ProductResponse(BaseModel):
 
 class SaleItem(BaseModel):
     product_id: int
-    quantity: int = Field(..., gt=0, description="Quantity must be positive")
+    quantity: float = Field(..., gt=0, description="Quantity must be positive")
 
 class SaleCreate(BaseModel):
     items: List[SaleItem] = Field(..., description="List of products to sell in this transaction")
@@ -257,7 +257,7 @@ class SaleCreate(BaseModel):
 class SaleResponse(BaseModel):
     id: int
     product_id: int
-    quantity: int
+    quantity: float
     total_amount: float
     sale_date: datetime
 
