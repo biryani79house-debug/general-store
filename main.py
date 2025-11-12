@@ -1355,14 +1355,14 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
         if product.stock < item.quantity:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Not enough stock available for {product.name}")
 
-        # Use product's selling_price for the sale
-        selling_price = product.selling_price
-        total_amount = selling_price * item.quantity
-
-        # For regular sales, we don't have proportion information, so set to None
-        # Unit price is the selling price since no proportion is specified
+        # Check if this is a proportion-based sale by looking at the product name in the request
+        # The frontend might send proportion information in the product name like "gold drop oil (500ml)"
         proportion = None
-        unit_price = selling_price
+        unit_price = product.selling_price  # Default to base price
+
+        # For now, we'll use the base selling price since proportion info isn't passed from frontend
+        # This will be updated when the frontend sends proportion information
+        total_amount = unit_price * item.quantity
 
         # Create sale record with the SAME bill_id for all products in this transaction
         db_sale = Sale(
@@ -1370,7 +1370,7 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
             product_id=item.product_id,
             quantity=item.quantity,
             total_amount=total_amount,
-            proportion=proportion,  # Store the proportion like "500gm", "750ml", etc.
+            proportion=proportion,  # Will be updated when frontend sends proportion info
             unit_price=unit_price,  # Store the actual unit price used for this sale
             sale_date=datetime.now(IST),
             created_by=created_by
@@ -1580,30 +1580,37 @@ def process_whatsapp_order(
         # Calculate item total based on proportion prices if available
         # The frontend sends proportion-specific prices, but we need to validate them
         item_total = 0
+        proportion = None
+        unit_price = product.selling_price  # Default to base price
 
         # Check if this is a proportion-based item (name contains parentheses)
         if '(' in item.product_name and ')' in item.product_name:
             # Extract proportion from product name like "gold drop oil (500ml)"
             base_name = item.product_name.split(' (')[0].strip()
             proportion_part = item.product_name.split(' (')[1].split(')')[0].strip()
+            proportion = proportion_part
 
             # Find the proportion price from the product's proportion_prices
             if product.proportion_prices:
                 try:
                     proportion_prices = json.loads(product.proportion_prices)
                     if proportion_part in proportion_prices:
-                        item_price = float(proportion_prices[proportion_part])
-                        item_total = item_price * item.quantity
+                        unit_price = float(proportion_prices[proportion_part])
+                        item_total = unit_price * item.quantity
                     else:
                         # Fallback to base price if proportion not found
-                        item_total = product.selling_price * item.quantity
+                        unit_price = product.selling_price
+                        item_total = unit_price * item.quantity
                 except:
-                    item_total = product.selling_price * item.quantity
+                    unit_price = product.selling_price
+                    item_total = unit_price * item.quantity
             else:
-                item_total = product.selling_price * item.quantity
+                unit_price = product.selling_price
+                item_total = unit_price * item.quantity
         else:
             # No proportion specified, use base price
-            item_total = product.selling_price * item.quantity
+            unit_price = product.selling_price
+            item_total = unit_price * item.quantity
 
         total_bill += item_total
         product.stock -= item.quantity

@@ -497,9 +497,15 @@
                         const product = products.find(p => p.id == productId);
                         const cartItem = cart[cartKey];
 
-                        // Send base product name without proportion for backend lookup
+                        // Send base product name with proportion information for backend lookup
+                        let productNameToSend = product.name;
+                        if (proportion) {
+                            // Include proportion in the product name for backend processing
+                            productNameToSend = `${product.name} (${proportion})`;
+                        }
+
                         return {
-                            product_name: product.name,  // Use base product name, not display name with proportion
+                            product_name: productNameToSend,  // Include proportion in name for backend processing
                             quantity: cartItem.quantity
                         };
                     })
