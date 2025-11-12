@@ -1552,6 +1552,22 @@ def process_whatsapp_order(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
+    # Add explicit CORS headers for this endpoint
+    response = process_whatsapp_order_logic(order_request, background_tasks, db)
+    return JSONResponse(
+        content=response,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+def process_whatsapp_order_logic(
+    order_request: WhatsAppOrderRequest,
+    background_tasks: BackgroundTasks,
+    db: Session
+):
     """Processes WhatsApp orders and records them in the database."""
     total_bill = 0
     items_sold = []
