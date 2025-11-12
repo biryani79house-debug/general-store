@@ -181,7 +181,7 @@ class Sale(Base):
     id = Column(Integer, primary_key=True, index=True)
     bill_id = Column(Integer, nullable=False, index=True)  # Groups multiple products under one bill
     product_id = Column(Integer, ForeignKey("products.id"))
-    quantity = Column(Float, nullable=False)  # Changed from Integer to Float to support decimal quantities like 0.5kg, 1.5ltr
+    quantity = Column(String, nullable=False)  # Store quantity as descriptive string like "250gm", "500ml", "1kg"
     total_amount = Column(Float, nullable=False)
     sale_date = Column(DateTime, default=lambda: datetime.now(IST))
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -189,9 +189,6 @@ class Sale(Base):
     customer_name = Column(String, nullable=True)
     customer_phone = Column(String, nullable=True)
     customer_address = Column(String, nullable=True)  # Add missing customer_address field
-    # Add proportion information for accurate order reconstruction
-    proportion = Column(String, nullable=True)  # Store the proportion like "500gm", "750ml", etc.
-    unit_price = Column(Float, nullable=True)  # Store the actual unit price used for this sale
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
@@ -1630,24 +1627,22 @@ def process_whatsapp_order(
             first_user = db.query(User).first()
             created_by = first_user.id if first_user else None
 
-        # Determine proportion and unit price for accurate record keeping
-        proportion = None
-        unit_price = item_total / item.quantity if item.quantity > 0 else 0
+        # Determine the descriptive quantity string (e.g., "250gm", "500ml", "1kg")
+        quantity_string = str(item.quantity)  # Default to just the number
 
         # Check if this is a proportion-based item (name contains parentheses)
         if '(' in item.product_name and ')' in item.product_name:
             # Extract proportion from product name like "gold drop oil (500ml)"
             proportion_part = item.product_name.split(' (')[1].split(')')[0].strip()
-            proportion = proportion_part
+            # Store the proportion directly as the quantity (e.g., "500ml", "250gm")
+            quantity_string = proportion_part
 
         # Create sale record with the SAME bill_id for all products in this transaction
         db_sale = Sale(
             bill_id=bill_id,
             product_id=product.id,
-            quantity=item.quantity,
+            quantity=quantity_string,  # Store descriptive quantity like "250gm", "500ml"
             total_amount=item_total,
-            proportion=proportion,  # Store the proportion like "500gm", "750ml", etc.
-            unit_price=unit_price,  # Store the actual unit price used for this sale
             created_by=created_by,  # Use valid user ID or None
             customer_name=order_request.customer_name,
             customer_phone=order_request.phone_number
