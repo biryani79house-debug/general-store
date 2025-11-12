@@ -244,9 +244,12 @@ class ProductResponse(BaseModel):
     stock: int
     created_at: datetime
 
-class SaleCreate(BaseModel):
+class SaleItem(BaseModel):
     product_id: int
     quantity: int = Field(..., gt=0, description="Quantity must be positive")
+
+class SaleCreate(BaseModel):
+    items: List[SaleItem] = Field(..., description="List of products to sell in this transaction")
 
 class SaleResponse(BaseModel):
     id: int
@@ -1306,7 +1309,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db), username: str
             detail=f"Error deleting product: {str(e)}"
         )
 # --- API Endpoints for Sales ---
-@app.post("/sales/", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/sales/", status_code=status.HTTP_201_CREATED)
 def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = None):
     # Accept optional authentication - use token if available
     from fastapi import Depends
@@ -1314,12 +1317,6 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
         username = verify_token(token=None)  # This will work differently, need to try
     except:
         username = None
-
-    product = db.query(Product).filter(Product.id == sale.product_id).first()
-    if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-    if product.stock < sale.quantity:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not enough stock available")
 
     # Set created_by based on whom is recording the sale
     if username:
@@ -1341,27 +1338,65 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
             first_user = db.query(User).first()
             created_by = first_user.id if first_user else 1
 
-    # Use product's selling_price for the sale
-    selling_price = product.selling_price
-    total_amount = selling_price * sale.quantity
-
-    # Generate unique bill_id for this individual sale
+    # Generate ONE unique bill_id for the entire transaction (all products in this bill)
     bill_id = generate_bill_id(db)
 
-    db_sale = Sale(
-        bill_id=bill_id,
-        product_id=sale.product_id,
-        quantity=sale.quantity,
-        total_amount=total_amount,
-        sale_date=datetime.now(IST),
-        created_by=created_by
-    )
-    product.stock -= sale.quantity
+    sales_created = []
+    total_bill_amount = 0
 
-    db.add(db_sale)
+    # Process each item in the sale
+    for item in sale.items:
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+        if not product:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with ID {item.product_id} not found")
+        if product.stock < item.quantity:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Not enough stock available for {product.name}")
+
+        # Use product's selling_price for the sale
+        selling_price = product.selling_price
+        total_amount = selling_price * item.quantity
+
+        # Create sale record with the SAME bill_id for all products in this transaction
+        db_sale = Sale(
+            bill_id=bill_id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            total_amount=total_amount,
+            sale_date=datetime.now(IST),
+            created_by=created_by
+        )
+
+        # Reduce product stock
+        product.stock -= item.quantity
+
+        db.add(db_sale)
+        sales_created.append(db_sale)
+        total_bill_amount += total_amount
+
+    # Commit all changes
     db.commit()
-    db.refresh(db_sale)
-    return db_sale
+
+    # Refresh all sale records
+    for sale_record in sales_created:
+        db.refresh(sale_record)
+
+    # Return summary of the bill
+    return {
+        "bill_id": bill_id,
+        "total_amount": total_bill_amount,
+        "items_count": len(sales_created),
+        "sales": [
+            {
+                "id": sale.id,
+                "bill_id": sale.bill_id,
+                "product_id": sale.product_id,
+                "quantity": sale.quantity,
+                "total_amount": sale.total_amount,
+                "sale_date": sale.sale_date
+            }
+            for sale in sales_created
+        ]
+    }
 
 # --- API Endpoints for Purchases ---
 @app.post("/purchases/", response_model=PurchaseResponse, status_code=status.HTTP_201_CREATED)
