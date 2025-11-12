@@ -1,36 +1,45 @@
-#!/usr/bin/env python3
-"""
-Test the API health endpoint
-"""
-
 import requests
-import time
+import json
 
-# Wait a bit for server to start
-print("Waiting for server to start...")
-time.sleep(2)
+print('=== TESTING BACKEND API ENDPOINTS ===')
 
+# Test health endpoint
 try:
-    response = requests.get("http://localhost:8000/health", timeout=10)
+    response = requests.get('http://localhost:8000/health', timeout=5)
     if response.status_code == 200:
-        data = response.json()
-        print("✅ Health endpoint responded successfully!")
-        print(f"Status: {data.get('status')}")
-        print(f"Database: {data.get('database')}")
-        print(f"Timestamp: {data.get('timestamp')}")
-
-        # Test products endpoint too
-        products_response = requests.get("http://localhost:8000/products", timeout=10)
-        if products_response.status_code == 200:
-            products = products_response.json()
-            print(f"✅ Products endpoint working! Found {len(products)} products")
-        else:
-            print(f"❌ Products endpoint failed: {products_response.status_code}")
-
+        health_data = response.json()
+        print('✅ Health endpoint working')
+        print(f'   Status: {health_data.get("status")}')
+        print(f'   Database: {health_data.get("database")}')
     else:
-        print(f"❌ Health endpoint failed: {response.status_code}")
-        print(response.text)
+        print(f'❌ Health endpoint failed: {response.status_code}')
+except Exception as e:
+    print(f'❌ Health endpoint error: {e}')
 
-except requests.RequestException as e:
-    print(f"❌ Request failed: {e}")
-    print("Server might not be running. Please start the server manually with: python main.py")
+# Test products endpoint
+try:
+    response = requests.get('http://localhost:8000/products', timeout=5)
+    if response.status_code == 200:
+        products_data = response.json()
+        print(f'✅ Products endpoint working - {len(products_data)} products returned')
+    else:
+        print(f'❌ Products endpoint failed: {response.status_code}')
+except Exception as e:
+    print(f'❌ Products endpoint error: {e}')
+
+# Test root endpoint
+try:
+    response = requests.get('http://localhost:8000/', timeout=5)
+    if response.status_code == 200:
+        root_data = response.json()
+        print('✅ Root endpoint working')
+        print(f'   Message: {root_data.get("message")}')
+    else:
+        print(f'❌ Root endpoint failed: {response.status_code}')
+except Exception as e:
+    print(f'❌ Root endpoint error: {e}')
+
+print('\n=== SUMMARY ===')
+print('If all endpoints are failing, the backend server may not be running.')
+print('Run: python main.py')
+print('Or: uvicorn main:app --reload')

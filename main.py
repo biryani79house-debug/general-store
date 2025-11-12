@@ -74,6 +74,15 @@ IST = timezone(timedelta(hours=5, minutes=30))
 def utc_now():
     return datetime.now(timezone.utc)
 
+# Helper function to generate unique bill ID
+def generate_bill_id(db: Session):
+    """Generate a unique bill ID for grouping sales in the same transaction"""
+    # Get the current max bill_id and increment it
+    max_bill_id = db.query(func.max(Sale.bill_id)).scalar()
+    if max_bill_id is None:
+        return 1
+    return max_bill_id + 1
+
 class UserRole(enum.Enum):
     ADMIN = "admin"
     MANAGER = "manager"
@@ -170,6 +179,7 @@ class Sale(Base):
     __tablename__ = "sales"
 
     id = Column(Integer, primary_key=True, index=True)
+    bill_id = Column(Integer, nullable=False, index=True)  # Groups multiple products under one bill
     product_id = Column(Integer, ForeignKey("products.id"))
     quantity = Column(Integer, nullable=False)
     total_amount = Column(Float, nullable=False)
@@ -1335,7 +1345,11 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
     selling_price = product.selling_price
     total_amount = selling_price * sale.quantity
 
+    # Generate unique bill_id for this individual sale
+    bill_id = generate_bill_id(db)
+
     db_sale = Sale(
+        bill_id=bill_id,
         product_id=sale.product_id,
         quantity=sale.quantity,
         total_amount=total_amount,
