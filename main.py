@@ -1624,7 +1624,7 @@ def process_whatsapp_order(
 
     # Generate WhatsApp thanks message in the specified format
     # Use short payment link with order_id - payment page will fetch data from backend
-    order_id = f"ORDER_{db_sale.id}"
+    order_id = f"ORDER_{bill_id}"
     payment_link = f"https://general-store-kappa.vercel.app/payment?order_id={order_id}"
 
     whatsapp_message = f"🙏 *Thank you {order_request.customer_name} for your order!*\n\n"
@@ -1705,7 +1705,7 @@ def process_whatsapp_order(
         send_thanks_message_to_shopkeeper_background,
         order_request,
         total_bill,
-        db_sale.id,
+        bill_id,
         shopkeeper_number
     )
 
@@ -1714,7 +1714,7 @@ def process_whatsapp_order(
         "message": f"Thank you {order_request.customer_name}, your order has been received!",
         "total_bill": total_bill,
         "customer_number": order_request.phone_number,
-        "order_id": f"ORDER_{db_sale.id}",
+        "order_id": f"ORDER_{bill_id}",
         "whatsapp_message": whatsapp_message,
         "whatsapp_url": whatsapp_url
     }
@@ -1724,31 +1724,22 @@ def process_whatsapp_order(
 def get_order_data(order_id: str, db: Session = Depends(get_db)):
     """Fetch order data by order_id for payment page"""
     try:
-        # Extract sale ID from order_id (format: ORDER_{sale_id})
+        # Extract bill_id from order_id (format: ORDER_{bill_id})
         if not order_id.startswith("ORDER_"):
             raise HTTPException(status_code=400, detail="Invalid order ID format")
 
         try:
-            base_sale_id = int(order_id.replace("ORDER_", ""))
+            bill_id = int(order_id.replace("ORDER_", ""))
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid order ID")
 
-        # Find the base sale record to get customer info and timestamp
-        base_sale = db.query(Sale).filter(Sale.id == base_sale_id).first()
-        if not base_sale:
+        # Find all sales that belong to this bill_id
+        order_sales = db.query(Sale).filter(Sale.bill_id == bill_id).all()
+        if not order_sales:
             raise HTTPException(status_code=404, detail="Order not found")
 
-        # Find all sales that belong to the same order
-        # Group by customer_name, customer_phone, and similar creation time (within 1 minute)
-        order_sales = db.query(Sale).filter(
-            Sale.customer_name == base_sale.customer_name,
-            Sale.customer_phone == base_sale.customer_phone,
-            Sale.sale_date >= base_sale.sale_date - timedelta(minutes=1),
-            Sale.sale_date <= base_sale.sale_date + timedelta(minutes=1)
-        ).all()
-
-        if not order_sales:
-            raise HTTPException(status_code=404, detail="Order items not found")
+        # Use the first sale record to get customer info
+        base_sale = order_sales[0]
 
         # Build items array from all sales in the order
         # We need to reconstruct the original item names and prices from the sale records
