@@ -3434,7 +3434,7 @@ function backToHome() {
             }
         }
 
-        function displayFilteredSalesData(salesData) {
+        async function displayFilteredSalesData(salesData) {
             console.log('📍 displayFilteredSalesData called with', salesData.length, 'records');
 
             const tableBodyEl = document.getElementById('sales-ledger-table-body');
@@ -3466,12 +3466,59 @@ function backToHome() {
             console.log('📝 Processing', salesData.length, 'sales records...');
 
             try {
-                salesData.forEach(sale => {
+                // Fetch all products to get proportion information
+                const productsResponse = await fetch(`${backendURL}/products`, {
+                    headers: getAuthHeaders()
+                });
+
+                let products = [];
+                if (productsResponse.ok) {
+                    products = await productsResponse.json();
+                    console.log('✅ Fetched products for proportion reconstruction:', products.length);
+                } else {
+                    console.warn('⚠️ Could not fetch products for proportion reconstruction');
+                }
+
+                // Create a map of product_id to product for quick lookup
+                const productMap = {};
+                products.forEach(product => {
+                    productMap[product.id] = product;
+                });
+
+                for (const sale of salesData) {
                     console.log('🔄 Processing sale:', sale);
                     const formatted = formatDateTime(sale.date);
                     const saleId = sale.sale_id || sale.id;
                     const price = sale.unit_price || (sale.total_amount / sale.quantity) || 0;
                     totalAmount += sale.total_amount;
+
+                    // Reconstruct proportion information
+                    let unitsDisplay = sale.quantity.toString(); // Default to quantity number
+
+                    const product = productMap[sale.product_id];
+                    if (product && product.proportions && Array.isArray(product.proportions) && product.proportions.length > 0) {
+                        // Calculate unit price to match with proportions
+                        const unitPrice = sale.total_amount / sale.quantity;
+
+                        // Check if this unit price matches any proportion price
+                        for (const proportion of product.proportions) {
+                            try {
+                                const proportionResponse = await fetch(`${backendURL}/products/${sale.product_id}/price/${proportion}`, {
+                                    headers: getAuthHeaders()
+                                });
+
+                                if (proportionResponse.ok) {
+                                    const proportionData = await proportionResponse.json();
+                                    if (Math.abs(proportionData.price - unitPrice) < 0.01) { // Allow small floating point differences
+                                        unitsDisplay = proportion;
+                                        break;
+                                    }
+                                }
+                            } catch (error) {
+                                console.warn(`⚠️ Could not fetch price for proportion ${proportion}:`, error);
+                            }
+                        }
+                    }
 
                     const rowHtml = `
                         <tr class="hover:bg-gray-50">
@@ -3481,7 +3528,7 @@ function backToHome() {
                             </td>
                             <td class="border border-gray-200 px-4 py-2 text-sm">${saleId}</td>
                             <td class="border border-gray-200 px-4 py-2 font-medium">${sale.product_name}</td>
-                            <td class="border border-gray-200 px-4 py-2">${sale.quantity}</td>
+                            <td class="border border-gray-200 px-4 py-2">${unitsDisplay}</td>
                             <td class="border border-gray-200 px-4 py-2">₹${price.toFixed(2)}</td>
                             <td class="border border-gray-200 px-4 py-2 font-medium">₹${sale.total_amount.toFixed(2)}</td>
                             <td class="border border-gray-200 px-4 py-2">
@@ -3493,7 +3540,7 @@ function backToHome() {
                         </tr>
                     `;
                     htmlContent += rowHtml;
-                });
+                }
 
                 console.log('✅ Generated HTML content for table');
 
