@@ -1644,7 +1644,40 @@ def process_whatsapp_order_logic(
         else:
             # Fallback to first available user
             first_user = db.query(User).first()
-            created_by = first_user.id if first_user else None
+            if first_user:
+                created_by = first_user.id
+            else:
+                # Emergency fallback - create a temporary admin user if no users exist
+                # This should not happen in a properly set up database
+                try:
+                    hashed = bcrypt.hashpw("tempadmin123".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    temp_admin = User(
+                        username="temp_admin",
+                        email="temp@kirana.store",
+                        password_hash=hashed,
+                        sales=True,
+                        purchase=True,
+                        create_product=True,
+                        delete_product=True,
+                        create_category=True,
+                        delete_category=True,
+                        sales_ledger=True,
+                        purchase_ledger=True,
+                        stock_ledger=True,
+                        profit_loss=True,
+                        opening_stock=True,
+                        user_management=True,
+                        is_active=True
+                    )
+                    db.add(temp_admin)
+                    db.flush()  # Get the ID
+                    created_by = temp_admin.id
+                    print(f"🚨 EMERGENCY: Created temporary admin user with ID: {created_by}")
+                    print("⚠️ Please ensure proper user setup - this should not happen in production")
+                except Exception as emergency_error:
+                    print(f"🚨 CRITICAL ERROR: Could not create emergency user: {emergency_error}")
+                    # Last resort - this will cause an error but at least we'll know
+                    raise HTTPException(status_code=500, detail="No users found in database and could not create emergency user")
 
         # Determine the descriptive quantity string (e.g., "250gm", "500ml", "1kg")
         quantity_string = str(item.quantity)  # Default to just the number
