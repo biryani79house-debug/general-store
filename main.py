@@ -617,29 +617,10 @@ app = FastAPI(
 )
 
 # === FIXED CORS CONFIGURATION ===
-origins = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:5500",
-    "http://127.0.0.1:5500",
-    "https://nonnitric-ably-candra.ngrok-free.dev",
-    "http://nonnitric-ably-candra.ngrok-free.dev",
-    "https://*.ngrok-free.dev",
-    "http://*.ngrok-free.dev",
-    "https://kirana-store-seven.vercel.app",  # Add your Vercel frontend
-    "https://*.vercel.app",
-    "https://kirana-store-backend.onrender.com",
-    "https://kirana-store-maoc.onrender.com",
-    "https://kirana-store-docker.onrender.com",
-    "https://kirana-store-backend-production.up.railway.app",
-    "https://web-production-9d240.up.railway.app/",  # Add Railway production backend
-    "https://*.railway.app",  # Allow all Railway domains
-    "*"
-]
-
+# Allow all origins to prevent CORS issues during development and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
