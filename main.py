@@ -649,11 +649,23 @@ app.add_middleware(
 
 # === CORS OPTIONS HANDLERS ===
 @app.options("/{path:path}")
-async def options_handler(path: str):
+async def options_handler(request: Request, path: str):
+    # Get the origin from the request headers
+    origin = request.headers.get("origin", "")
+
+    # Check if the origin is in our allowed origins list
+    allowed_origin = "*"
+    if origin and origin != "*":
+        # Check if origin matches any of our allowed patterns
+        for allowed in origins:
+            if allowed == "*" or allowed == origin or (allowed.startswith("https://*.") and origin.startswith(allowed.replace("*.", ""))):
+                allowed_origin = origin
+                break
+
     return JSONResponse(
         content={},
         headers={
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "*",
             "Access-Control-Max-Age": "600"
