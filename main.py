@@ -1562,6 +1562,7 @@ def process_whatsapp_order(
     """Processes WhatsApp orders and records them in the database."""
     total_bill = 0
     items_sold = []
+    sales_records = []  # Store all sale records for the order
 
     # Generate ONE unique bill_id for the entire transaction (all products in this bill)
     bill_id = generate_bill_id(db)
@@ -1648,6 +1649,7 @@ def process_whatsapp_order(
             customer_phone=order_request.phone_number
         )
         db.add(db_sale)
+        sales_records.append(db_sale)  # Store reference to sale record
         items_sold.append(item.product_name)
 
     db.commit()
@@ -1726,7 +1728,8 @@ def process_whatsapp_order(
 
     # Trigger shopkeeper notification when order is received
     try:
-        send_shopkeeper_notification(order_request, total_bill, db_sale.id, db)
+        # Use bill_id instead of db_sale.id since we want the order ID, not individual sale ID
+        send_shopkeeper_notification(order_request, total_bill, bill_id, db)
     except Exception as e:
         print(f"⚠️ Failed to send shopkeeper notification: {e}")
 
