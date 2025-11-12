@@ -1768,15 +1768,19 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
                 item_price = unit_price  # Default to the actual sale price
 
                 # Check if this sale was for a proportion by comparing unit prices with proportion prices
+                proportion_found = False
                 if product.proportion_prices:
                     try:
                         proportion_prices = json.loads(product.proportion_prices)
-                        # Check each proportion to see if the unit price matches
+                        # Check each proportion to see if the unit price matches (allow for rounding differences)
                         for prop_name, prop_price in proportion_prices.items():
-                            if abs(float(prop_price) - unit_price) < 0.01:  # Allow for small rounding differences
+                            prop_price_float = float(prop_price)
+                            # Use a more generous tolerance for floating point comparisons
+                            if abs(prop_price_float - unit_price) < 0.02:  # Allow for 2 paisa difference
                                 # Found matching proportion
                                 item_name = f"{product.name} ({prop_name})"
-                                item_price = float(prop_price)
+                                item_price = prop_price_float
+                                proportion_found = True
                                 break
                     except Exception as e:
                         print(f"Error parsing proportion prices for product {product.id}: {e}")
@@ -1784,11 +1788,20 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
                         pass
 
                 # If no proportion matched, check if it matches the base selling price
-                if abs(product.selling_price - unit_price) < 0.01:
+                if not proportion_found and abs(product.selling_price - unit_price) < 0.02:
                     # It's the base price, no proportion needed
                     item_name = product.name
                     item_price = product.selling_price
-                # If it doesn't match anything, keep the calculated unit_price
+                # If it doesn't match anything, keep the calculated unit_price (this handles custom prices)
+
+                # Debug logging for proportion reconstruction
+                print(f"🔍 Sale ID {sale.id}: Product '{product.name}', Unit Price ₹{unit_price:.2f}, Base Price ₹{product.selling_price:.2f}, Proportion Found: {proportion_found}, Final Item Name: '{item_name}'")
+                if product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(product.proportion_prices)
+                        print(f"   Available proportions: {proportion_prices}")
+                    except:
+                        print("   Error reading proportion prices")
 
                 items.append({
                     "name": item_name,
