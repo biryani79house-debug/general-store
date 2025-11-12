@@ -60,8 +60,8 @@ security = HTTPBearer()
 if USE_SQLITE:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    # For PostgreSQL, set timezone to IST to ensure timestamps are handled correctly
-    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=Asia/Kolkata"})
+    # For PostgreSQL, set timezone to UTC to avoid double conversion
+    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=UTC"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for declarative models
@@ -70,9 +70,9 @@ Base = declarative_base()
 # --- Database Models ---
 IST = timezone(timedelta(hours=5, minutes=30))
 
-# Helper function to get current UTC time for database storage
-def utc_now():
-    return datetime.now(timezone.utc)
+# Helper function to get current IST time for database storage
+def ist_now():
+    return datetime.now(IST)
 
 # Helper function to generate unique bill ID
 def generate_bill_id(db: Session):
