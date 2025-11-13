@@ -1829,28 +1829,53 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
         for sale in order_sales:
             product = db.query(Product).filter(Product.id == sale.product_id).first()
             if product:
-                # Calculate the unit price from the sale total
-                quantity = sale.quantity
+                # Handle quantity - it can be a string like "500gm" or a number as string like "2"
+                quantity_str = sale.quantity
                 item_total = sale.total_amount
+
+                # Parse quantity - extract numeric value
+                quantity = 0
+                try:
+                    # Try to parse as float first (for cases like "2")
+                    quantity = float(quantity_str)
+                except ValueError:
+                    # If it's a proportion string like "500gm", we need to calculate the quantity
+                    # For proportion items, the quantity stored is the proportion string
+                    # We need to find which proportion it matches and calculate the quantity
+                    if product.proportion_prices:
+                        try:
+                            proportion_prices = json.loads(product.proportion_prices)
+                            # Check if quantity_str matches any proportion name
+                            for prop_name, prop_price in proportion_prices.items():
+                                if quantity_str == prop_name:
+                                    # Found the proportion, calculate quantity based on price
+                                    prop_price_float = float(prop_price)
+                                    quantity = item_total / prop_price_float if prop_price_float > 0 else 1
+                                    break
+                        except:
+                            pass
+
+                    # If we still don't have quantity, assume 1
+                    if quantity == 0:
+                        quantity = 1
+
                 unit_price = item_total / quantity if quantity > 0 else 0
 
                 # Try to reconstruct the original item name and proportion
                 item_name = product.name
                 item_price = unit_price  # Default to the actual sale price
 
-                # Check if this sale was for a proportion by comparing unit prices with proportion prices
+                # Check if this sale was for a proportion
                 proportion_found = False
                 if product.proportion_prices:
                     try:
                         proportion_prices = json.loads(product.proportion_prices)
-                        # Check each proportion to see if the unit price matches (allow for rounding differences)
+                        # Check each proportion to see if the stored quantity matches
                         for prop_name, prop_price in proportion_prices.items():
-                            prop_price_float = float(prop_price)
-                            # Use a more generous tolerance for floating point comparisons
-                            if abs(prop_price_float - unit_price) < 0.02:  # Allow for 2 paisa difference
+                            if quantity_str == prop_name:
                                 # Found matching proportion
                                 item_name = f"{product.name} ({prop_name})"
-                                item_price = prop_price_float
+                                item_price = float(prop_price)
                                 proportion_found = True
                                 break
                     except Exception as e:
@@ -1866,7 +1891,7 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
                 # If it doesn't match anything, keep the calculated unit_price (this handles custom prices)
 
                 # Debug logging for proportion reconstruction
-                print(f"🔍 Sale ID {sale.id}: Product '{product.name}', Unit Price ₹{unit_price:.2f}, Base Price ₹{product.selling_price:.2f}, Proportion Found: {proportion_found}, Final Item Name: '{item_name}'")
+                print(f"🔍 Sale ID {sale.id}: Product '{product.name}', Quantity String '{quantity_str}', Parsed Quantity {quantity}, Unit Price ₹{unit_price:.2f}, Base Price ₹{product.selling_price:.2f}, Proportion Found: {proportion_found}, Final Item Name: '{item_name}'")
                 if product.proportion_prices:
                     try:
                         proportion_prices = json.loads(product.proportion_prices)
@@ -1876,7 +1901,7 @@ def get_order_data(order_id: str, db: Session = Depends(get_db)):
 
                 items.append({
                     "name": item_name,
-                    "quantity": quantity,
+                    "quantity": int(quantity),  # Convert to int for frontend
                     "price": item_price
                 })
                 total_amount += item_total
