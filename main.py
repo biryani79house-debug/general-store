@@ -2233,14 +2233,43 @@ def get_sales_ledger(
         # Convert to simple format
         ledger_entries = []
         for sale in sales:
-            unit_price = sale.total_amount / sale.quantity if sale.quantity > 0 else 0
+            # Parse quantity - handle string quantities like "500gm", "250ml", "2"
+            quantity_str = sale.quantity
+            quantity = 0
+
+            try:
+                # Try to parse as float first (for cases like "2")
+                quantity = float(quantity_str)
+            except ValueError:
+                # If it's a proportion string like "500gm", we need to calculate the quantity
+                # For proportion items, the quantity stored is the proportion string
+                # We need to find which proportion it matches and calculate the quantity
+                if sale.product and sale.product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(sale.product.proportion_prices)
+                        # Check if quantity_str matches any proportion name
+                        for prop_name, prop_price in proportion_prices.items():
+                            if quantity_str == prop_name:
+                                # Found the proportion, calculate quantity based on price
+                                prop_price_float = float(prop_price)
+                                quantity = sale.total_amount / prop_price_float if prop_price_float > 0 else 1
+                                break
+                    except:
+                        pass
+
+                # If we still don't have quantity, assume 1
+                if quantity == 0:
+                    quantity = 1
+
+            unit_price = sale.total_amount / quantity if quantity > 0 else 0
+
             ledger_entries.append(SalesLedgerEntry(
                 sale_id=sale.id,
                 date=sale.sale_date,
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=sale.quantity,
+                quantity=int(quantity),  # Convert to int for the response model
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"
