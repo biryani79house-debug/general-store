@@ -60,8 +60,8 @@ security = HTTPBearer()
 if USE_SQLITE:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    # For PostgreSQL, set timezone to UTC to avoid double conversion
-    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=UTC"})
+    # For PostgreSQL, set timezone to IST (Asia/Kolkata) to match stored timestamps
+    engine = create_engine(DATABASE_URL, connect_args={"options": "-c timezone=Asia/Kolkata"})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for declarative models
