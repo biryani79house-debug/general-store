@@ -1515,8 +1515,54 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
         
-        # Restore the stock
-        product.stock += db_sale.quantity
+        # Restore the stock (parse quantity first since it's stored as string)
+        try:
+            # Parse the quantity string to numeric value
+            quantity_str = db_sale.quantity
+            quantity_to_restore = 0.0
+
+            if quantity_str:
+                # Try to parse as float first (for legacy data)
+                try:
+                    quantity_to_restore = float(quantity_str)
+                except ValueError:
+                    # Parse proportion strings like "500gm", "500ml", etc.
+                    import re
+                    # Extract numeric part and unit
+                    match = re.match(r'^(\d+(?:\.\d+)?)\s*(.*)$', quantity_str.strip())
+                    if match:
+                        numeric_part = float(match.group(1))
+                        unit_part = match.group(2).lower()
+
+                        # For kgs/ltr items, proportional quantities need special handling
+                        if unit_part in ['kg', 'kgs', 'kilos', 'kilograms']:
+                            quantity_to_restore = numeric_part
+                        elif unit_part in ['ltr', 'liters', 'litre', 'litres']:
+                            quantity_to_restore = numeric_part
+                        elif unit_part in ['gm', 'g', 'grams']:
+                            # Convert grams to kg (assuming 1000g = 1kg)
+                            quantity_to_restore = numeric_part / 1000.0
+                        elif unit_part in ['ml', 'milliliters', 'millilitre', 'millilitres']:
+                            # Convert ml to ltr (assuming 1000ml = 1ltr)
+                            quantity_to_restore = numeric_part / 1000.0
+                        elif unit_part in ['pcs', 'pieces', 'piece']:
+                            quantity_to_restore = numeric_part
+                        else:
+                            # Unknown unit, assume it's already in correct base units
+                            quantity_to_restore = numeric_part
+                    else:
+                        # No numeric part found, try simple float conversion
+                        quantity_to_restore = 0.0
+            else:
+                quantity_to_restore = 0.0
+
+            # Restore the stock
+            product.stock += quantity_to_restore
+
+        except Exception as parse_error:
+            print(f"⚠️ Error parsing quantity '{db_sale.quantity}' for sale {sale_id}: {parse_error}")
+            # Fallback: don't restore stock if we can't parse the quantity
+            print("⚠️ Skipping stock restoration due to quantity parsing error")
         
         # Delete the sale record
         db.delete(db_sale)
