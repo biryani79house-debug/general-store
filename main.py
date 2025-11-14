@@ -317,8 +317,8 @@ class ProductStockHistory(BaseModel):
     date: datetime
     transaction_type: str  # "PURCHASE", "SALE", "OPENING"
     reference: str
-    quantity: int
-    stock_after_transaction: int
+    quantity: float
+    stock_after_transaction: float
     details: str
 
 class ProductStockLedger(BaseModel):
