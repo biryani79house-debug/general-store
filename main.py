@@ -1114,7 +1114,7 @@ def get_products_stock_snapshot(
                 all_purchases_ever = db.query(Purchase).filter(Purchase.product_id == product.id).all()
                 all_sales_ever = db.query(Sale).filter(Sale.product_id == product.id).all()
                 total_purchases_ever = sum(p.quantity for p in all_purchases_ever)
-                total_sales_ever = sum(s.quantity for s in all_sales_ever)
+                total_sales_ever = sum(parse_sale_quantity(s, db) for s in all_sales_ever)
 
                 opening_stock = product.stock + total_sales_ever - total_purchases_ever
                 calculated_stock = opening_stock + total_purchases_up_to_date - total_sales_up_to_date
@@ -2354,6 +2354,75 @@ def get_sales_ledger(
         raise HTTPException(status_code=500, detail=f"Error retrieving sales ledger data: {str(e)}")
 
 # --- 3. STOCK LEDGER BY PRODUCT - Full History for Specific Product ---
+def parse_sale_quantity(sale, db):
+    """Parse sale quantity from string to numeric value in base units"""
+    quantity_str = sale.quantity
+    quantity = 0
+
+    try:
+        # Try to parse as float first (for cases like "2")
+        quantity = float(quantity_str)
+    except ValueError:
+        # If it's a proportion string like "500gm", "500ml", etc.
+        # We need to find which proportion it matches and calculate the quantity
+        if sale.product and sale.product.proportion_prices:
+            try:
+                proportion_prices = json.loads(sale.product.proportion_prices)
+                unit_type = sale.product.unit_type
+
+                # Check if quantity_str matches any proportion name
+                for prop_name, prop_price in proportion_prices.items():
+                    if quantity_str == prop_name:
+                        # Found the proportion, calculate quantity based on proportion size
+                        prop_price_float = float(prop_price)
+
+                        # Parse the proportion string to get the numeric value and unit
+                        if unit_type == 'kgs':
+                            if prop_name.endswith('gm') or prop_name.endswith('g'):
+                                # Extract gram value and convert to kg
+                                try:
+                                    gram_value = float(prop_name.replace('gm', '').replace('g', ''))
+                                    quantity = gram_value / 1000.0  # Convert grams to kg
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            elif prop_name.endswith('kg'):
+                                # Extract kg value
+                                try:
+                                    quantity = float(prop_name.replace('kg', ''))
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            else:
+                                quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                        elif unit_type == 'ltr':
+                            if prop_name.endswith('ml'):
+                                # Extract ml value and convert to liters
+                                try:
+                                    ml_value = float(prop_name.replace('ml', ''))
+                                    quantity = ml_value / 1000.0  # Convert ml to liters
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            elif prop_name.endswith('ltr'):
+                                # Extract ltr value
+                                try:
+                                    quantity = float(prop_name.replace('ltr', ''))
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            else:
+                                quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                        else:
+                            # For other unit types (pcs, etc.), quantity is usually 1
+                            quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                        break
+            except Exception as e:
+                print(f"⚠️ Error parsing proportion for sale {sale.id}: {e}")
+                quantity = 1  # fallback
+
+        # If we still don't have quantity, assume 1
+        if quantity == 0:
+            quantity = 1
+
+    return quantity
+
 @app.get("/ledger/stock/{product_id}", response_model=ProductStockLedger)
 def get_product_stock_ledger(product_id: int, db: Session = Depends(get_db)):
     """
@@ -2364,16 +2433,16 @@ def get_product_stock_ledger(product_id: int, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-    
+
     # Get all purchases for this product (ordered by date)
     purchases = db.query(Purchase).filter(Purchase.product_id == product_id).order_by(Purchase.purchase_date).all()
-    
+
     # Get all sales for this product (ordered by date)
     sales = db.query(Sale).filter(Sale.product_id == product_id).order_by(Sale.sale_date).all()
-    
+
     # Combine and sort all transactions by date
     all_transactions = []
-    
+
     for purchase in purchases:
         all_transactions.append({
             "date": purchase.purchase_date,
@@ -2382,34 +2451,35 @@ def get_product_stock_ledger(product_id: int, db: Session = Depends(get_db)):
             "quantity": purchase.quantity,
             "details": f"Purchased {purchase.quantity} units at ₹{purchase.total_cost/purchase.quantity:.2f} each"
         })
-    
+
     for sale in sales:
+        parsed_qty = parse_sale_quantity(sale, db)
         all_transactions.append({
             "date": sale.sale_date,
-            "type": "SALE", 
+            "type": "SALE",
             "reference": f"Sale #{sale.id}",
-            "quantity": -sale.quantity,  # Negative for sales
-            "details": f"Sold {sale.quantity} units at ₹{sale.total_amount/sale.quantity:.2f} each"
+            "quantity": -parsed_qty,  # Negative for sales (use parsed numeric value)
+            "details": f"Sold {sale.quantity} units at ₹{sale.total_amount/parsed_qty:.2f} each"
         })
-    
+
     # Sort all transactions by date
     all_transactions.sort(key=lambda x: x["date"])
-    
+
     # Calculate running balance
     current_stock = 0
     history = []
-    
+
     # Add opening balance entry
     if all_transactions:
         # Calculate what the opening stock would have been
         total_purchases = sum(p.quantity for p in purchases)
-        total_sales = sum(s.quantity for s in sales)
-        opening_stock = product.stock + total_sales - total_purchases
+        total_sales_numeric = sum(parse_sale_quantity(s, db) for s in sales)
+        opening_stock = product.stock + total_sales_numeric - total_purchases
         current_stock = opening_stock
     else:
         opening_stock = product.stock
         current_stock = product.stock
-    
+
     # Add opening entry
     history.append(ProductStockHistory(
         date=all_transactions[0]["date"] if all_transactions else datetime.now(IST),
@@ -2419,11 +2489,11 @@ def get_product_stock_ledger(product_id: int, db: Session = Depends(get_db)):
         stock_after_transaction=opening_stock,
         details=f"Opening stock balance"
     ))
-    
+
     # Process each transaction and update running balance
     for transaction in all_transactions:
         current_stock += transaction["quantity"] if transaction["type"] == "PURCHASE" else transaction["quantity"]
-        
+
         history.append(ProductStockHistory(
             date=transaction["date"],
             transaction_type=transaction["type"],
@@ -2432,14 +2502,14 @@ def get_product_stock_ledger(product_id: int, db: Session = Depends(get_db)):
             stock_after_transaction=current_stock,
             details=transaction["details"]
         ))
-    
+
     return ProductStockLedger(
         product_id=product.id,
         product_name=product.name,
         current_stock=product.stock,
         opening_stock=opening_stock,
         total_purchases=sum(p.quantity for p in purchases),
-        total_sales=sum(s.quantity for s in sales),
+        total_sales=sum(parse_sale_quantity(s, db) for s in sales),
         history=history
     )
 
