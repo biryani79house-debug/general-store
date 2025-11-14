@@ -1001,10 +1001,7 @@ def get_products_stock_snapshot(
                         # Check if quantity_str matches any proportion name
                         for prop_name, prop_price in proportion_prices.items():
                             if quantity_str == prop_name:
-                                # Found the proportion, calculate quantity based on proportion size
-                                prop_price_float = float(prop_price)
-
-                                # Parse the proportion string to get the numeric value and unit
+                                # Found the proportion, calculate quantity based on proportion size by extracting numeric value from proportion name
                                 if unit_type == 'kgs':
                                     if prop_name.endswith('gm') or prop_name.endswith('g'):
                                         # Extract gram value and convert to kg
@@ -1053,8 +1050,18 @@ def get_products_stock_snapshot(
 
         snapshots = []
         for product in products:
-            # Default to current stock for no date filters or current date scenario
-            calculated_stock = product.stock
+            # Always calculate real-time stock based on purchases minus sales
+            # Never rely on stored product.stock field as it may be outdated
+
+            # Get all purchases for this product
+            purchases = db.query(Purchase).filter(Purchase.product_id == product.id).all()
+
+            # Get all sales for this product
+            sales = db.query(Sale).filter(Sale.product_id == product.id).all()
+
+            total_purchases = sum(p.quantity for p in purchases)
+            total_sales = sum(parse_sale_quantity(s, db) for s in sales)
+            calculated_stock = total_purchases - total_sales
 
             # If date filters are specified, calculate stock as of that date
             if filter_date_to:

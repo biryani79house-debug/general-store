@@ -1,0 +1,1 @@
+Checking Gold Drop Oil (product_id: 2) stock calculations...\n
