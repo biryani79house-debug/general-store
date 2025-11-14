@@ -1457,24 +1457,30 @@
 
             const normalizedUnitType = unitType.toLowerCase().trim();
 
+            // Ensure quantity is a number for proper decimal formatting
+            const numericQuantity = parseFloat(quantity) || 0;
+
             switch(normalizedUnitType) {
                 case 'kgs':
                 case 'kg':
                 case 'kilograms':
-                    return `${quantity} kgs`;
+                    // Show decimals for kilogram quantities - preserve original decimal precision
+                    return numericQuantity % 1 === 0 ? `${numericQuantity} kgs` : `${numericQuantity} kgs`;
                 case 'ltr':
                 case 'liter':
                 case 'liters':
                 case 'litre':
                 case 'litres':
-                    return `${quantity} ltr`;
+                    // Show decimals for liter quantities - preserve original decimal precision
+                    return numericQuantity % 1 === 0 ? `${numericQuantity} ltr` : `${numericQuantity} ltr`;
                 case 'pcs':
                 case 'piece':
                 case 'pieces':
                 case 'pc':
-                    return `${quantity} pcs`;
+                    return `${Math.floor(numericQuantity)} pcs`;
                 default:
-                    return `${quantity} ${unitType}`;
+                    // For other unit types, show decimals if not whole number
+                    return numericQuantity % 1 === 0 ? `${numericQuantity} ${unitType}` : `${numericQuantity} ${unitType}`;
             }
         }
 

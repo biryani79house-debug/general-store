@@ -982,6 +982,75 @@ def get_products_stock_snapshot(
 
         products = query.all()
 
+        def parse_sale_quantity(sale, db):
+            """Parse sale quantity from string to numeric value in base units"""
+            quantity_str = sale.quantity
+            quantity = 0
+
+            try:
+                # Try to parse as float first (for cases like "2")
+                quantity = float(quantity_str)
+            except ValueError:
+                # If it's a proportion string like "500gm", "500ml", etc.
+                # We need to find which proportion it matches and calculate the quantity
+                if sale.product and sale.product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(sale.product.proportion_prices)
+                        unit_type = sale.product.unit_type
+
+                        # Check if quantity_str matches any proportion name
+                        for prop_name, prop_price in proportion_prices.items():
+                            if quantity_str == prop_name:
+                                # Found the proportion, calculate quantity based on proportion size
+                                prop_price_float = float(prop_price)
+
+                                # Parse the proportion string to get the numeric value and unit
+                                if unit_type == 'kgs':
+                                    if prop_name.endswith('gm') or prop_name.endswith('g'):
+                                        # Extract gram value and convert to kg
+                                        try:
+                                            gram_value = float(prop_name.replace('gm', '').replace('g', ''))
+                                            quantity = gram_value / 1000.0  # Convert grams to kg
+                                        except ValueError:
+                                            quantity = 1  # fallback
+                                    elif prop_name.endswith('kg'):
+                                        # Extract kg value
+                                        try:
+                                            quantity = float(prop_name.replace('kg', ''))
+                                        except ValueError:
+                                            quantity = 1  # fallback
+                                    else:
+                                        quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                                elif unit_type == 'ltr':
+                                    if prop_name.endswith('ml'):
+                                        # Extract ml value and convert to liters
+                                        try:
+                                            ml_value = float(prop_name.replace('ml', ''))
+                                            quantity = ml_value / 1000.0  # Convert ml to liters
+                                        except ValueError:
+                                            quantity = 1  # fallback
+                                    elif prop_name.endswith('ltr'):
+                                        # Extract ltr value
+                                        try:
+                                            quantity = float(prop_name.replace('ltr', ''))
+                                        except ValueError:
+                                            quantity = 1  # fallback
+                                    else:
+                                        quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                                else:
+                                    # For other unit types (pcs, etc.), quantity is usually 1
+                                    quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
+                                break
+                    except Exception as e:
+                        print(f"⚠️ Error parsing proportion for sale {sale.id}: {e}")
+                        quantity = 1  # fallback
+
+                # If we still don't have quantity, assume 1
+                if quantity == 0:
+                    quantity = 1
+
+            return quantity
+
         snapshots = []
         for product in products:
             # Default to current stock for no date filters or current date scenario
@@ -1009,7 +1078,7 @@ def get_products_stock_snapshot(
                 # Formula: Stock as of date = Opening Stock + Purchases up to date - Sales up to date
 
                 total_purchases_up_to_date = sum(p.quantity for p in purchases)
-                total_sales_up_to_date = sum(s.quantity for s in sales)
+                total_sales_up_to_date = sum(parse_sale_quantity(s, db) for s in sales)
 
                 # Calculate what the opening stock was when this product was created
                 # Opening Stock = Current Stock + Total Sales Ever - Total Purchases Ever
@@ -1039,7 +1108,7 @@ def get_products_stock_snapshot(
                 ).all()
 
                 total_purchases_up_to_date = sum(p.quantity for p in purchases)
-                total_sales_up_to_date = sum(s.quantity for s in sales)
+                total_sales_up_to_date = sum(parse_sale_quantity(s, db) for s in sales)
 
                 # Calculate opening stock and then add purchases - sales up to date
                 all_purchases_ever = db.query(Purchase).filter(Purchase.product_id == product.id).all()
