@@ -324,10 +324,10 @@ class ProductStockHistory(BaseModel):
 class ProductStockLedger(BaseModel):
     product_id: int
     product_name: str
-    current_stock: int
-    opening_stock: int
+    current_stock: float
+    opening_stock: float
     total_purchases: int
-    total_sales: int
+    total_sales: float
     history: List[ProductStockHistory]
 
 class ProductStockSnapshot(BaseModel):
