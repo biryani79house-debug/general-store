@@ -1616,6 +1616,9 @@ function backToHome() {
                     return;
                 }
 
+                // Fetch calculated stock data to show exact quantities
+                await fetchAndMergeStockData();
+
                 renderProducts(category);
                 showCartButton();
 
@@ -1632,6 +1635,47 @@ function backToHome() {
                     renderProducts(category);
                     showCartButton();
                 }
+            }
+        }
+
+        // Fetch calculated stock data and merge it with products
+        async function fetchAndMergeStockData() {
+            try {
+                console.log("📊 Fetching calculated stock data for exact quantities...");
+
+                const stockResponse = await fetch(`${backendURL}/products/stock-snapshot`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!stockResponse.ok) {
+                    console.warn("⚠️ Could not fetch calculated stock data, using stored stock");
+                    return;
+                }
+
+                const stockData = await stockResponse.json();
+                console.log("✅ Stock data fetched:", stockData.length, "items");
+
+                // Create a map of product_id to stock
+                const stockMap = {};
+                stockData.forEach(item => {
+                    stockMap[item.product_id] = item.stock;
+                });
+
+                // Merge calculated stock with products (overwrite the stored stock)
+                products.forEach(product => {
+                    if (stockMap[product.id] !== undefined) {
+                        // Store the original stock and replace with calculated stock
+                        product.original_stock = product.stock;
+                        product.stock = stockMap[product.id];
+                        console.log(`📝 Updated stock for ${product.name}: ${product.original_stock} -> ${product.stock}`);
+                    }
+                });
+
+                console.log("✅ Merged calculated stock with products");
+
+            } catch (error) {
+                console.error("❌ Error fetching calculated stock data:", error);
+                console.log("⚠️ Continuing with stored stock data");
             }
         }
 
