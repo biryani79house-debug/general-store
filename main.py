@@ -334,7 +334,7 @@ class ProductStockSnapshot(BaseModel):
     product_id: int
     product_name: str
     price: float
-    stock: int
+    stock: float
     stock_value: float
     unit_type: str
     last_updated: datetime
@@ -1059,7 +1059,7 @@ def get_products_stock_snapshot(
                 product_id=product.id,
                 product_name=product.name,
                 price=purchase_price,  # Always purchase price for inventory valuation
-                stock=int(calculated_stock),
+                stock=calculated_stock,
                 stock_value=float(stock_value),
                 unit_type=product.unit_type,
                 last_updated=datetime.now(IST)
