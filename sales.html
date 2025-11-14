@@ -277,7 +277,7 @@
                 return;
             }
 
-            const currentQty = cart[cartKey] ? cart[cartKey].quantity : 0;
+            const currentQty = cart[cartKey] ? parseFloat(cart[cartKey].quantity) || 0 : 0;
             if (currentQty + 1 > availableStock) {
                 showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
                 return;
@@ -1044,8 +1044,8 @@
 
                 if (e.target.classList.contains('decrease')) {
                     const cartKey = e.target.getAttribute('data-id');
-                    if (cart[cartKey] && cart[cartKey].quantity > 1) {
-                        cart[cartKey].quantity--;
+                    if (cart[cartKey] && parseFloat(cart[cartKey].quantity) > 1) {
+                        cart[cartKey].quantity = parseFloat(cart[cartKey].quantity) - 1;
                         updateCart();
                     }
                 }
@@ -1069,8 +1069,8 @@
                             availableStock = product.proportion_stocks[proportion];
                         }
 
-                        if (cart[cartKey].quantity < availableStock) {
-                            cart[cartKey].quantity++;
+                        if (parseFloat(cart[cartKey].quantity) < availableStock) {
+                            cart[cartKey].quantity = parseFloat(cart[cartKey].quantity) + 1;
                             updateCart();
                         } else {
                             showNotification('Maximum stock available');
@@ -1123,10 +1123,13 @@
             let addedCount = 0;
 
             productsToAdd.forEach(product => {
-                if (product.stock > 0) {
-                    const currentQty = cart[product.id] || 0;
-                    if (currentQty < product.stock) {
-                        cart[product.id] = currentQty + 1;
+                if (parseFloat(product.stock) > 0) {
+                    const currentQty = cart[product.id] ? parseFloat(cart[product.id].quantity) || 0 : 0;
+                    if (currentQty < parseFloat(product.stock)) {
+                        if (!cart[product.id]) {
+                            cart[product.id] = { quantity: 0, price: product.price };
+                        }
+                        cart[product.id].quantity = parseFloat(cart[product.id].quantity) + 1;
                         addedCount++;
                     }
                 }
