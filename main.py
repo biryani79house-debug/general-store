@@ -620,9 +620,20 @@ app = FastAPI(
 # Allow all origins to prevent CORS issues during development and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",
+        "http://localhost:5500",
+        "http://127.0.0.1:5500",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://localhost:5000",
+        "http://localhost",
+        "http://127.0.0.1",
+        "https://general-store-kappa.vercel.app",
+        "https://web-production-9d240.up.railway.app"
+    ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
