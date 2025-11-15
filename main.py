@@ -1573,6 +1573,200 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
             "message": f"Sale record deleted successfully. Restored {db_sale.quantity} units to {product.name} stock.",
             "sale_id": sale_id
         }
+
+# --- SALES REGISTER ENDPOINTS ---
+
+class SalesRegisterEntry(BaseModel):
+    sales_id: Optional[int] = None  # Use bill_id as sales_id
+    date: datetime
+    total_amount: float
+    total_products: int
+    created_by: Optional[str] = None
+
+class BillDetailsResponse(BaseModel):
+    sales_id: int
+    date: datetime
+    total_amount: float
+    created_by: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_address: Optional[str] = None
+    items: List[dict] = []
+
+@app.get("/sales/register", response_model=List[SalesRegisterEntry])
+def get_sales_register(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    product_id: Optional[int] = None,
+    category: Optional[str] = None,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """
+    Get sales register - list of all sales transactions (bills) with summary info.
+    Each bill shows date, total amount, and number of products.
+    """
+    check_permission(Permission.SALES_LEDGER, db, username)
+
+    try:
+        # Convert date filters
+        filter_start = None
+        filter_end = None
+
+        if start_date:
+            try:
+                filter_start = datetime.fromisoformat(start_date.replace('Z', '+00:00')).replace(tzinfo=IST)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid start_date format")
+
+        if end_date:
+            try:
+                filter_end = datetime.fromisoformat(end_date.replace('Z', '+00:00')).replace(tzinfo=IST) + timedelta(days=1)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid end_date format")
+
+        # Base query to get distinct bills
+        query = db.query(
+            Sale.bill_id,
+            func.max(Sale.sale_date).label('date'),
+            func.sum(Sale.total_amount).label('total_amount'),
+            func.count(Sale.id).label('total_products'),
+            func.max(Sale.created_by).label('created_by')
+        ).group_by(Sale.bill_id)
+
+        # Apply filters
+        if filter_start:
+            query = query.filter(Sale.sale_date >= filter_start)
+        if filter_end:
+            query = query.filter(Sale.sale_date < filter_end)
+        if product_id:
+            query = query.filter(Sale.product_id == product_id)
+        if category:
+            query = query.filter(Sale.product.has(Product.category.ilike(category)))
+
+        # Get bill summaries
+        bill_summaries = query.order_by(desc('date')).all()
+
+        # Convert to response format
+        register_entries = []
+        for bill in bill_summaries:
+            # Get user name for created_by
+            user_name = None
+            if bill.created_by:
+                user = db.query(User).filter(User.id == bill.created_by).first()
+                if user:
+                    user_name = user.username
+
+            register_entries.append({
+                "sales_id": bill.bill_id,
+                "date": bill.date,
+                "total_amount": bill.total_amount,
+                "total_products": bill.total_products,
+                "created_by": user_name
+            })
+
+        return register_entries
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_sales_register: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching sales register: {str(e)}")
+
+@app.get("/sales/bill/{sales_id}")
+def get_bill_details(sales_id: int, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    """
+    Get detailed information about products sold in a specific bill.
+    Shows all items, quantities, prices, and customer info if available.
+    """
+    check_permission(Permission.SALES_LEDGER, db, username)
+
+    try:
+        # Convert to int if string
+        bill_id = int(sales_id)
+
+        # Get all sales for this bill
+        bill_sales = db.query(Sale).filter(Sale.bill_id == bill_id).options(joinedload(Sale.product)).all()
+
+        if not bill_sales:
+            raise HTTPException(status_code=404, detail="Bill not found")
+
+        # Get bill summary info from first sale
+        base_sale = bill_sales[0]
+
+        # Get user name
+        user_name = None
+        if base_sale.created_by:
+            user = db.query(User).filter(User.id == base_sale.created_by).first()
+            if user:
+                user_name = user.username
+
+        # Calculate total and build items
+        total_amount = 0
+        items = []
+
+        for sale in bill_sales:
+            # Parse quantity - handle string quantities
+            quantity_str = sale.quantity
+            quantity = 0
+
+            try:
+                # Try to parse as float first (for legacy data)
+                quantity = float(quantity_str)
+            except ValueError:
+                # If it's a proportion string like "500gm", we need to calculate the quantity
+                # For proportion items, the quantity stored is the proportion string
+                if sale.product and sale.product.proportion_prices:
+                    try:
+                        proportion_prices = json.loads(sale.product.proportion_prices)
+                        # Check if quantity_str matches any proportion name
+                        for prop_name, prop_price in proportion_prices.items():
+                            if quantity_str == prop_name:
+                                # Found the proportion, calculate quantity based on price
+                                prop_price_float = float(prop_price)
+                                quantity = sale.total_amount / prop_price_float if prop_price_float > 0 else 1
+                                break
+                    except:
+                        pass
+
+                # If we still don't have quantity, assume 1
+                if quantity == 0:
+                    quantity = 1
+
+            unit_price = sale.total_amount / quantity if quantity > 0 else 0
+            total_amount += sale.total_amount
+
+            # Format item name (include proportion if applicable)
+            item_name = sale.product.name if sale.product else "Unknown Product"
+            display_quantity = quantity_str if isinstance(quantity_str, str) and not quantity_str.replace('.', '').isdigit() else f"{quantity}"
+
+            items.append({
+                "product_name": item_name,
+                "quantity": display_quantity,
+                "price": unit_price,
+                "total": sale.total_amount
+            })
+
+        return BillDetailsResponse(
+            sales_id=bill_id,
+            date=base_sale.sale_date,
+            total_amount=total_amount,
+            created_by=user_name,
+            customer_name=base_sale.customer_name,
+            customer_phone=base_sale.customer_phone,
+            customer_address=base_sale.customer_address,
+            items=items
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_bill_details: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error fetching bill details: {str(e)}")
         
     except Exception as e:
         db.rollback()
