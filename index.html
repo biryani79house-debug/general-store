@@ -3322,6 +3322,57 @@ function backToHome() {
             }
         }
 
+        async function deleteSaleBill(salesId) {
+            // Input validation
+            if (!salesId || isNaN(parseInt(salesId))) {
+                showNotification("Invalid sales ID!");
+                return;
+            }
+
+            salesId = parseInt(salesId);
+
+            if (!confirm("Are you sure you want to delete this entire sale bill? This will delete all products in the bill and restore the stock. This action cannot be undone.")) {
+                return;
+            }
+
+            try {
+                const deleteURL = `${backendURL}/sales/delete-bill/${salesId}`;
+
+                console.log(`🛒 Attempting to delete sale bill from: ${deleteURL}`);
+
+                const response = await fetch(deleteURL, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                console.log(`📊 Delete response status: ${response.status}`);
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Sale bill deleted successfully:', result);
+                    showNotification(result.message || `Sale bill ${salesId} deleted successfully!`);
+
+                    // Refresh the sales register
+                    loadSalesRegister();
+                } else {
+                    let errorMessage = `Failed to delete sale bill: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.detail) {
+                            errorMessage = errorData.detail;
+                        }
+                    } catch (e) {
+                        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+            } catch (error) {
+                console.error('Error deleting sale bill:', error);
+                showNotification(`❌ Error deleting sale bill: ${error.message}`);
+            }
+        }
+
         // ===== ALL PRODUCTS STOCK LEDGER FUNCTIONS =====
         async function loadAllProductsLedger() {
             const loadingEl = document.getElementById('all-products-ledger-loading');
@@ -3677,16 +3728,10 @@ function backToHome() {
                             <td class="border border-gray-200 px-4 py-2">₹${price.toFixed(2)}</td>
                             <td class="border border-gray-200 px-4 py-2 font-medium">₹${sale.total_amount.toFixed(2)}</td>
                         <td class="border border-gray-200 px-4 py-2">
-                            <div class="flex gap-1">
-                                <button class="view-sale-details-btn text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
-                                        data-id="${saleId}">
-                                    View Details
-                                </button>
-                                <button class="delete-sale text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors"
-                                        data-id="${saleId}">
-                                    Delete
-                                </button>
-                            </div>
+                            <button class="view-sale-details-btn text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
+                                    data-id="${saleId}">
+                                View Details
+                            </button>
                         </td>
                         </tr>
                     `;
@@ -5705,10 +5750,16 @@ function backToHome() {
                         <td class="border border-gray-200 px-4 py-2 font-medium">₹${billAmount.toFixed(2)}</td>
                         <td class="border border-gray-200 px-4 py-2">${createdBy}</td>
                         <td class="border border-gray-200 px-4 py-2">
-                            <button class="view-bill-details-btn text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
-                                    data-sales-id="${bill.sales_id}">
-                                View Details
-                            </button>
+                            <div class="flex gap-1">
+                                <button class="view-bill-details-btn text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition-colors"
+                                        data-sales-id="${bill.sales_id}">
+                                    View Details
+                                </button>
+                                <button class="delete-sale-bill text-xs bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition-colors"
+                                        data-sales-id="${bill.sales_id}">
+                                    Delete
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -6133,6 +6184,12 @@ function backToHome() {
                 if (e.target && e.target.classList.contains('view-bill-details-btn')) {
                     const salesId = e.target.getAttribute('data-sales-id');
                     viewBillDetails(salesId);
+                }
+
+                // Delete sale bill buttons
+                if (e.target && e.target.classList.contains('delete-sale-bill')) {
+                    const salesId = e.target.getAttribute('data-sales-id');
+                    deleteSaleBill(salesId);
                 }
             });
 

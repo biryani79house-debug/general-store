@@ -1589,6 +1589,105 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting sale: {str(e)}")
 
+@app.delete("/sales/delete-bill/{sales_id}", status_code=status.HTTP_200_OK)
+def delete_sale_bill(sales_id: int, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    """
+    Delete all sales records for a specific bill and restore product stock for all items in the bill.
+    """
+    try:
+        # The sales_id in this context is actually the bill_id
+        bill_id = int(sales_id)
+
+        # Find all sales for this bill
+        bill_sales = db.query(Sale).filter(Sale.bill_id == bill_id).all()
+        if not bill_sales:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bill not found")
+
+        # Restore stock for all items in the bill
+        restored_items = []
+
+        for sale in bill_sales:
+            # Find the product
+            product = db.query(Product).filter(Product.id == sale.product_id).first()
+            if not product:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product not found: {sale.product_id}")
+
+            # Parse quantity from sale record (handle string quantities like "500gm", "250ml", etc.)
+            quantity_str = sale.quantity
+            quantity_to_restore = 0.0
+
+            try:
+                # Try to parse as float first (for cases like "2")
+                quantity_to_restore = float(quantity_str)
+            except ValueError:
+                # Parse proportion strings like "500gm", "500ml", etc.
+                import re
+                match = re.match(r'^(\d+(?:\.\d+)?)\s*(.*)$', quantity_str.strip())
+                if match:
+                    numeric_part = float(match.group(1))
+                    unit_part = match.group(2).lower()
+
+                    # Convert to base units (kgs/ltr etc.)
+                    if unit_part in ['kg', 'kgs']:
+                        quantity_to_restore = numeric_part
+                    elif unit_part in ['gm', 'g']:
+                        quantity_to_restore = numeric_part / 1000.0  # Convert grams to kg
+                    elif unit_part in ['ltr', 'liters', 'litre', 'litres']:
+                        quantity_to_restore = numeric_part
+                    elif unit_part in ['ml', 'milliliters', 'millilitre', 'millilitres']:
+                        quantity_to_restore = numeric_part / 1000.0  # Convert ml to ltr
+                    elif unit_part in ['pcs', 'pieces', 'piece']:
+                        quantity_to_restore = numeric_part
+                    else:
+                        # Unknown unit, assume it's already in base units
+                        quantity_to_restore = numeric_part
+                else:
+                    quantity_to_restore = 0.0
+
+            # Restore the stock to the product
+            if quantity_to_restore > 0:
+                product.stock += quantity_to_restore
+                restored_items.append(f"{product.name}: +{quantity_to_restore:g}")
+
+        # Delete all sales records for this bill
+        deleted_count = db.query(Sale).filter(Sale.bill_id == bill_id).delete()
+
+        # Renumber bill_ids after the deletion (similar to individual sale deletion)
+        # Get all remaining bill_ids in order and renumber them sequentially starting from 1
+        all_bill_ids = db.query(Sale.bill_id).distinct().order_by(Sale.bill_id).all()
+        all_bill_ids = [b[0] for b in all_bill_ids]
+
+        if all_bill_ids:  # Only renumber if there are bills left
+            renumbered_bills = 0
+            for new_bill_id, old_bill_id in enumerate(all_bill_ids, 1):
+                if old_bill_id != new_bill_id:
+                    # Update all sales records with this bill_id
+                    updated_count = db.query(Sale).filter(Sale.bill_id == old_bill_id).update({"bill_id": new_bill_id})
+                    renumbered_bills += updated_count
+
+            db.commit()  # Commit after renumbering
+
+            renumber_message = f"All remaining bill IDs have been renumbered sequentially."
+        else:
+            db.commit()  # Commit without renumbering
+            renumber_message = "No bills remain to renumber."
+
+        return {
+            "status": "success",
+            "message": f"Bill {bill_id} deleted successfully. Deleted {deleted_count} sales records and restored stock for {len(restored_items)} products. {renumber_message}",
+            "bill_id": bill_id,
+            "sales_deleted": deleted_count,
+            "products_restored": len(restored_items),
+            "restored_stock_details": restored_items
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting sale bill: {str(e)}")
+
 # --- SALES REGISTER ENDPOINTS ---
 
 class SalesRegisterEntry(BaseModel):
