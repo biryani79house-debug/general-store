@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status, Depends, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text, func, desc
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, text,func
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship, joinedload
 from sqlalchemy import ForeignKey, Enum as SQLEnum
 import enum
@@ -998,8 +998,7 @@ def get_products_stock_snapshot(
                                         except ValueError:
                                             quantity = 1  # fallback
                                     else:
-                                        # Unknown kg proportion format
-                                        quantity = 1
+                                        quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
                                 elif unit_type == 'ltr':
                                     if prop_name.endswith('ml'):
                                         # Extract ml value and convert to liters
@@ -1015,11 +1014,10 @@ def get_products_stock_snapshot(
                                         except ValueError:
                                             quantity = 1  # fallback
                                     else:
-                                        # Unknown ltr proportion format
-                                        quantity = 1
+                                        quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
                                 else:
                                     # For other unit types (pcs, etc.), quantity is usually 1
-                                    quantity = 1
+                                    quantity = prop_price_float / sale.product.selling_price if sale.product.selling_price > 0 else 1
                                 break
                     except Exception as e:
                         print(f"⚠️ Error parsing proportion for sale {sale.id}: {e}")
@@ -1492,12 +1490,12 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
         db_sale = db.query(Sale).filter(Sale.id == sale_id).first()
         if not db_sale:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sale record not found")
-
+        
         # Find the product
         product = db.query(Product).filter(Product.id == db_sale.product_id).first()
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-
+        
         # Restore the stock (parse quantity first since it's stored as string)
         try:
             # Parse the quantity string to numeric value
@@ -1546,23 +1544,16 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
             print(f"⚠️ Error parsing quantity '{db_sale.quantity}' for sale {sale_id}: {parse_error}")
             # Fallback: don't restore stock if we can't parse the quantity
             print("⚠️ Skipping stock restoration due to quantity parsing error")
-
+        
         # Delete the sale record
         db.delete(db_sale)
         db.commit()
-
+        
         return {
             "status": "success",
             "message": f"Sale record deleted successfully. Restored {db_sale.quantity} units to {product.name} stock.",
             "sale_id": sale_id
         }
-
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting sale: {str(e)}")
 
 # --- SALES REGISTER ENDPOINTS ---
 
