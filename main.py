@@ -616,47 +616,17 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# === FIXED CORS CONFIGURATION ===
-# Allow all origins to prevent CORS issues during development and production
+# === CORS CONFIGURATION ===
+# Allow ALL origins, headers, and methods to prevent CORS issues during development and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*",
-        "http://localhost:5500",
-        "http://127.0.0.1:5500",
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "http://localhost:5000",
-        "http://localhost",
-        "http://127.0.0.1",
-        "https://general-store-kappa.vercel.app",
-        "https://web-production-9d240.up.railway.app"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
 )
-
-# === CORS OPTIONS HANDLERS ===
-@app.options("/{path:path}")
-async def options_handler(request: Request, path: str):
-    # Get the origin from the request headers
-    origin = request.headers.get("origin", "")
-
-    # For simplicity, allow all origins since we have "*" in CORS middleware
-    allowed_origin = "*"
-
-    return JSONResponse(
-        content={},
-        headers={
-            "Access-Control-Allow-Origin": allowed_origin,
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Max-Age": "600"
-        }
-    )
 
 # === YOUR ORIGINAL ENDPOINTS ===
 
@@ -1778,10 +1748,6 @@ def get_bill_details(sales_id: int, db: Session = Depends(get_db), username: str
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error fetching bill details: {str(e)}")
-        
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error deleting sale: {str(e)}")
 
 @app.delete("/purchases/{purchase_id}", status_code=status.HTTP_200_OK)
 def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
