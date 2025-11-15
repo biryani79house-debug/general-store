@@ -1547,14 +1547,39 @@ def delete_sale(sale_id: int, db: Session = Depends(get_db)):
             # Fallback: don't restore stock if we can't parse the quantity
             print("⚠️ Skipping stock restoration due to quantity parsing error")
 
+        # Get bill_id before deletion for potential renumbering
+        deleted_bill_id = db_sale.bill_id
+
         # Delete the sale record
         db.delete(db_sale)
-        db.commit()
+
+        # Check if this was the last sale for this bill_id (before commit)
+        remaining_sales_with_bill = db.query(Sale).filter(Sale.bill_id == deleted_bill_id).filter(Sale.id != db_sale.id).count()
+
+        # If no sales remain with this bill_id, perform full renumbering of all bill_ids starting from 1
+        if remaining_sales_with_bill == 0:
+            print(f"📋 Bill {deleted_bill_id} has been deleted. Performing full bill renumbering...")
+
+            # Get all remaining bill_ids in order and renumber them sequentially starting from 1
+            all_bill_ids = db.query(Sale.bill_id).distinct().order_by(Sale.bill_id).all()
+            all_bill_ids = [b[0] for b in all_bill_ids]
+
+            renumbered_bills = 0
+            for new_bill_id, old_bill_id in enumerate(all_bill_ids, 1):
+                if old_bill_id != new_bill_id:
+                    # Update all sales records with this bill_id
+                    updated_count = db.query(Sale).filter(Sale.bill_id == old_bill_id).update({"bill_id": new_bill_id})
+                    renumbered_bills += updated_count
+                    print(f"  Renumbered bill {old_bill_id} → {new_bill_id} ({updated_count} sales)")
+
+            db.commit()
+            print(f"✅ Renumbered {renumbered_bills} sales across {len(all_bill_ids)} bill(s) - bills now start from 1")
 
         return {
             "status": "success",
-            "message": f"Sale record deleted successfully. Restored {db_sale.quantity} units to {product.name} stock.",
-            "sale_id": sale_id
+            "message": f"Sale record deleted successfully. Restored {db_sale.quantity} units to {product.name} stock.{f' Bill {deleted_bill_id} was deleted and {remaining_sales_with_bill + 1} bill(s) were renumbered.' if remaining_sales_with_bill == 0 else ''}",
+            "sale_id": sale_id,
+            "bill_renumbered": remaining_sales_with_bill == 0
         }
 
     except HTTPException:
