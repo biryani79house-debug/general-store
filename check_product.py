@@ -1,25 +1,26 @@
+#!/usr/bin/env python3
+from dotenv import load_dotenv
 import os
-import sys
-sys.path.append('.')
-from main import SessionLocal, Product
+load_dotenv()
 
-# Check if the product exists in the database
+USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from main import Product
+
+if USE_SQLITE:
+    DATABASE_URL = "sqlite:///./kirana_store.db"
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if USE_SQLITE else {"options": "-c timezone=Asia/Kolkata"})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 db = SessionLocal()
-try:
-    # Check for exact product name
-    product = db.query(Product).filter(Product.name.ilike('masoor dal')).first()
-    if product:
-        print(f'Product found: {product.name} (ID: {product.id})')
-    else:
-        print('Product "masoor dal" not found')
+products = db.query(Product).all()
 
-    # Check for similar products
-    similar_products = db.query(Product).filter(Product.name.ilike('%dal%')).all()
-    print(f'Products containing "dal": {len(similar_products)}')
-    for p in similar_products[:5]:  # Show first 5
-        print(f'  - {p.name} (ID: {p.id})')
+print(f"Found {len(products)} products in database:")
+for product in products:
+    print(f"ID: {product.id}, Name: '{product.name}', Stock: {product.stock}, Unit: {product.unit_type}")
 
-except Exception as e:
-    print(f'Error: {e}')
-finally:
-    db.close()
+db.close()
