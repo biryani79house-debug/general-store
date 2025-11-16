@@ -299,8 +299,8 @@
                         <span>Total:</span>
                         <span id="cart-total">₹0.00</span>
                     </div>
-                    <button id="whatsapp-checkout-button" class="w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300">
-                        Checkout on WhatsApp
+                    <button id="buy-button" class="w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300">
+                        Buy
                     </button>
                 </div>
             </div>
@@ -1958,7 +1958,7 @@ function backToHome() {
         function updateCartUI() {
             const cartItemsEl = document.getElementById('cart-items');
             const cartTotalEl = document.getElementById('cart-total');
-            const whatsappCheckoutButtonEl = document.getElementById('whatsapp-checkout-button');
+            const buyButtonEl = document.getElementById('buy-button');
 
             cartItemsEl.innerHTML = '';
             let total = 0;
@@ -2021,8 +2021,8 @@ function backToHome() {
             }
 
             cartTotalEl.textContent = `₹${total.toFixed(2)}`;
-            whatsappCheckoutButtonEl.disabled = totalCount === 0;
-            whatsappCheckoutButtonEl.className = totalCount === 0
+            buyButtonEl.disabled = totalCount === 0;
+            buyButtonEl.className = totalCount === 0
                 ? "w-full mt-4 bg-gray-400 text-white font-bold py-2 px-4 rounded-lg cursor-not-allowed"
                 : "w-full mt-4 bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-green-600 transition-colors duration-300";
         }
@@ -2345,19 +2345,15 @@ function backToHome() {
                 recordSale(saleItems).then(result => {
                     console.log('✅ Sales recorded in database:', result);
                     showNotification('Order recorded successfully!');
+                    cart = {};
+                    updateCartUI();
+                    document.getElementById('cart-modal').classList.add('hidden');
+                    document.getElementById('cart-modal').classList.remove('flex');
                 }).catch(error => {
-                    console.warn('⚠️ Sale recording failed, but continuing to WhatsApp:', error);
-                    showNotification('Order sent to WhatsApp (database recording failed)');
+                    console.warn('⚠️ Sale recording failed:', error);
+                    showNotification('Failed to record sale. Please try again.');
                 });
             }
-
-            const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
-            window.open(whatsappUrl, '_blank');
-
-            cart = {};
-            updateCartUI();
-            document.getElementById('cart-modal').classList.add('hidden');
-            document.getElementById('cart-modal').classList.remove('flex');
         }
 
         // ===== PURCHASE PAGE FUNCTIONS =====
@@ -6103,10 +6099,10 @@ function backToHome() {
                 logoutBtn.addEventListener('click', logout);
             }
 
-            // WhatsApp checkout button
-            const whatsappCheckoutButton = document.getElementById('whatsapp-checkout-button');
-            if (whatsappCheckoutButton) {
-                whatsappCheckoutButton.addEventListener('click', generateWhatsAppOrder);
+            // Buy button
+            const buyButton = document.getElementById('buy-button');
+            if (buyButton) {
+                buyButton.addEventListener('click', generateWhatsAppOrder);
             }
 
             // Purchase form submission
