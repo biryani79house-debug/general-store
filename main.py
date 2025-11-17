@@ -630,6 +630,95 @@ app.add_middleware(
 
 # === YOUR ORIGINAL ENDPOINTS ===
 
+# Helper function to parse sale quantity from string to numeric value in base units
+def parse_sale_quantity(sale, db):
+    """Parse sale quantity from string to numeric value in base units"""
+    quantity_str = sale.quantity
+    quantity = 0
+
+    try:
+        # Try to parse as float first (for cases like "2")
+        quantity = float(quantity_str)
+    except ValueError:
+        # If it's a proportion string like "500gm", "500ml", etc.
+        # We need to find which proportion it matches and calculate the quantity
+        if sale.product and sale.product.proportion_prices:
+            try:
+                proportion_prices = json.loads(sale.product.proportion_prices)
+                unit_type = sale.product.unit_type
+
+                # Check if quantity_str matches any proportion name
+                for prop_name, prop_price in proportion_prices.items():
+                    if quantity_str == prop_name:
+                        # Found the proportion, calculate quantity based on proportion size by extracting numeric value from proportion name
+                        if unit_type == 'kgs':
+                            if prop_name.endswith('gm') or prop_name.endswith('g'):
+                                # Extract gram value and convert to kg
+                                try:
+                                    gram_value = float(prop_name.replace('gm', '').replace('g', ''))
+                                    quantity = gram_value / 1000.0  # Convert grams to kg
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            elif prop_name.endswith('kg'):
+                                # Extract kg value
+                                try:
+                                    quantity = float(prop_name.replace('kg', ''))
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            else:
+                                # Unknown kg proportion format
+                                quantity = 1
+                        elif unit_type == 'ltr':
+                            if prop_name.endswith('ml'):
+                                # Extract ml value and convert to liters
+                                try:
+                                    ml_value = float(prop_name.replace('ml', ''))
+                                    quantity = ml_value / 1000.0  # Convert ml to liters
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            elif prop_name.endswith('ltr'):
+                                # Extract ltr value
+                                try:
+                                    quantity = float(prop_name.replace('ltr', ''))
+                                except ValueError:
+                                    quantity = 1  # fallback
+                            else:
+                                # Unknown ltr proportion format
+                                quantity = 1
+                        else:
+                            # For other unit types (pcs, etc.), quantity is usually 1
+                            quantity = 1
+                        break
+            except Exception as e:
+                print(f"⚠️ Error parsing proportion for sale {sale.id}: {e}")
+                quantity = 1  # fallback
+
+        # If we still don't have quantity, assume 1
+        if quantity == 0:
+            quantity = 1
+
+    return quantity
+
+# Helper function to calculate current stock for a product
+def calculate_current_stock(product_id: int, db: Session):
+    """Calculate the actual current stock by subtracting sales from purchases"""
+    # Get all purchases for this product
+    purchases = db.query(Purchase).filter(Purchase.product_id == product_id).all()
+
+    # Get all sales for this product
+    sales = db.query(Sale).filter(Sale.product_id == product_id).all()
+
+    # Calculate total purchases
+    total_purchases = sum(p.quantity for p in purchases)
+
+    # Calculate total sales (parsed to numeric base units)
+    total_sales = sum(parse_sale_quantity(s, db) for s in sales)
+
+    # Calculate current stock
+    calculated_stock = total_purchases - total_sales
+
+    return calculated_stock
+
 # --- API Endpoint to serve products to the frontend ---
 @app.get("/products")
 async def get_products(category: Optional[str] = None, db: Session = Depends(get_db)):
@@ -651,6 +740,9 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
         frontend_products = []
 
         for product in db_products:
+            # Calculate actual current stock (correctly accounting for proportional sales)
+            current_stock = calculate_current_stock(product.id, db)
+
             # Parse proportions JSON string back to list
             proportions_list = None
             if product.proportions:
@@ -677,7 +769,7 @@ async def get_products(category: Optional[str] = None, db: Session = Depends(get
                 "proportions": proportions_list,  # Include proportions as list for selection
                 "proportion_prices": proportion_prices_dict,  # Include proportion prices as dict for cart calculation
                 "imageUrl": "",  # Let frontend generate dynamic images
-                "stock": product.stock,
+                "stock": current_stock,  # Use calculated current stock instead of stored stock
                 "category": product.category  # Include category for filtering
             })
 
