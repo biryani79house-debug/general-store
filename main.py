@@ -1853,9 +1853,9 @@ def get_sales_register(
         # Get bill summaries
         bill_summaries = query.order_by(desc('date')).all()
 
-        # Convert to response format
+        # Convert to response format with sequential sales_id starting from 1
         register_entries = []
-        for bill in bill_summaries:
+        for index, bill in enumerate(bill_summaries, start=1):
             # Get user name for created_by
             user_name = None
             if bill.created_by:
@@ -1864,7 +1864,7 @@ def get_sales_register(
                     user_name = user.username
 
             register_entries.append({
-                "sales_id": bill.bill_id,
+                "sales_id": index,  # Use sequential number starting from 1 instead of actual bill_id
                 "date": bill.date,
                 "total_amount": bill.total_amount,
                 "total_products": bill.total_products,
