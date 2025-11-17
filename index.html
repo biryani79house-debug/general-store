@@ -3676,10 +3676,12 @@ function backToHome() {
                     productMap[product.id] = product;
                 });
 
-                for (const sale of salesData) {
+                for (let index = 0; index < salesData.length; index++) {
+                    const sale = salesData[index];
                     console.log('🔄 Processing sale:', sale);
                     const formatted = formatDateTime(sale.date);
-                    const saleId = sale.sale_id || sale.id;
+                    // Use sequential ID starting from 1 instead of database sale_id
+                    const saleId = index + 1;
                     const price = sale.unit_price || (sale.total_amount / sale.quantity) || 0;
                     totalAmount += sale.total_amount;
 
