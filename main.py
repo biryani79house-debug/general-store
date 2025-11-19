@@ -2869,61 +2869,58 @@ def get_sales_ledger(
         # Convert to simple format
         ledger_entries = []
         for sale in sales:
-            # Calculate the correct numeric quantity for accounting purposes
-            quantity_str = sale.quantity
+            quantity_str = str(sale.quantity)
 
-            # Start with the assumption that quantity_str is the proportion like "500ml"
-            # and we need to determine both the numeric base units AND display format
-            numeric_quantity = 1.0  # This represents how many "proportion items" were sold
-            unit_price = sale.total_amount  # Each proportion item costs its proportion price
+            # Parse quantity and calculate unit price properly
+            display_quantity = quantity_str
+            unit_price = sale.total_amount  # Default to total as unit price
 
-            # Check if this was a proportion sale (stored as proportion string)
+            # For proportion sales, try to extract the actual quantity and unit price
             if sale.product and sale.product.proportion_prices:
                 try:
                     proportion_prices = json.loads(sale.product.proportion_prices)
-                    # If quantity_str matches a proportion name, this was a proportion sale
-                    if quantity_str in proportion_prices:
-                        # This sale represents 1 proportion item (e.g., 1 x 500ml bottle)
-                        numeric_quantity = 1.0
-                        unit_price = float(proportion_prices[quantity_str])
-                        print(f"📊 Proportion sale: {sale.product.name} x{numeric_quantity} {quantity_str} @ ₹{unit_price:.2f}")
-                    else:
-                        # Not a proportion, might be regular sale, check if it's numeric
-                        try:
-                            numeric_quantity = float(quantity_str)
-                            unit_price = sale.total_amount / numeric_quantity if numeric_quantity > 0 else sale.total_amount
-                        except ValueError:
-                            # Not numeric either, assume 1 unit
-                            numeric_quantity = 1.0
+
+                    # Check if quantity_str is numeric (regular quantity sale)
+                    try:
+                        numeric_quantity = float(quantity_str)
+                        # For regular numeric sales, calculate unit price per item
+                        unit_price = sale.total_amount / numeric_quantity if numeric_quantity > 0 else sale.total_amount
+                        print(f"Regular sale: {numeric_quantity} units @ ₹{unit_price:.2f} each = ₹{sale.total_amount:.2f}")
+                    except (ValueError, TypeError):
+                        # Check if quantity_str matches a proportion name (like "500ml", "250gm")
+                        if quantity_str in proportion_prices:
+                            # This is a proportion sale - quantity string is the proportion name
+                            unit_price = float(proportion_prices[quantity_str])
+                            display_quantity = quantity_str  # Keep the proportion string (e.g., "500ml")
+                            print(f"Proportion sale: 1 x {quantity_str} @ ₹{unit_price:.2f} = ₹{sale.total_amount:.2f}")
+                        else:
+                            # Fallback: assume 1 unit
                             unit_price = sale.total_amount
+                            print(f"Fallback sale: 1 unit @ ₹{unit_price:.2f} = ₹{sale.total_amount:.2f}")
                 except Exception as e:
                     print(f"⚠️ Error parsing proportion data for sale {sale.id}: {e}")
-                    # Fallback
-                    numeric_quantity = 1.0
+                    # Fallback: use total amount as unit price
                     unit_price = sale.total_amount
             else:
-                # No proportion prices, check if quantity_str is numeric
+                # No proportion prices, try to parse as numeric
                 try:
                     numeric_quantity = float(quantity_str)
                     unit_price = sale.total_amount / numeric_quantity if numeric_quantity > 0 else sale.total_amount
-                except ValueError:
+                except (ValueError, TypeError):
                     # Not numeric, assume 1 unit
-                    numeric_quantity = 1.0
                     unit_price = sale.total_amount
 
-            # For display in sales ledger, show the actual stored quantity (e.g., "500ml", "2")
-            # This preserves the exact quantity description stored with the sale
-            display_quantity = quantity_str
+            # Ensure unit_price is a proper float
+            unit_price = float(unit_price)
 
-            # For API compatibility, send as string to preserve proportion formats
             ledger_entries.append(SalesLedgerEntry(
                 sale_id=sale.id,
                 date=sale.sale_date,
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=display_quantity,  # Use the stored quantity string (e.g., "500ml", "2")
-                unit_price=unit_price,
+                quantity=display_quantity,  # Display the proper quantity/proportion string
+                unit_price=unit_price,  # Correctly calculated unit price
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"
             ))
