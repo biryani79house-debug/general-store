@@ -1465,12 +1465,10 @@ def delete_product(product_id: int, db: Session = Depends(get_db), username: str
         )
 # --- API Endpoints for Sales ---
 @app.post("/sales/", status_code=status.HTTP_201_CREATED)
-def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = None):
-    # Accept optional authentication - use token if available
-    from fastapi import Depends
-    try:
-        username = verify_token(token=None)  # This will work differently, need to try
-    except:
+def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str = Depends(verify_token)):
+    # Accept authenticated users or allow anonymous sales (will fallback to default user)
+    if not username:
+        # If no authenticated user, set to None and we'll handle it below
         username = None
 
     # Set created_by based on whom is recording the sale
@@ -1578,28 +1576,45 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
         if product.stock < numeric_quantity:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Not enough stock available for {product.name}")
 
-        # Calculate the correct total_amount based on proportion prices if applicable
-        proportion = None
+        # Calculate sale details
+        proportion = None  # Always start with None
         unit_price = product.selling_price  # Default to base price
         total_amount = 0
 
+        # Check if this is a proportion-based sale from product proportions
         if isinstance(item.quantity, str) and product.proportion_prices:
             try:
                 proportion_prices = json.loads(product.proportion_prices)
                 if item.quantity in proportion_prices:
-                    # This is a proportion-based sale
-                    proportion = item.quantity
-                    unit_price = float(proportion_prices[item.quantity])
-                    total_amount = unit_price * 1  # quantity is 1 for proportions
+                    # This is a proportion-based sale (e.g., "500gm", "500ml")
+                    proportion = item.quantity  # Store the proportion (e.g., "500gm")
+                    unit_price = float(proportion_prices[item.quantity])  # Get the selling price for this proportion
+                    total_amount = unit_price * 1  # Each "proportion item" costs its unit_price (quantity=1 for proportions)
+                    # For example: "500gm" soda costs ₹40, even though 500gm = 0.5kg in stock terms
+
+                    print(f"📦 Proportion sale: {product.name} ({proportion}) - Unit: {unit_price}, Total: {total_amount}")
                 else:
-                    # Fallback to base price
+                    # Not found in proportions, use regular calculation
                     total_amount = unit_price * numeric_quantity
             except Exception as e:
                 print(f"⚠️ Error parsing proportion prices: {e}")
                 total_amount = unit_price * numeric_quantity
         else:
-            # Regular numeric quantity
+            # Regular numeric quantity sale
             total_amount = unit_price * numeric_quantity
+
+        # For all sales, we should try to determine the proportion and unit_price if not already set
+        if proportion is None and isinstance(item.quantity, str):
+            # Check if the quantity string matches any defined proportions
+            if product.proportion_prices:
+                try:
+                    proportion_prices = json.loads(product.proportion_prices)
+                    if item.quantity in proportion_prices:
+                        proportion = item.quantity
+                        unit_price = float(proportion_prices[item.quantity])
+                        print(f"🔄 Determined proportion sale after fallback: {product.name} - {proportion}")
+                except:
+                    pass
 
         # Create sale record with the SAME bill_id for all products in this transaction
         db_sale = Sale(
@@ -1607,14 +1622,15 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
             product_id=item.product_id,
             quantity=str(item.quantity) if not isinstance(item.quantity, str) else item.quantity,
             total_amount=total_amount,
-            proportion=proportion,
-            unit_price=unit_price,
+            proportion=proportion,  # Will be like "500ml", "250gm" or None
+            unit_price=unit_price,  # Price per proportion unit
             sale_date=datetime.now(IST),
             created_by=created_by
         )
 
-        # Reduce product stock by the numeric units sold
+        # Reduce product stock by the numeric units sold (in base units)
         product.stock -= numeric_quantity
+        print(f"📊 Stock reduced: {product.name} by {numeric_quantity} base units (new stock: {product.stock})")
 
         db.add(db_sale)
         sales_created.append(db_sale)
@@ -2889,7 +2905,7 @@ def get_sales_ledger(
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=int(quantity),  # Convert to int for the response model
+                quantity=int(float(sale.quantity)),  # Use original quantity string for proportion display, but cast to int for model
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"
