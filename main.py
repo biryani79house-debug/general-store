@@ -718,12 +718,21 @@ def parse_sale_quantity(sale, db):
 
 # Helper function to calculate current stock for a product
 def calculate_current_stock(product_id: int, db: Session):
-    """Calculate the actual current stock by subtracting sales from purchases"""
+    """Calculate the actual current stock by subtracting sales from purchases.
+    Falls back to stored stock if no transaction history exists."""
     # Get all purchases for this product
     purchases = db.query(Purchase).filter(Purchase.product_id == product_id).all()
 
     # Get all sales for this product
     sales = db.query(Sale).filter(Sale.product_id == product_id).all()
+
+    # Get the stored stock from the product
+    product = db.query(Product).filter(Product.id == product_id).first()
+    stored_stock = product.stock if product else 0
+
+    # If there are no purchases or sales, return the stored stock
+    if not purchases and not sales:
+        return stored_stock
 
     # Calculate total purchases
     total_purchases = sum(p.quantity for p in purchases)
@@ -733,6 +742,13 @@ def calculate_current_stock(product_id: int, db: Session):
 
     # Calculate current stock
     calculated_stock = total_purchases - total_sales
+
+    # Ensure stock doesn't go negative (fallback to stored stock if calculated is negative and stored is higher)
+    # This handles cases where initial stock was entered but there are some sales without corresponding purchases
+    if calculated_stock < 0 and stored_stock > 0:
+        # If calculated stock is negative but we have stored stock, use stored stock as base
+        # This indicates the product had initial stock that wasn't properly accounted for in purchase records
+        return stored_stock + calculated_stock  # stored_stock should be the opening stock in this case
 
     return calculated_stock
 
@@ -939,8 +955,8 @@ class OpeningStockResponse(BaseModel):
 @app.get("/opening-stock-register")
 def get_opening_stock_register(db: Session = Depends(get_db), username: str = Depends(verify_token)):
     """
-    Get opening stock register showing all products with quantity from purchase register.
-    Shows total quantity purchased for each product (from all purchase records).
+    Get opening stock register showing all products with current stock levels.
+    Shows current stock quantity for each product from the products table.
     """
     check_permission(Permission.OPENING_STOCK, db, username)
 
@@ -963,18 +979,18 @@ def get_opening_stock_register(db: Session = Depends(get_db), username: str = De
                 continue
 
             try:
-                # Calculate total purchase quantity
-                total_purchase_quantity = db.query(func.sum(Purchase.quantity)).filter(Purchase.product_id == product.id).scalar()
-                print(f"  Total purchase quantity: {total_purchase_quantity}")
+                # Use current stock quantity from products table
+                opening_stock_quantity = product.stock
+                print(f"  Current stock quantity: {opening_stock_quantity}")
             except Exception as calc_error:
-                print(f"  ❌ Error calculating purchase quantity: {calc_error}")
+                print(f"  ❌ Error getting stock quantity: {calc_error}")
                 continue
 
             # Handle None case
-            if total_purchase_quantity is None:
-                total_purchase_quantity = 0
+            if opening_stock_quantity is None:
+                opening_stock_quantity = 0
 
-            opening_stock_quantity = int(total_purchase_quantity)
+            opening_stock_quantity = float(opening_stock_quantity)
             stock_value = opening_stock_quantity * product.purchase_price
 
             print(f"  Opening stock quantity: {opening_stock_quantity}")

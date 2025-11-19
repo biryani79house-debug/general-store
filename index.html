@@ -4031,9 +4031,55 @@ function backToHome() {
                 return parseFloat(proportionStr) || 0;
             }
 
-            // Parse proportion strings like "500gm", "750ml", "1kg", "2ltr", etc.
-            const str = proportionStr.toString().toLowerCase();
+            // Handle concatenated proportion strings like "0750ml250ml" -> "750ml" + "250ml"
+            const str = proportionStr.toString().trim().toLowerCase();
 
+            // Check if it contains concatenated proportions with different units
+            // Look for patterns like "750ml250ml" or "500gm250gm" where the units are adjacent
+            const concatenatedPattern = /(ml|gm|kg|ltr)(\d+)(ml|gm|kg|ltr)/;
+            if (concatenatedPattern.test(str)) {
+                console.log('🔄 Detected concatenated proportions in:', str, 'unitType:', unitType);
+
+                // Split the concatenated string by finding all unit+number combinations
+                let total = 0;
+                const parts = str.replace(/^0+/, ''); // Remove leading zeros
+
+                // Use regex to extract all unit-number combinations
+                const regex = /([0-9]+(?:ml|gm|kg|ltr))/g;
+                const matches = parts.match(regex) || [];
+
+                console.log('🔢 Parsing concatenated parts:', matches);
+
+                for (const match of matches) {
+                    const numMatch = match.match(/^([0-9]+)(.*)$/);
+                    if (numMatch) {
+                        const num = parseFloat(numMatch[1]);
+                        const unit = numMatch[2];
+
+                        if (unitType === 'ltr' && (unit === 'ml')) {
+                            total += num / 1000.0;
+                        } else if (unitType === 'ltr' && unit === 'ltr') {
+                            total += num;
+                        } else if (unitType === 'kgs' && (unit === 'gm' || unit === 'g')) {
+                            total += num / 1000.0;
+                        } else if (unitType === 'kgs' && unit === 'kg') {
+                            total += num;
+                        } else if (unitType === 'pcs') {
+                            total += num;
+                        } else {
+                            // Unknown unit combination, assume base unit
+                            total += num;
+                        }
+
+                        console.log('  ', num, unit, '->', unitType === 'ltr' && unit === 'ml' ? num / 1000.0 : unitType === 'kgs' && (unit === 'gm' || unit === 'g') ? num / 1000.0 : num);
+                    }
+                }
+
+                console.log('📊 Total calculated from concatenated proportions:', total);
+                return total > 0 ? total : (unitType === 'kgs' || unitType === 'ltr' ? 1 : 1);
+            }
+
+            // Parse single proportion strings like "500gm", "750ml", "1kg", "2ltr", etc.
             if (unitType === 'kgs') {
                 if (str.includes('kg')) {
                     return parseFloat(str.replace('kg', '')) || 0;
@@ -4047,36 +4093,54 @@ function backToHome() {
                     return (parseFloat(str.replace('ml', '')) || 0) / 1000.0;
                 }
             } else if (unitType === 'pcs') {
-                return parseFloat(str.replace('pcs', '').replace('piece', '').replace('pieces', '')) || 1;
+                return parseFloat(str.replace('pcs', '').replace('piece', '').replace('pieces', '').replace('pc', '')) || 1;
             }
 
             // Try to parse as plain number
             const num = parseFloat(str);
-            return isNaN(num) ? 1 : num;
+            return isNaN(num) ? (unitType === 'kgs' || unitType === 'ltr' ? 1 : 1) : num;
         }
 
         // Helper function to format total units for display
         function formatTotalUnitsDisplay(totalQuantity, unitType, productName) {
-            if (totalQuantity === 0) return '0';
+            if (totalQuantity === 0 || !totalQuantity) return '0';
 
-            const rounded = Math.round(totalQuantity * 100) / 100; // Round to 2 decimal places
+            // Ensure totalQuantity is a number
+            const numericValue = parseFloat(totalQuantity);
+            if (isNaN(numericValue)) return '0';
+
+            // Handle the case where totalQuantity might be a large number due to improper parsing
+            // This is a fallback to handle raw quantities that haven't been properly converted
+            console.log(`${productName}: formatTotalUnitsDisplay called with:`, { totalQuantity, numericValue, unitType });
 
             if (unitType === 'kgs') {
-                if (totalQuantity >= 1) {
+                // If the quantity is very large (like 1500, 3000), likely raw grams that need conversion
+                if (numericValue >= 1000) { // Any value >= 1000 is likely in grams, convert to kg representation
+                    const kgValue = numericValue / 1000;
+                    const rounded = Math.round(kgValue * 100) / 100; // Round to 2 decimal places
+                    return `${rounded} ${rounded === 1 ? 'kg' : 'kgs'}`;
+                } else if (numericValue >= 1) {
+                    const rounded = Math.round(numericValue * 100) / 100;
                     return `${rounded} ${rounded === 1 ? 'kg' : 'kgs'}`;
                 } else {
-                    const grams = Math.round(totalQuantity * 1000);
+                    const grams = Math.round(numericValue * 1000);
                     return `${grams}gm`;
                 }
             } else if (unitType === 'ltr') {
-                if (totalQuantity >= 1) {
+                // If the quantity is very large (like 1000, 2000), likely raw ml that need conversion
+                if (numericValue >= 1000) { // Any value >= 1000 is likely in ml, convert to ltr representation
+                    const ltrValue = numericValue / 1000;
+                    const rounded = Math.round(ltrValue * 100) / 100; // Round to 2 decimal places
+                    return `${rounded} ${rounded === 1 ? 'ltr' : 'ltr'}`;
+                } else if (numericValue >= 1) {
+                    const rounded = Math.round(numericValue * 100) / 100;
                     return `${rounded} ${rounded === 1 ? 'ltr' : 'ltr'}`;
                 } else {
-                    const ml = Math.round(totalQuantity * 1000);
+                    const ml = Math.round(numericValue * 1000);
                     return `${ml}ml`;
                 }
             } else {
-                return `${totalQuantity} ${unitType || 'pcs'}`;
+                return `${numericValue} ${unitType || 'pcs'}`;
             }
         }
 
