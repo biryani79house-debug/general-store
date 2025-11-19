@@ -1482,37 +1482,85 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
     sales_created = []
     total_bill_amount = 0
 
+    # Helper function to parse quantity and get numeric value for stock calculations
+    def get_numeric_quantity(quantity, product):
+        """Convert quantity to numeric value for stock calculations"""
+        if isinstance(quantity, str):
+            # Check if it's a proportion string from product proportions
+            if product.proportion_prices:
+                try:
+                    proportion_prices = json.loads(product.proportion_prices)
+                    if quantity in proportion_prices:
+                        # This is a proportion - calculate how many base units it represents
+                        unit_price = float(proportion_prices[quantity])
+                        return product.selling_price / unit_price if unit_price > 0 else 1.0
+                except:
+                    pass
+                # Try to parse as pure number
+                try:
+                    return float(quantity)
+                except ValueError:
+                    return 1.0  # fallback
+            else:
+                # Try to parse as pure number
+                try:
+                    return float(quantity)
+                except ValueError:
+                    return 1.0  # fallback
+        elif isinstance(quantity, (int, float)):
+            return float(quantity)
+        else:
+            return 1.0  # fallback
+
     # Process each item in the sale
     for item in sale.items:
         product = db.query(Product).filter(Product.id == item.product_id).first()
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with ID {item.product_id} not found")
-        if product.stock < item.quantity:
+
+        # Get numeric quantity for stock calculations
+        numeric_quantity = get_numeric_quantity(item.quantity, product)
+
+        if product.stock < numeric_quantity:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Not enough stock available for {product.name}")
 
-        # Check if this is a proportion-based sale by looking at the product name in the request
-        # The frontend might send proportion information in the product name like "gold drop oil (500ml)"
+        # Calculate the correct total_amount based on proportion prices if applicable
         proportion = None
         unit_price = product.selling_price  # Default to base price
+        total_amount = 0
 
-        # For now, we'll use the base selling price since proportion info isn't passed from frontend
-        # This will be updated when the frontend sends proportion information
-        total_amount = unit_price * item.quantity
+        if isinstance(item.quantity, str) and product.proportion_prices:
+            try:
+                proportion_prices = json.loads(product.proportion_prices)
+                if item.quantity in proportion_prices:
+                    # This is a proportion-based sale
+                    proportion = item.quantity
+                    unit_price = float(proportion_prices[item.quantity])
+                    total_amount = unit_price * 1  # quantity is 1 for proportions
+                else:
+                    # Fallback to base price
+                    total_amount = unit_price * numeric_quantity
+            except Exception as e:
+                print(f"⚠️ Error parsing proportion prices: {e}")
+                total_amount = unit_price * numeric_quantity
+        else:
+            # Regular numeric quantity
+            total_amount = unit_price * numeric_quantity
 
         # Create sale record with the SAME bill_id for all products in this transaction
         db_sale = Sale(
             bill_id=bill_id,
             product_id=item.product_id,
-            quantity=item.quantity,
+            quantity=str(item.quantity) if not isinstance(item.quantity, str) else item.quantity,
             total_amount=total_amount,
-            proportion=proportion,  # Will be updated when frontend sends proportion info
-            unit_price=unit_price,  # Store the actual unit price used for this sale
+            proportion=proportion,
+            unit_price=unit_price,
             sale_date=datetime.now(IST),
             created_by=created_by
         )
 
-        # Reduce product stock
-        product.stock -= item.quantity
+        # Reduce product stock by the numeric units sold
+        product.stock -= numeric_quantity
 
         db.add(db_sale)
         sales_created.append(db_sale)
