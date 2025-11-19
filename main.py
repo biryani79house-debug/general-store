@@ -311,7 +311,7 @@ class SalesLedgerEntry(BaseModel):
     product_id: int
     product_name: str
     product_category: Optional[str] = None
-    quantity: int
+    quantity: Union[int, str]  # Allow both int and str for proportion quantities like "500ml"
     unit_price: float
     total_amount: float
     customer_info: Optional[str] = None
@@ -2869,59 +2869,60 @@ def get_sales_ledger(
         # Convert to simple format
         ledger_entries = []
         for sale in sales:
-            # Parse quantity - handle string quantities like "500gm", "250ml", "2"
+            # Calculate the correct numeric quantity for accounting purposes
             quantity_str = sale.quantity
-            quantity = 0
 
-            try:
-                # Try to parse as float first (for cases like "2")
-                quantity = float(quantity_str)
-            except ValueError:
-                # If it's a proportion string like "500gm", we need to calculate the quantity
-                # For proportion items, the quantity stored is the proportion string
-                # We need to find which proportion it matches and calculate the quantity
-                if sale.product and sale.product.proportion_prices:
-                    try:
-                        proportion_prices = json.loads(sale.product.proportion_prices)
-                        # Check if quantity_str matches any proportion name
-                        for prop_name, prop_price in proportion_prices.items():
-                            if quantity_str == prop_name:
-                                # Found the proportion, calculate quantity based on price
-                                prop_price_float = float(prop_price)
-                                quantity = sale.total_amount / prop_price_float if prop_price_float > 0 else 1
-                                break
-                    except:
-                        pass
+            # Start with the assumption that quantity_str is the proportion like "500ml"
+            # and we need to determine both the numeric base units AND display format
+            numeric_quantity = 1.0  # This represents how many "proportion items" were sold
+            unit_price = sale.total_amount  # Each proportion item costs its proportion price
 
-                # If we still don't have quantity, assume 1
-                if quantity == 0:
-                    quantity = 1
+            # Check if this was a proportion sale (stored as proportion string)
+            if sale.product and sale.product.proportion_prices:
+                try:
+                    proportion_prices = json.loads(sale.product.proportion_prices)
+                    # If quantity_str matches a proportion name, this was a proportion sale
+                    if quantity_str in proportion_prices:
+                        # This sale represents 1 proportion item (e.g., 1 x 500ml bottle)
+                        numeric_quantity = 1.0
+                        unit_price = float(proportion_prices[quantity_str])
+                        print(f"📊 Proportion sale: {sale.product.name} x{numeric_quantity} {quantity_str} @ ₹{unit_price:.2f}")
+                    else:
+                        # Not a proportion, might be regular sale, check if it's numeric
+                        try:
+                            numeric_quantity = float(quantity_str)
+                            unit_price = sale.total_amount / numeric_quantity if numeric_quantity > 0 else sale.total_amount
+                        except ValueError:
+                            # Not numeric either, assume 1 unit
+                            numeric_quantity = 1.0
+                            unit_price = sale.total_amount
+                except Exception as e:
+                    print(f"⚠️ Error parsing proportion data for sale {sale.id}: {e}")
+                    # Fallback
+                    numeric_quantity = 1.0
+                    unit_price = sale.total_amount
+            else:
+                # No proportion prices, check if quantity_str is numeric
+                try:
+                    numeric_quantity = float(quantity_str)
+                    unit_price = sale.total_amount / numeric_quantity if numeric_quantity > 0 else sale.total_amount
+                except ValueError:
+                    # Not numeric, assume 1 unit
+                    numeric_quantity = 1.0
+                    unit_price = sale.total_amount
 
-            unit_price = sale.total_amount / quantity if quantity > 0 else 0
+            # For display in sales ledger, show the actual stored quantity (e.g., "500ml", "2")
+            # This preserves the exact quantity description stored with the sale
+            display_quantity = quantity_str
 
-            # For display in sales ledger, use the original quantity string (e.g., "500ml", "250gm", "2")
-            # This preserves the user-friendly proportion descriptions
-            display_quantity = sale.quantity
-
-            # Try to convert to int for numeric quantities, but keep original string for proportions
-            try:
-                # If it's a pure numeric string, convert to int
-                if display_quantity.isdigit():
-                    display_quantity_int = int(display_quantity)
-                else:
-                    # For proportion strings like "500ml", "250gm", keep as string but try to show numeric value for UI
-                    display_quantity_int = int(float(display_quantity)) if display_quantity.replace('.', '').isdigit() else 1
-            except ValueError:
-                # If it can't be converted to int, use 1 as fallback
-                display_quantity_int = 1
-
+            # For API compatibility, send as string to preserve proportion formats
             ledger_entries.append(SalesLedgerEntry(
                 sale_id=sale.id,
                 date=sale.sale_date,
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=display_quantity_int,  # Send numeric value for API compatibility
+                quantity=display_quantity,  # Use the stored quantity string (e.g., "500ml", "2")
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"
