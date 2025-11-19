@@ -2218,32 +2218,35 @@ function backToHome() {
 
         async function recordSale(saleItems) {
             console.log('📦 Recording sale items:', saleItems);
-            
+
             try {
-                for (const item of saleItems) {
+                // Send all items in a single request as expected by the backend
+                const requestBody = {
+                    items: saleItems.map(item => ({
+                        product_id: item.product_id,
+                        quantity: item.quantity
+                    }))
+                };
+
                 const response = await fetch(`${backendURL}/sales/`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify({
-                        product_id: item.product_id,
-                        quantity: item.quantity
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
-                    console.log(`📊 Response for product ${item.product_id}: ${response.status}`);
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        console.log(`❌ Failed for product ${item.product_id}:`, errorData);
-                        throw new Error(`Failed to record sale for ${item.product_name}`);
-                    }
-                    
-                    const result = await response.json();
-                    console.log(`✅ Sale recorded for ${item.product_name}:`, result);
+                console.log(`📊 Response for sale request: ${response.status}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.log(`❌ Failed to record sale:`, errorData);
+                    throw new Error(`Failed to record sale: ${errorData.detail || errorData.message || 'Unknown error'}`);
                 }
-                
-                return { message: "All sales recorded successfully" };
-                
+
+                const result = await response.json();
+                console.log(`✅ Sale recorded successfully:`, result);
+
+                return result;
+
             } catch (error) {
                 console.error('Error recording sale:', error);
                 throw error;

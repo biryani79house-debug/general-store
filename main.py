@@ -620,9 +620,9 @@ app = FastAPI(
 # Allow ALL origins, headers, and methods to prevent CORS issues during development and production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow these methods
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
