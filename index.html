@@ -2302,9 +2302,11 @@ function backToHome() {
                         }
 
                         // Create sale item in the format expected by SaleCreate.items
+                        // For proportional products, send the proportion string, otherwise send the float quantity
+                        const itemQuantity = proportion ? proportion : floatQuantity;
                         saleItems.push({
                             product_id: productId,
-                            quantity: floatQuantity
+                            quantity: itemQuantity
                         });
 
                         hasValidItems = true;
@@ -3558,6 +3560,9 @@ function backToHome() {
                 allSalesData = await response.json();
                 console.log('✅ Sales data received:', allSalesData);
 
+                // Sort sales data by ID in descending order (most recent/highest ID first)
+                allSalesData.sort((a, b) => (b.id || b.sale_id || 0) - (a.id || a.sale_id || 0));
+
             await loadProductDropdownForFilter('sales-product-filter');
             console.log('🔄 Loading sales ledger category filter...');
             await loadCategoriesDropdownForFilter('sales-ledger-category-filter');
@@ -3652,12 +3657,13 @@ function backToHome() {
                     productMap[product.id] = product;
                 });
 
+                // Use sequential serial numbers starting from 1 for display (newest entries get highest numbers)
                 for (let index = 0; index < salesData.length; index++) {
                     const sale = salesData[index];
                     console.log('🔄 Processing sale:', sale);
                     const formatted = formatDateTime(sale.date);
-                    // Use sequential ID starting from 1 instead of database sale_id
-                    const saleId = index + 1;
+                    // Use sequential serial numbers starting from 1 (newest first)
+                    const saleId = salesData.length - index;
                     const price = sale.unit_price || (sale.total_amount / sale.quantity) || 0;
                     totalAmount += sale.total_amount;
 
@@ -5645,6 +5651,9 @@ function backToHome() {
 
                 const salesRegisterData = await response.json();
                 console.log('✅ Sales register data received:', salesRegisterData);
+
+                // Sort sales register data by ID in descending order (most recent/highest ID first)
+                salesRegisterData.sort((a, b) => (b.sales_id || b.id || 0) - (a.sales_id || a.id || 0));
 
                 // Load filter dropdowns
                 await loadProductDropdownForFilter('register-product-filter');
