@@ -4025,6 +4025,61 @@ function backToHome() {
             }
         }
 
+        // Helper function to parse proportion strings to numeric values in base units
+        function parseProportionToNumber(proportionStr, unitType) {
+            if (!proportionStr || typeof proportionStr === 'number') {
+                return parseFloat(proportionStr) || 0;
+            }
+
+            // Parse proportion strings like "500gm", "750ml", "1kg", "2ltr", etc.
+            const str = proportionStr.toString().toLowerCase();
+
+            if (unitType === 'kgs') {
+                if (str.includes('kg')) {
+                    return parseFloat(str.replace('kg', '')) || 0;
+                } else if (str.includes('gm') || str.includes('g')) {
+                    return (parseFloat(str.replace('gm', '').replace('g', '')) || 0) / 1000.0;
+                }
+            } else if (unitType === 'ltr') {
+                if (str.includes('ltr')) {
+                    return parseFloat(str.replace('ltr', '')) || 0;
+                } else if (str.includes('ml')) {
+                    return (parseFloat(str.replace('ml', '')) || 0) / 1000.0;
+                }
+            } else if (unitType === 'pcs') {
+                return parseFloat(str.replace('pcs', '').replace('piece', '').replace('pieces', '')) || 1;
+            }
+
+            // Try to parse as plain number
+            const num = parseFloat(str);
+            return isNaN(num) ? 1 : num;
+        }
+
+        // Helper function to format total units for display
+        function formatTotalUnitsDisplay(totalQuantity, unitType, productName) {
+            if (totalQuantity === 0) return '0';
+
+            const rounded = Math.round(totalQuantity * 100) / 100; // Round to 2 decimal places
+
+            if (unitType === 'kgs') {
+                if (totalQuantity >= 1) {
+                    return `${rounded} ${rounded === 1 ? 'kg' : 'kgs'}`;
+                } else {
+                    const grams = Math.round(totalQuantity * 1000);
+                    return `${grams}gm`;
+                }
+            } else if (unitType === 'ltr') {
+                if (totalQuantity >= 1) {
+                    return `${rounded} ${rounded === 1 ? 'ltr' : 'ltr'}`;
+                } else {
+                    const ml = Math.round(totalQuantity * 1000);
+                    return `${ml}ml`;
+                }
+            } else {
+                return `${totalQuantity} ${unitType || 'pcs'}`;
+            }
+        }
+
         async function calculateAndDisplayProfitLoss(salesData, purchasesData, productsData, dateFrom = null, dateTo = null) {
             // Check if no products found for filters
             if (!productsData || productsData.length === 0) {
@@ -4172,7 +4227,9 @@ function backToHome() {
                     if (!acc[key]) {
                         acc[key] = { quantity: 0, totalAmount: 0 };
                     }
-                    acc[key].quantity += sale.quantity || 0;
+                    // Parse proportion strings to numbers for proper summation
+                    const parsedQuantity = parseProportionToNumber(sale.quantity, sale.unit_type);
+                    acc[key].quantity += parsedQuantity;
                     acc[key].totalAmount += sale.total_amount || 0;
                     return acc;
                 }, {});
@@ -4216,6 +4273,12 @@ function backToHome() {
                     ...Object.keys(closingStockByProduct)
                 ]);
 
+                // Get unit types for each product
+                const productUnitTypes = {};
+                productsData.forEach(product => {
+                    productUnitTypes[product.name] = product.unit_type || 'pcs';
+                });
+
                 // Generate rows for each product
                 for (const productName of allProductNames) {
                     const productSales = salesByProduct[productName] || { quantity: 0, totalAmount: 0 };
@@ -4223,7 +4286,8 @@ function backToHome() {
                     const productOpeningStock = openingStockByProduct[productName] || 0;
                     const productClosingStock = closingStockByProduct[productName] || 0;
 
-                    const productUnitsSold = productSales.quantity;
+                    const unitType = productUnitTypes[productName] || 'pcs';
+                    const productUnitsSold = formatTotalUnitsDisplay(productSales.quantity, unitType, productName);
                     // Calculate gross profit: Sales - Purchases + Closing Stock [since Opening Stock is part of purchase value and we don't want double-deductions]
                     const productGrossProfit = productSales.totalAmount - productPurchases.totalCost + productClosingStock;
                     const productProfitMargin = productSales.totalAmount > 0 ? (productGrossProfit / productSales.totalAmount) * 100 : 0;
