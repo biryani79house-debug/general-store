@@ -2899,13 +2899,16 @@ def get_sales_ledger(
 
             unit_price = sale.total_amount / quantity if quantity > 0 else 0
 
+            # Parse quantity properly to handle proportion strings like "500ml"
+            parsed_quantity = parse_sale_quantity(sale, db)
+
             ledger_entries.append(SalesLedgerEntry(
                 sale_id=sale.id,
                 date=sale.sale_date,
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=int(float(sale.quantity)),  # Use original quantity string for proportion display, but cast to int for model
+                quantity=int(parsed_quantity) if isinstance(parsed_quantity, (int, float)) else 1,  # Use parsed numeric quantity for model
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"
