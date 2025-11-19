@@ -16,14 +16,12 @@ if not token:
 
 print('✅ Login successful, got token')
 
-# Prepare sale data
+# Prepare sale data for product with proportion quantity
 sale_data = {
-    'items': [
-        {
-            'product_id': 1,  # Using product ID 1 (should be available)
-            'quantity': '500ml'  # Proportion quantity
-        }
-    ]
+    'items': [{
+        'product_id': 1,
+        'quantity': '500ml'
+    }]
 }
 
 # Set authorization header
@@ -36,10 +34,14 @@ headers = {
 print('🛒 Testing sales endpoint with proportion quantity...')
 sales_response = requests.post(url, json=sale_data, headers=headers)
 
+print(f'Status Code: {sales_response.status_code}')
+print(f'Response: {sales_response.text}')
+
 if sales_response.status_code == 201:
-    print('✅ Sales successful!')
     result = sales_response.json()
-    print(f'Success details: Bill ID: {result["bill_id"]}, Total: ₹{result["total_amount"]:.2f}')
+    print('✅ Sales successful!')
+    print(f'Bill ID: {result["bill_id"]}, Total: ₹{result["total_amount"]:.2f}')
+    print('✅ 422 error is fixed!')
 else:
     print(f'❌ Sales failed: {sales_response.status_code}')
-    print(f'Error: {sales_response.text}')
+    print(f'Error response: {sales_response.text}')

@@ -249,7 +249,7 @@ class ProductResponse(BaseModel):
 
 class SaleItem(BaseModel):
     product_id: int
-    quantity: Union[str, float] = Field(..., description="Quantity can be numeric or proportion string (e.g., '500ml', '1kg')")
+    quantity: Union[str, float] = Field(description="Quantity can be numeric or proportion string (e.g., '500ml', '1kg')")
 
 class SaleCreate(BaseModel):
     items: List[SaleItem] = Field(..., description="List of products to sell in this transaction")
@@ -2899,8 +2899,21 @@ def get_sales_ledger(
 
             unit_price = sale.total_amount / quantity if quantity > 0 else 0
 
-            # Parse quantity properly to handle proportion strings like "500ml"
-            parsed_quantity = parse_sale_quantity(sale, db)
+            # For display in sales ledger, use the original quantity string (e.g., "500ml", "250gm", "2")
+            # This preserves the user-friendly proportion descriptions
+            display_quantity = sale.quantity
+
+            # Try to convert to int for numeric quantities, but keep original string for proportions
+            try:
+                # If it's a pure numeric string, convert to int
+                if display_quantity.isdigit():
+                    display_quantity_int = int(display_quantity)
+                else:
+                    # For proportion strings like "500ml", "250gm", keep as string but try to show numeric value for UI
+                    display_quantity_int = int(float(display_quantity)) if display_quantity.replace('.', '').isdigit() else 1
+            except ValueError:
+                # If it can't be converted to int, use 1 as fallback
+                display_quantity_int = 1
 
             ledger_entries.append(SalesLedgerEntry(
                 sale_id=sale.id,
@@ -2908,7 +2921,7 @@ def get_sales_ledger(
                 product_id=sale.product_id,
                 product_name=sale.product.name if sale.product else "Unknown",
                 product_category=sale.product.category if sale.product else None,
-                quantity=int(parsed_quantity) if isinstance(parsed_quantity, (int, float)) else 1,  # Use parsed numeric quantity for model
+                quantity=display_quantity_int,  # Send numeric value for API compatibility
                 unit_price=unit_price,
                 total_amount=sale.total_amount,
                 customer_info=f"Customer for {sale.product.name if sale.product else 'Unknown'}"

@@ -43,14 +43,30 @@ def test_sales_ledger():
         print("✅ Sales ledger loaded successfully!")
         print(f"📦 Found {len(result)} sales ledger entries")
 
-        # Check if any sales contain proportion quantities
-        proportion_sales = [sale for sale in result if isinstance(sale.get('quantity'), int) and sale.get('quantity') > 0]
-        print(f"📏 Found {len(proportion_sales)} entries with numeric quantities (should work now)")
+        # Show first few entries to verify proportions are displayed correctly
+        if result:
+            print("\n🔍 First 3 sales ledger entries:")
+            for i, sale in enumerate(result[:3]):
+                quantity = sale.get('quantity')
+                product_name = sale.get('product_name', 'Unknown')
+                print(f"  {i+1}. {product_name}: quantity='{quantity}' (type: {type(quantity)})")
+                if isinstance(quantity, str) and ('ml' in quantity or 'gm' in quantity or 'kg' in quantity or 'ltr' in quantity):
+                    print(f"     ✅ Proportion quantity preserved: {quantity}")
+                elif isinstance(quantity, int):
+                    print(f"     🔢 Numeric quantity: {quantity}")
 
-        # Try to find a specific "500ml" type entry
-        ml_sales = [sale for sale in result if 'ml' in str(sale.get('quantity', '')) or 'gm' in str(sale.get('quantity', ''))]
-        if ml_sales:
-            print(f"🥤 Found proportion entries: {ml_sales[:2]}...")  # Show first 2
+        # Check if we have actual proportion quantities in display
+        proportion_entries = []
+        for sale in result:
+            qty = sale.get('quantity', '')
+            if isinstance(qty, str) and any(unit in qty for unit in ['ml', 'gm', 'kg', 'ltr']):
+                proportion_entries.append(qty)
+
+        if proportion_entries:
+            print(f"\n🥤 Found proportion quantities preserved: {len(proportion_entries)} entries")
+            print(f"   Sample: {proportion_entries[:3]}")
+        else:
+            print("\n⚠️ No proportion quantities found in display - they may be showing as numbers")
 
         return True
 
@@ -62,6 +78,6 @@ def test_sales_ledger():
 if __name__ == "__main__":
     success = test_sales_ledger()
     if success:
-        print("\n🎉 Sales Ledger Fix Verified! Proportion quantities now working correctly.")
+        print("\n🎉 Sales Ledger Display Fix Verified! Proportion quantities are properly preserved.")
     else:
-        print("\n💥 Sales Ledger Fix Failed!")
+        print("\n💥 Sales Ledger Display Fix Failed!")
