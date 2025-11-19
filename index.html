@@ -2265,14 +2265,7 @@ function backToHome() {
                 return;
             }
 
-            const phoneNumber = WHATSAPP_NUMBER;
-            if (!phoneNumber || phoneNumber.trim() === '') {
-                showNotification("WhatsApp number not configured!");
-                return;
-            }
-
-            let message = "Hi, I would like to place an order:%0a%0a";
-            let total = 0;
+            // Build sale items array for backend API
             const saleItems = [];
             let hasValidItems = false;
 
@@ -2301,30 +2294,17 @@ function backToHome() {
                             return;
                         }
 
-                        const price = cartItem.price; // Use the stored proportion-specific price
-                        if (isNaN(price) || price <= 0) {
-                            showNotification("Invalid price for product in cart!");
+                        // Convert quantity to float as expected by backend SaleCreate model
+                        const floatQuantity = parseFloat(quantity);
+                        if (isNaN(floatQuantity) || floatQuantity <= 0) {
+                            showNotification("Invalid quantity format!");
                             return;
                         }
 
-                        const itemTotal = quantity * price;
-                        total += itemTotal;
-
-                        // Build product name with proportion if available
-                        let displayName = product.name;
-                        if (proportion) {
-                            displayName += ` (${proportion})`;
-                        }
-
-                        message += `• ${quantity}x ${displayName} - ₹${itemTotal.toFixed(2)}%0a`;
-
+                        // Create sale item in the format expected by SaleCreate.items
                         saleItems.push({
-                            product_id: product.id,
-                            product_name: displayName,
-                            quantity: quantity,
-                            price: price,
-                            total: itemTotal,
-                            proportion: proportion
+                            product_id: productId,
+                            quantity: floatQuantity
                         });
 
                         hasValidItems = true;
@@ -2336,13 +2316,6 @@ function backToHome() {
                 showNotification("No valid items in cart!");
                 return;
             }
-
-            if (total <= 0) {
-                showNotification("Invalid order total!");
-                return;
-            }
-
-            message += `%0a*Total: ₹${total.toFixed(2)}*%0a%0aPlease confirm my order. Thank you!`;
 
             if (saleItems.length > 0) {
                 recordSale(saleItems).then(result => {

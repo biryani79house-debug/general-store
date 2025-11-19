@@ -5,7 +5,7 @@ import csv
 import urllib.parse
 import json
 from contextlib import asynccontextmanager
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, status, Depends, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -246,7 +246,7 @@ class ProductResponse(BaseModel):
 
 class SaleItem(BaseModel):
     product_id: int
-    quantity: float = Field(..., gt=0, description="Quantity must be positive")
+    quantity: Union[str, float] = Field(..., description="Quantity can be numeric or proportion string (e.g., '500ml', '1kg')")
 
 class SaleCreate(BaseModel):
     items: List[SaleItem] = Field(..., description="List of products to sell in this transaction")
