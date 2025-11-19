@@ -189,6 +189,9 @@ class Sale(Base):
     customer_name = Column(String, nullable=True)
     customer_phone = Column(String, nullable=True)
     customer_address = Column(String, nullable=True)  # Add missing customer_address field
+    # Add proportion and unit price fields
+    proportion = Column(String, nullable=True)  # Store proportion like "500ml", "250gm" etc.
+    unit_price = Column(Float, nullable=True)   # Store the unit price per proportion
     product = relationship("Product")
     user = relationship("User", lazy=True)
 
@@ -618,11 +621,25 @@ app = FastAPI(
 
 # === CORS CONFIGURATION ===
 # Allow ALL origins, headers, and methods to prevent CORS issues during development and production
+# Include specific Railway and local development origins
+cors_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "https://general-store-kappa.vercel.app",
+    "https://web-production-9d240.up.railway.app",
+    "http://0.0.0.0:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "*"  # Keep wildcard as fallback for development
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow these methods
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
     max_age=600,
