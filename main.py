@@ -1487,26 +1487,63 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
         """Convert quantity to numeric value for stock calculations"""
         if isinstance(quantity, str):
             # Check if it's a proportion string from product proportions
-            if product.proportion_prices:
+            if product and product.proportion_prices:
                 try:
                     proportion_prices = json.loads(product.proportion_prices)
                     if quantity in proportion_prices:
                         # This is a proportion - calculate how many base units it represents
-                        unit_price = float(proportion_prices[quantity])
-                        return product.selling_price / unit_price if unit_price > 0 else 1.0
-                except:
+                        proportion_price = float(proportion_prices[quantity])
+
+                        # For proportions, the quantity represents the proportion size, so we need to calculate
+                        # how many base units this represents (e.g., "500ml" = 0.5 liters for liters)
+                        # But in our sales logic, we want the equivalent base units sold
+
+                        # Extract the numeric value from the proportion string to get the actual amount sold
+                        # For example: "500ml" -> 0.5 (liters), "250gm" -> 0.25 (kg)
+                        unit_type = product.unit_type
+                        if unit_type == 'kgs':
+                            if quantity.endswith('gm') or quantity.endswith('g'):
+                                try:
+                                    grams = float(quantity.replace('gm', '').replace('g', ''))
+                                    return grams / 1000.0  # Convert grams to kg
+                                except ValueError:
+                                    return 1.0
+                            elif quantity.endswith('kg'):
+                                try:
+                                    return float(quantity.replace('kg', ''))
+                                except ValueError:
+                                    return 1.0
+                            else:
+                                # Unknown format, assume 1 base unit
+                                return 1.0
+                        elif unit_type == 'ltr':
+                            if quantity.endswith('ml'):
+                                try:
+                                    ml = float(quantity.replace('ml', ''))
+                                    return ml / 1000.0  # Convert ml to liters
+                                except ValueError:
+                                    return 1.0
+                            elif quantity.endswith('ltr'):
+                                try:
+                                    return float(quantity.replace('ltr', ''))
+                                except ValueError:
+                                    return 1.0
+                            else:
+                                # Unknown format, assume 1 base unit
+                                return 1.0
+                        else:
+                            # For pcs, each proportion represents 1 piece
+                            return 1.0
+                except Exception as e:
+                    print(f"⚠️ Error parsing proportions for {quantity}: {e}")
+                    # Fallback to numeric parsing
                     pass
-                # Try to parse as pure number
-                try:
-                    return float(quantity)
-                except ValueError:
-                    return 1.0  # fallback
-            else:
-                # Try to parse as pure number
-                try:
-                    return float(quantity)
-                except ValueError:
-                    return 1.0  # fallback
+
+            # Try to parse as pure number
+            try:
+                return float(quantity)
+            except ValueError:
+                return 1.0  # fallback
         elif isinstance(quantity, (int, float)):
             return float(quantity)
         else:
