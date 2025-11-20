@@ -1736,7 +1736,7 @@ function backToHome() {
         }
 
         // Fetch calculated stock data and merge it with products
-        async function fetchAndMergeStockData() {
+        async function fetchAndMergeStockData(forceRefresh = false) {
             try {
                 console.log("📊 Fetching calculated stock data for exact quantities...");
 
@@ -1758,17 +1758,23 @@ function backToHome() {
                     stockMap[item.product_id] = item.stock;
                 });
 
+                let updatedCount = 0;
                 // Merge calculated stock with products (overwrite the stored stock)
                 products.forEach(product => {
-                    if (stockMap[product.id] !== undefined) {
-                        // Store the original stock and replace with calculated stock
-                        product.original_stock = product.stock;
-                        product.stock = stockMap[product.id];
-                        console.log(`📝 Updated stock for ${product.name}: ${product.original_stock} -> ${product.stock}`);
+                    const oldStock = product.stock;
+                    const newStock = stockMap[product.id];
+                    if (newStock !== undefined) {
+                        // Only update if stock actually changed or we want to force refresh
+                        if (oldStock !== newStock || forceRefresh) {
+                            product.original_stock = oldStock;
+                            product.stock = newStock;
+                            updatedCount++;
+                            console.log(`📝 Updated stock for ${product.name}: ${oldStock} -> ${newStock}`);
+                        }
                     }
                 });
 
-                console.log("✅ Merged calculated stock with products");
+                console.log(`✅ Merged calculated stock with ${updatedCount} products`);
 
             } catch (error) {
                 console.error("❌ Error fetching calculated stock data:", error);

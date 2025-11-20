@@ -1171,6 +1171,11 @@ def get_products_stock_snapshot(
             total_sales = sum(parse_sale_quantity(s, db) for s in sales)
             calculated_stock = total_purchases - total_sales
 
+            # If no transactions exist, use the stored stock value
+            # This handles products with initial stock that haven't been sold yet
+            if total_purchases == 0 and total_sales == 0:
+                calculated_stock = product.stock
+
             # If date filters are specified, calculate stock as of that date
             if filter_date_to:
                 # Get all purchases up to the end of the filter date

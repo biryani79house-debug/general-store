@@ -27,7 +27,10 @@ def test_sale():
         print("Cannot proceed without authentication")
         return
 
-    headers = {'Authorization': f'Bearer {token}'}
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'ngrok-skip-browser-warning': 'true'
+    }
 
     print("\n🔍 Finding almonds product...")
 

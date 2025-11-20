@@ -167,10 +167,10 @@
                 // Check if product has multiple proportions
                 if (product.proportions && Array.isArray(product.proportions) && product.proportions.length > 0) {
                     // Product with multiple proportions - show proportion selection
+                    // Use total stock for all proportions since we don't track stock per proportion
+                    const isOutOfStock = product.stock <= 0;
                     const proportionButtons = product.proportions.map(proportion => {
-                        const proportionStock = product.proportion_stocks ? product.proportion_stocks[proportion] || 0 : product.stock || 0;
-                        const isProportionOutOfStock = proportionStock <= 0;
-                        const proportionButtonClass = isProportionOutOfStock
+                        const proportionButtonClass = isOutOfStock
                             ? "bg-gray-400 text-white text-xs font-bold py-1 px-2 rounded cursor-not-allowed"
                             : "bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-blue-600 transition-colors";
 
@@ -178,8 +178,8 @@
                             <button class="add-to-cart ${proportionButtonClass}"
                                     data-id="${product.id}_${proportion}"
                                     data-price="${product.price}"
-                                    ${isProportionOutOfStock ? 'disabled' : ''}>
-                                ${proportion} ${isProportionOutOfStock ? '(Out)' : ''}
+                                    ${isOutOfStock ? 'disabled' : ''}>
+                                ${proportion} ${isOutOfStock ? '(Out)' : ''}
                             </button>
                         `;
                     }).join('');

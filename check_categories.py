@@ -1,24 +1,26 @@
-import requests
+import sqlite3
 
-# First check what products exist
-products_response = requests.get('https://web-production-9d240.up.railway.app/products', headers={'ngrok-skip-browser-warning': 'true', 'Content-Type': 'application/json'})
+conn = sqlite3.connect('kirana_store.db')
+cursor = conn.cursor()
 
-if products_response.status_code == 200:
-    products = products_response.json()
-    print('Current products:')
-    for p in products[:10]:  # Show first 10 products
-        category = p.get('category', 'None')
-        print(f'  - {p["name"]}: category="{category}"')
-else:
-    print('Error getting products:', products_response.text)
+# Check distinct categories
+cursor.execute('SELECT DISTINCT category FROM products WHERE category IS NOT NULL')
+categories = cursor.fetchall()
+print('Categories found:', [c[0] for c in categories])
 
-# Check categories
-categories_response = requests.get('https://web-production-9d240.up.railway.app/categories', headers={'ngrok-skip-browser-warning': 'true', 'Content-Type': 'application/json'})
+# Check case sensitivity
+cursor.execute('SELECT COUNT(*) FROM products WHERE category LIKE "%rocer%"')
+count = cursor.fetchone()[0]
+print(f'Products with "rocer" in category: {count}')
 
-if categories_response.status_code == 200:
-    categories = categories_response.json()
-    print(f'\nAvailable categories ({len(categories)}):')
-    for c in categories:
-        print(f'  - {c["name"]} (ID: {c["id"]})')
-else:
-    print('Error getting categories:', categories_response.text)
+# Check exact grocery matches case insensitive
+cursor.execute('SELECT COUNT(*) FROM products WHERE LOWER(category) = "groceries"')
+groceries_count = cursor.fetchone()[0]
+print(f'Products with category "groceries" (case insensitive): {groceries_count}')
+
+# Check what the filter is actually doing
+cursor.execute('SELECT category, COUNT(*) FROM products GROUP BY category')
+category_counts = cursor.fetchall()
+print('Category counts:', category_counts)
+
+conn.close()
