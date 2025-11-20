@@ -1522,49 +1522,54 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
                 try:
                     proportion_prices = json.loads(product.proportion_prices)
                     if quantity in proportion_prices:
-                        # This is a proportion - calculate how many base units it represents
-                        proportion_price = float(proportion_prices[quantity])
-
-                        # For proportions, the quantity represents the proportion size, so we need to calculate
-                        # how many base units this represents (e.g., "500ml" = 0.5 liters for liters)
-                        # But in our sales logic, we want the equivalent base units sold
-
-                        # Extract the numeric value from the proportion string to get the actual amount sold
-                        # For example: "500ml" -> 0.5 (liters), "250gm" -> 0.25 (kg)
+                        # This is a proportion sale - calculate kg/ltr equivalent
                         unit_type = product.unit_type
+
+                        # For proportion sales, calculate the base unit equivalent
+                        # Example: "750gm" almonds = 0.75 kg, "500ml" milk = 0.5 ltr
                         if unit_type == 'kgs':
-                            if quantity.endswith('gm') or quantity.endswith('g'):
+                            if 'gm' in quantity or 'g' in quantity:
+                                # Extract grams and convert to kg
+                                qty_text = quantity.replace('gm', '').replace('g', '')
                                 try:
-                                    grams = float(quantity.replace('gm', '').replace('g', ''))
-                                    return grams / 1000.0  # Convert grams to kg
+                                    grams = float(qty_text)
+                                    return grams / 1000.0  # Convert to kg
                                 except ValueError:
-                                    return 1.0
-                            elif quantity.endswith('kg'):
+                                    pass
+                            elif 'kg' in quantity:
+                                # Already in kg
+                                qty_text = quantity.replace('kg', '')
                                 try:
-                                    return float(quantity.replace('kg', ''))
+                                    return float(qty_text)
                                 except ValueError:
-                                    return 1.0
-                            else:
-                                # Unknown format, assume 1 base unit
-                                return 1.0
+                                    pass
+
                         elif unit_type == 'ltr':
-                            if quantity.endswith('ml'):
+                            if 'ml' in quantity:
+                                # Extract ml and convert to ltr
+                                qty_text = quantity.replace('ml', '')
                                 try:
-                                    ml = float(quantity.replace('ml', ''))
-                                    return ml / 1000.0  # Convert ml to liters
+                                    ml = float(qty_text)
+                                    return ml / 1000.0  # Convert to ltr
                                 except ValueError:
-                                    return 1.0
-                            elif quantity.endswith('ltr'):
+                                    pass
+                            elif 'ltr' in quantity:
+                                # Already in ltr
+                                qty_text = quantity.replace('ltr', '')
                                 try:
-                                    return float(quantity.replace('ltr', ''))
+                                    return float(qty_text)
                                 except ValueError:
-                                    return 1.0
-                            else:
-                                # Unknown format, assume 1 base unit
-                                return 1.0
-                        else:
-                            # For pcs, each proportion represents 1 piece
-                            return 1.0
+                                    pass
+
+                        # If parsing failed, fallback to proportion price ratio method
+                        try:
+                            proportion_price = float(proportion_prices[quantity])
+                            base_price = product.selling_price
+                            if base_price > 0:
+                                return proportion_price / base_price  # kg/ltr equivalent
+                        except:
+                            pass
+
                 except Exception as e:
                     print(f"⚠️ Error parsing proportions for {quantity}: {e}")
                     # Fallback to numeric parsing
@@ -1575,8 +1580,10 @@ def record_sale(sale: SaleCreate, db: Session = Depends(get_db), username: str =
                 return float(quantity)
             except ValueError:
                 return 1.0  # fallback
+
         elif isinstance(quantity, (int, float)):
             return float(quantity)
+
         else:
             return 1.0  # fallback
 
