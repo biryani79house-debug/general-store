@@ -3960,7 +3960,6 @@ function backToHome() {
         async function handleEditPurchase(e) {
             e.preventDefault();
 
-            const formData = new FormData(e.target);
             const purchaseId = document.getElementById('edit-purchase-title').textContent.match(/ID: (\d+)/)?.[1];
 
             if (!purchaseId) {
@@ -3968,16 +3967,26 @@ function backToHome() {
                 return;
             }
 
-            const quantity = parseFloat(formData.get('quantity')) || 0;
-            const unitCost = parseFloat(formData.get('unitCost')) || 0;
+            const quantityInput = document.getElementById('edit-purchase-quantity');
+            const unitCostInput = document.getElementById('edit-purchase-unit-cost');
 
-            if (quantity < 0.01) {
-                showNotification('❌ Quantity must be at least 0.01');
+            const quantityValue = quantityInput.value.trim();
+            const unitCostValue = unitCostInput.value.trim();
+
+            console.log('📝 Edit purchase input values:', { quantityValue, unitCostValue });
+
+            const quantity = parseFloat(quantityValue);
+            const unitCost = parseFloat(unitCostValue);
+
+            console.log('🔢 Parsed values:', { quantity, unitCost, isNaN_quantity: isNaN(quantity), isNaN_unitCost: isNaN(unitCost) });
+
+            if (isNaN(quantity) || quantity < 0.01) {
+                showNotification(`❌ Quantity must be at least 0.01 (current: ${quantityValue})`);
                 return;
             }
 
-            if (unitCost < 0.01) {
-                showNotification('❌ Unit cost must be at least ₹0.01');
+            if (isNaN(unitCost) || unitCost < 0.01) {
+                showNotification(`❌ Unit cost must be at least ₹0.01 (current: ${unitCostValue})`);
                 return;
             }
 
@@ -4001,7 +4010,17 @@ function backToHome() {
                 console.log(`📊 Update response: ${response.status}`);
 
                 if (!response.ok) {
-                    const errorData = await response.json();
+                    if (response.status === 401) {
+                        // Handle authentication errors specifically
+                        showNotification('❌ Session expired. Please login again.');
+                        logout();
+                        return;
+                    } else if (response.status === 403) {
+                        showNotification('❌ You do not have permission to update purchases.');
+                        return;
+                    }
+
+                    const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.detail || errorData.message || 'Failed to update purchase');
                 }
 
@@ -4016,7 +4035,11 @@ function backToHome() {
 
             } catch (error) {
                 console.error('❌ Error updating purchase:', error);
-                showNotification(`❌ Failed to update purchase: ${error.message}`);
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    showNotification('❌ Network error. Please check your connection and try again.');
+                } else {
+                    showNotification(`❌ Failed to update purchase: ${error.message}`);
+                }
             } finally {
                 submitBtn.textContent = originalText;
                 submitBtn.disabled = false;
@@ -6384,6 +6407,15 @@ function backToHome() {
                 createProductForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     await handleCreateProduct(e);
+                });
+            }
+
+            // Edit purchase form submission
+            const editPurchaseForm = document.getElementById('edit-purchase-form');
+            if (editPurchaseForm) {
+                editPurchaseForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    await handleEditPurchase(e);
                 });
             }
 
