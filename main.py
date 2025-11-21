@@ -266,6 +266,11 @@ class PurchaseCreate(BaseModel):
     quantity: int = Field(..., gt=0, description="Quantity must be positive")
     unit_cost: float = Field(..., gt=0, description="Cost per unit must be positive")
 
+class PurchaseUpdate(BaseModel):
+    quantity: Optional[int] = Field(None, gt=0, description="New quantity (positive if provided)")
+    unit_cost: Optional[float] = Field(None, gt=0, description="New cost per unit (positive if provided)")
+    purchase_date: Optional[datetime] = None
+
 class PurchaseResponse(BaseModel):
     id: int
     product_id: int
@@ -2120,6 +2125,96 @@ def get_bill_details(sales_id: int, db: Session = Depends(get_db), username: str
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error fetching bill details: {str(e)}")
 
+@app.put("/purchases/{purchase_id}", response_model=PurchaseResponse)
+def update_purchase(
+    purchase_id: int,
+    purchase_data: PurchaseUpdate,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """
+    Update a purchase record and adjust product stock accordingly.
+    """
+    check_permission(Permission.PURCHASE, db, username)
+
+    try:
+        # Find the purchase record
+        db_purchase = db.query(Purchase).filter(Purchase.id == purchase_id).first()
+        if not db_purchase:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase record not found")
+
+        # Find the product
+        product = db.query(Product).filter(Product.id == db_purchase.product_id).first()
+        if not product:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+        # Calculate the stock change
+        stock_change = 0
+        total_cost_change = 0
+
+        # Check what fields are being updated
+        old_quantity = db_purchase.quantity
+        old_total_cost = db_purchase.total_cost
+
+        if purchase_data.quantity is not None:
+            new_quantity = purchase_data.quantity
+            if purchase_data.unit_cost is not None:
+                new_unit_cost = purchase_data.unit_cost
+                new_total_cost = new_quantity * new_unit_cost
+            else:
+                # Calculate unit cost from existing total_cost
+                new_unit_cost = old_total_cost / old_quantity if old_quantity > 0 else 0
+                new_total_cost = new_quantity * new_unit_cost
+
+            stock_change = new_quantity - old_quantity
+            total_cost_change = new_total_cost - old_total_cost
+        elif purchase_data.unit_cost is not None:
+            new_unit_cost = purchase_data.unit_cost
+            new_total_cost = old_quantity * new_unit_cost
+            total_cost_change = new_total_cost - old_total_cost
+
+        # Check if the stock change would result in negative stock
+        if stock_change < 0 and (product.stock + stock_change) < 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot reduce purchase quantity. Current stock ({product.stock}) would become negative ({product.stock + stock_change})"
+            )
+
+        # Update the purchase record
+        update_data = purchase_data.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_purchase, key, value)
+
+        # Recalculate total_cost if quantity or unit_cost was updated
+        if update_data.get('quantity') is not None or update_data.get('unit_cost') is not None:
+            if db_purchase.unit_cost and db_purchase.quantity:
+                db_purchase.total_cost = db_purchase.unit_cost * db_purchase.quantity
+
+        # Adjust product stock
+        if stock_change != 0:
+            product.stock += stock_change
+
+        db.commit()
+        db.refresh(db_purchase)
+
+        # Create a fictional unit_cost field for response
+        unit_cost_response = db_purchase.total_cost / db_purchase.quantity if db_purchase.quantity > 0 else 0
+
+        return PurchaseResponse(
+            id=db_purchase.id,
+            product_id=db_purchase.product_id,
+            quantity=db_purchase.quantity,
+            total_cost=db_purchase.total_cost,
+            purchase_date=db_purchase.purchase_date
+        )
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating purchase: {str(e)}")
+
 @app.delete("/purchases/{purchase_id}", status_code=status.HTTP_200_OK)
 def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
     """
@@ -2130,32 +2225,32 @@ def delete_purchase(purchase_id: int, db: Session = Depends(get_db)):
         db_purchase = db.query(Purchase).filter(Purchase.id == purchase_id).first()
         if not db_purchase:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase record not found")
-        
+
         # Find the product
         product = db.query(Product).filter(Product.id == db_purchase.product_id).first()
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-        
+
         # Check if we have enough stock to remove
         if product.stock < db_purchase.quantity:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Cannot delete purchase. Current stock ({product.stock}) is less than purchase quantity ({db_purchase.quantity})"
             )
-        
+
         # Remove the purchased stock
         product.stock -= db_purchase.quantity
-        
+
         # Delete the purchase record
         db.delete(db_purchase)
         db.commit()
-        
+
         return {
             "status": "success",
             "message": f"Purchase record deleted successfully. Removed {db_purchase.quantity} units from {product.name} stock.",
             "purchase_id": purchase_id
         }
-        
+
     except HTTPException:
         db.rollback()
         raise
@@ -3532,9 +3627,18 @@ def get_profit_loss_data(
             # Get closing stock value
             closing_stock_value = calculate_stock_value_at_date(product.id, end_date, db)
 
+            # For imported products, the initial stock is treated as a purchase, not as inventory stock
+            initial_stock_value = product.purchase_price * product.initial_stock
+            effective_opening_stock = opening_stock_value
+            effective_closing_stock = closing_stock_value
+            if initial_stock_value > 0:
+                # Subtract initial stock value from inventory calculation since it's treated as purchase
+                effective_opening_stock = max(0, opening_stock_value - initial_stock_value)
+                effective_closing_stock = max(0, closing_stock_value - initial_stock_value)
+
             # Calculate totals - include initial stock cost as purchases
             total_sales_amount = sum(s.total_amount for s in product_sales)
-            total_purchase_cost = sum(p.total_cost for p in product_purchases) + (product.purchase_price * product.initial_stock)
+            total_purchase_cost = sum(p.total_cost for p in product_purchases) + initial_stock_value
 
             # Calculate total units sold - parse quantity strings and sum numeric values
             units_sold_numeric = 0

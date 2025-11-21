@@ -93,11 +93,12 @@ def import_csv_to_db(csv_path):
                         # Parse the datetime string
                         try:
                             parsed_datetime = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                            # Create the product with initial_stock set to 0 since we'll create a purchase record
                             db.execute(text("""
                                 INSERT INTO products
                                 (id, name, purchase_price, selling_price, unit_type, proportions, proportion_prices, category, stock, initial_stock, created_at)
                                 VALUES
-                                (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, :initial_stock, :created_at)
+                                (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, 0, :created_at)
                             """), {
                                 "id": product_id,
                                 "name": name,
@@ -108,16 +109,39 @@ def import_csv_to_db(csv_path):
                                 "proportion_prices": proportion_prices,
                                 "category": category,
                                 "stock": stock,
-                                "initial_stock": initial_stock,
                                 "created_at": parsed_datetime
                             })
+
+                            # Create a purchase record for the initial stock to show it as purchases
+                            if stock > 0:
+                                total_cost = stock * purchase_price
+                                # Get the next purchase ID
+                                max_purchase_id = db.execute(text("SELECT MAX(id) FROM purchases")).scalar()
+                                next_purchase_id = (max_purchase_id or 0) + 1
+                                # Get a user ID (prefer admin user)
+                                admin_user = db.execute(text("SELECT id FROM users WHERE username = 'raza123'")).fetchone()
+                                user_id = admin_user[0] if admin_user else 1
+
+                                db.execute(text("""
+                                    INSERT INTO purchases (id, product_id, quantity, total_cost, purchase_date, created_by)
+                                    VALUES (:id, :product_id, :quantity, :total_cost, :purchase_date, :created_by)
+                                """), {
+                                    "id": next_purchase_id,
+                                    "product_id": product_id,
+                                    "quantity": stock,
+                                    "total_cost": total_cost,
+                                    "purchase_date": parsed_datetime,
+                                    "created_by": user_id
+                                })
+                                print(f"✅ Created purchase record for {stock} units @ ₹{purchase_price:.2f} = ₹{total_cost:.2f}")
                         except Exception as parse_error:
                             print(f"⚠️ Error parsing created_at '{created_at}', using CURRENT_TIMESTAMP")
+                            # Create the product with initial_stock set to 0 since we'll create a purchase record
                             db.execute(text("""
                                 INSERT INTO products
                                 (id, name, purchase_price, selling_price, unit_type, proportions, proportion_prices, category, stock, initial_stock)
                                 VALUES
-                                (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, :initial_stock)
+                                (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, 0)
                             """), {
                                 "id": product_id,
                                 "name": name,
@@ -127,16 +151,38 @@ def import_csv_to_db(csv_path):
                                 "proportions": proportions,
                                 "proportion_prices": proportion_prices,
                                 "category": category,
-                                "stock": stock,
-                                "initial_stock": initial_stock
+                                "stock": stock
                             })
+
+                            # Create a purchase record for the initial stock to show it as purchases
+                            if stock > 0:
+                                total_cost = stock * purchase_price
+                                # Get the next purchase ID
+                                max_purchase_id = db.execute(text("SELECT MAX(id) FROM purchases")).scalar()
+                                next_purchase_id = (max_purchase_id or 0) + 1
+                                # Get a user ID (prefer admin user)
+                                admin_user = db.execute(text("SELECT id FROM users WHERE username = 'raza123'")).fetchone()
+                                user_id = admin_user[0] if admin_user else 1
+
+                                db.execute(text("""
+                                    INSERT INTO purchases (id, product_id, quantity, total_cost, purchase_date, created_by)
+                                    VALUES (:id, :product_id, :quantity, :total_cost, CURRENT_TIMESTAMP, :created_by)
+                                """), {
+                                    "id": next_purchase_id,
+                                    "product_id": product_id,
+                                    "quantity": stock,
+                                    "total_cost": total_cost,
+                                    "created_by": user_id
+                                })
+                                print(f"✅ Created purchase record for {stock} units @ ₹{purchase_price:.2f} = ₹{total_cost:.2f}")
                     else:
                         # No created_at, let database use default
+                        # Create the product with initial_stock set to 0 since we'll create a purchase record
                         db.execute(text("""
                             INSERT INTO products
                             (id, name, purchase_price, selling_price, unit_type, proportions, proportion_prices, category, stock, initial_stock)
                             VALUES
-                            (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, :initial_stock)
+                            (:id, :name, :purchase_price, :selling_price, :unit_type, :proportions, :proportion_prices, :category, :stock, 0)
                         """), {
                             "id": product_id,
                             "name": name,
@@ -146,9 +192,30 @@ def import_csv_to_db(csv_path):
                             "proportions": proportions,
                             "proportion_prices": proportion_prices,
                             "category": category,
-                            "stock": stock,
-                            "initial_stock": initial_stock
+                            "stock": stock
                         })
+
+                        # Create a purchase record for the initial stock to show it as purchases
+                        if stock > 0:
+                            total_cost = stock * purchase_price
+                            # Get the next purchase ID
+                            max_purchase_id = db.execute(text("SELECT MAX(id) FROM purchases")).scalar()
+                            next_purchase_id = (max_purchase_id or 0) + 1
+                            # Get a user ID (prefer admin user)
+                            admin_user = db.execute(text("SELECT id FROM users WHERE username = 'raza123'")).fetchone()
+                            user_id = admin_user[0] if admin_user else 1
+
+                            db.execute(text("""
+                                INSERT INTO purchases (id, product_id, quantity, total_cost, purchase_date, created_by)
+                                VALUES (:id, :product_id, :quantity, :total_cost, CURRENT_TIMESTAMP, :created_by)
+                            """), {
+                                "id": next_purchase_id,
+                                "product_id": product_id,
+                                "quantity": stock,
+                                "total_cost": total_cost,
+                                "created_by": user_id
+                            })
+                            print(f"✅ Created purchase record for {stock} units @ ₹{purchase_price:.2f} = ₹{total_cost:.2f}")
 
                     products_imported += 1
                     print(f"✅ Imported product: {name} (ID: {product_id})")
