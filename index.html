@@ -2294,7 +2294,7 @@ function backToHome() {
             }
         }
 
-        function generateWhatsAppOrder() {
+        async function generateWhatsAppOrder() {
             // Input validation
             if (!cart || Object.keys(cart).length === 0) {
                 showNotification("Cart is empty!");
@@ -2306,9 +2306,21 @@ function backToHome() {
                 return;
             }
 
+            // Refresh stock data to ensure we have the most current stock levels
+            console.log('🔄 Refreshing stock data before checkout...');
+            try {
+                await fetchAndMergeStockData(true); // Force refresh stock data
+                showNotification('Checking current stock availability...');
+            } catch (error) {
+                console.error('❌ Failed to refresh stock data:', error);
+                showNotification('Failed to check current stock. Please try again.');
+                return;
+            }
+
             // Build sale items array for backend API
             const saleItems = [];
             let hasValidItems = false;
+            let invalidItems = [];
 
             for (const cartKey in cart) {
                 const cartItem = cart[cartKey];
@@ -2335,6 +2347,25 @@ function backToHome() {
                             return;
                         }
 
+                        // Check stock availability after refresh
+                        let availableStock = product.stock || 0;
+                        let displayName = product.name;
+
+                        if (proportion) {
+                            if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                                availableStock = product.proportion_stocks[proportion];
+                            }
+                            displayName = `${product.name} (${proportion})`;
+                        }
+
+                        if (availableStock <= 0) {
+                            invalidItems.push(`${displayName} - Out of stock`);
+                            continue;
+                        } else if (cartItem.quantity > availableStock) {
+                            invalidItems.push(`${displayName} - Only ${availableStock} available (requested ${cartItem.quantity})`);
+                            continue;
+                        }
+
                         // Convert quantity to float as expected by backend SaleCreate model
                         const floatQuantity = parseFloat(quantity);
                         if (isNaN(floatQuantity) || floatQuantity <= 0) {
@@ -2355,6 +2386,15 @@ function backToHome() {
                 }
             }
 
+            // Report any unavailable items
+            if (invalidItems.length > 0) {
+                console.warn('⚠️ Stock availability issues:', invalidItems);
+                let invalidItemsMessage = 'Some items are no longer available:\n\n' + invalidItems.join('\n') + '\n\nPlease remove unavailable items from your cart and try again.';
+                showNotification(invalidItemsMessage);
+                updateCartUI(); // Refresh cart UI to show current stock levels
+                return;
+            }
+
             if (!hasValidItems) {
                 showNotification("No valid items in cart!");
                 return;
@@ -2370,7 +2410,7 @@ function backToHome() {
                     document.getElementById('cart-modal').classList.remove('flex');
                 }).catch(error => {
                     console.warn('⚠️ Sale recording failed:', error);
-                    showNotification('Failed to record sale. Please try again.');
+                    showNotification('Failed to record sale. Stock may have changed. Please try again.');
                 });
             }
         }
