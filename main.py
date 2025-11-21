@@ -3474,6 +3474,166 @@ def download_all_products_stock(
         raise HTTPException(status_code=500, detail=f"Error generating all products stock CSV: {str(e)}")
 
 
+@app.get("/profit-loss")
+def get_profit_loss_data(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    product_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
+):
+    """
+    Get profit & loss data for frontend display, matching the download endpoint logic
+    Returns JSON data in the format expected by the frontend calculateAndDisplayProfitLoss function
+    """
+    check_permission(Permission.PROFIT_LOSS, db, username)
+
+    try:
+        print(f"🔄 Starting profit-loss data retrieval for user: {username}")
+
+        # Use the same logic as download_profit_loss to ensure consistent results
+        # Fetch sales and purchase data with filters
+        sales_query = db.query(Sale)
+        purchases_query = db.query(Purchase)
+        products_query = db.query(Product)
+
+        # Apply date filters
+        if start_date:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00')).replace(tzinfo=IST)
+            sales_query = sales_query.filter(Sale.sale_date >= start_dt)
+            purchases_query = purchases_query.filter(Purchase.purchase_date >= start_dt)
+
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00')).replace(tzinfo=IST) + timedelta(days=1)
+            sales_query = sales_query.filter(Sale.sale_date < end_dt)
+            purchases_query = purchases_query.filter(Purchase.purchase_date < end_dt)
+
+        # Apply product filter
+        if product_id:
+            sales_query = sales_query.filter(Sale.product_id == product_id)
+            purchases_query = purchases_query.filter(Purchase.product_id == product_id)
+            products_query = products_query.filter(Product.id == product_id)
+
+        sales = sales_query.all()
+        purchases = purchases_query.all()
+        products = products_query.all()
+
+        # Group data by product (same logic as frontend)
+        product_analysis = []
+
+        for product in products:
+            # Filter sales and purchases for this product
+            product_sales = [s for s in sales if s.product_id == product.id]
+            product_purchases = [p for p in purchases if p.product_id == product.id]
+
+            # Get opening stock value using helper function
+            opening_stock_value = calculate_stock_value_at_date(product.id, start_date, db) if start_date else 0
+
+            # Get closing stock value
+            closing_stock_value = calculate_stock_value_at_date(product.id, end_date, db)
+
+            # Calculate totals - include initial stock cost as purchases
+            total_sales_amount = sum(s.total_amount for s in product_sales)
+            total_purchase_cost = sum(p.total_cost for p in product_purchases) + (product.purchase_price * product.initial_stock)
+
+            # Calculate total units sold - parse quantity strings and sum numeric values
+            units_sold_numeric = 0
+            for sale in product_sales:
+                try:
+                    # Try to parse as float first (for legacy data)
+                    units_sold_numeric += float(sale.quantity)
+                except ValueError:
+                    # If it's a proportion string like "500gm", "500ml", etc.
+                    # We need to find which proportion it matches and calculate the quantity
+                    if sale.product and sale.product.proportion_prices:
+                        try:
+                            proportion_prices = json.loads(sale.product.proportion_prices)
+                            quantity_str = sale.quantity
+                            unit_type = sale.product.unit_type
+
+                            # Check if quantity_str matches any proportion name
+                            for prop_name, prop_price in proportion_prices.items():
+                                if quantity_str == prop_name:
+                                    # Found the proportion, calculate quantity based on proportion size by extracting numeric value from proportion name
+                                    if unit_type == 'kgs':
+                                        if prop_name.endswith('gm') or prop_name.endswith('g'):
+                                            # Extract gram value and convert to kg
+                                            try:
+                                                gram_value = float(prop_name.replace('gm', '').replace('g', ''))
+                                                units_sold_numeric += gram_value / 1000.0  # Convert grams to kg
+                                            except ValueError:
+                                                units_sold_numeric += 1  # fallback
+                                        elif prop_name.endswith('kg'):
+                                            # Extract kg value
+                                            try:
+                                                units_sold_numeric += float(prop_name.replace('kg', ''))
+                                            except ValueError:
+                                                units_sold_numeric += 1  # fallback
+                                        else:
+                                            # Unknown kg proportion format
+                                            units_sold_numeric += 1
+                                    elif unit_type == 'ltr':
+                                        if prop_name.endswith('ml'):
+                                            # Extract ml value and convert to liters
+                                            try:
+                                                ml_value = float(prop_name.replace('ml', ''))
+                                                units_sold_numeric += ml_value / 1000.0  # Convert ml to liters
+                                            except ValueError:
+                                                units_sold_numeric += 1  # fallback
+                                        elif prop_name.endswith('ltr'):
+                                            # Extract ltr value
+                                            try:
+                                                units_sold_numeric += float(prop_name.replace('ltr', ''))
+                                            except ValueError:
+                                                units_sold_numeric += 1  # fallback
+                                        else:
+                                            # Unknown ltr proportion format
+                                            units_sold_numeric += 1
+                                    else:
+                                        # For other unit types (pcs, etc.), quantity is usually 1
+                                        units_sold_numeric += 1
+                                    break
+                        except Exception as e:
+                            units_sold_numeric += 1  # fallback
+
+                    # If we still don't have quantity, assume 1
+                    if units_sold_numeric == 0:
+                        units_sold_numeric += 1
+
+            # Calculate profit/loss: Sales - (Purchases - Opening Stock + Closing Stock)
+            gross_profit = total_sales_amount - total_purchase_cost + closing_stock_value
+            margin = f"{(gross_profit / total_sales_amount * 100):.2f}%" if total_sales_amount > 0 else "0.00%"
+
+            product_analysis.append({
+                "Product": product.name,
+                "Units Sold": units_sold_numeric,
+                "Opening Stock (₹)": f"{opening_stock_value:.2f}",
+                "Purchase (₹)": f"{total_purchase_cost:.2f}",
+                "Sales (₹)": f"{total_sales_amount:.2f}",
+                "Closing Stock (₹)": f"{closing_stock_value:.2f}",
+                "Gross Profit (₹)": f"{gross_profit:.2f}",
+                "Margin (%)": margin
+            })
+
+        print(f"🔄 Returning {len(product_analysis)} profit-loss data rows")
+
+        return {
+            "data": product_analysis,
+            "summary": {
+                "total_products": len(product_analysis),
+                "date_range": {
+                    "start": start_date,
+                    "end": end_date
+                }
+            }
+        }
+
+    except Exception as e:
+        print(f"❌ ERROR in get_profit_loss_data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error retrieving profit & loss data: {str(e)}")
+
 def calculate_stock_value_at_date(product_id: int, date_to: Optional[str], db: Session):
     """
     Helper function to calculate stock value for a product at a specific date
@@ -3583,9 +3743,9 @@ def download_profit_loss(
             # Get closing stock value
             closing_stock_value = calculate_stock_value_at_date(product.id, end_date, db)
 
-            # Calculate totals
+            # Calculate totals - include initial stock cost as purchases
             total_sales_amount = sum(s.total_amount for s in product_sales)
-            total_purchase_cost = sum(p.total_cost for p in product_purchases)
+            total_purchase_cost = sum(p.total_cost for p in product_purchases) + (product.purchase_price * product.initial_stock)
 
             # Calculate total units sold - parse quantity strings and sum numeric values
             units_sold_numeric = 0
