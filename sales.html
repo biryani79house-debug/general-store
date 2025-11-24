@@ -3,337 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; connect-src 'self' https://web-production-9d240.up.railway.app; img-src 'self' data: https:; font-src 'self' https:; frame-src 'self' https://wa.me;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; connect-src 'self' https://web-production-9d240.up.railway.app https://unpkg.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' https: 'data:'; frame-src 'self' https://wa.me;">
     <title>Raza Wholesale and Retail - Online Order</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: "Inter", sans-serif; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .gradient-bg {
-            background: linear-gradient(rgba(132, 206, 248, 0.85), rgba(172, 124, 20, 0.438));
-            background-size: cover;
+            background: linear-gradient(rgba(132, 206, 248, 0.95), rgba(172, 124, 20, 0.45));
+            background-attachment: fixed;
             min-height: 100vh;
         }
         .glass-effect {
-            background: rgba(236, 49, 49, 0.842);
-            backdrop-filter: blur(10px);
+            background: rgba(236, 49, 49, 0.95);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        .card-hover:hover { transform: translateY(-2px); }
-        .pulse-cart { animation: pulse 2s infinite; }
+        .product-card {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .product-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.99);
+        }
+        .pulse-cart {
+            animation: pulse 2s infinite;
+        }
+        .bounce-in {
+            animation: bounceIn 0.6s ease-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .slide-up {
+            animation: slideUp 0.4s ease-out;
+        }
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            50% { transform: scale(1.08); }
+        }
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .gradient-bg {
-                padding: 0.5rem;
-            }
-            .card-hover {
-                margin-bottom: 1rem;
-            }
-            .quick-order-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
-            }
-        }
-
-        @media (min-width: 768px) {
-            /* Desktop enhancements */
-            main { max-width: 1200px !important; }
-            #products-grid { grid-template-columns: repeat(4, 1fr); }
-            .product-card { min-height: 200px; }
-        }
-
-        @media (min-width: 1024px) {
-            /* Large desktop */
-            main { max-width: 1400px !important; }
-            #products-grid { grid-template-columns: repeat(5, 1fr); }
-        }
-
-        /* Mobile optimizations */
+        /* Enhanced Mobile Styles */
         @media (max-width: 640px) {
-            #products-grid { grid-template-columns: repeat(2, 1fr); }
-            .product-card { min-height: 120px; }
-            .quick-order-grid { grid-template-columns: repeat(1, 1fr) !important; }
-            header { padding: 0.5rem; }
-            .cart-modal-content { margin: 1rem; max-height: 80vh; }
+            /* Mobile - Small screens (phones) */
+            .gradient-bg {
+                padding: 0.75rem;
+            }
+            .product-grid {
+                grid-template-columns: repeat(1, 1fr) !important;
+                gap: 1rem !important;
+            }
+            .product-card {
+                min-height: 140px;
+                padding: 1rem;
+            }
+            header {
+                padding: 0.75rem;
+            }
+            .cart-modal-content {
+                margin: 0.5rem;
+                max-height: 85vh;
+            }
+            .notification {
+                left: 10px;
+                right: 10px;
+                top: 10px;
+                padding: 12px 16px;
+                border-radius: 8px;
+            }
+            .cart-floating {
+                bottom: 16px;
+                right: 16px;
+            }
+            .slide-up, .bounce-in, .fade-in {
+                animation-duration: 0.3s;
+            }
+        }
+
+        @media (min-width: 641px) and (max-width: 768px) {
+            /* Mobile Large / Small Tablet */
+            .gradient-bg {
+                padding: 1rem;
+            }
+            .product-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 1rem !important;
+            }
+            .product-card {
+                min-height: 160px;
+                padding: 1.25rem;
+            }
+            .cart-floating {
+                bottom: 18px;
+                right: 18px;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            /* Tablet / Small Desktop */
+            .product-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 1.5rem !important;
+            }
+            .product-card {
+                min-height: 180px;
+                padding: 1.5rem;
+            }
+            main { max-width: 1000px !important; }
+        }
+
+        @media (min-width: 1025px) and (max-width: 1280px) {
+            /* Desktop */
+            .product-grid {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 1.5rem !important;
+            }
+            .product-card {
+                min-height: 200px;
+                padding: 1.5rem;
+            }
+            main { max-width: 1200px !important; }
+        }
+
+        @media (min-width: 1281px) {
+            /* Large Desktop */
+            .product-grid {
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 2rem !important;
+            }
+            .product-card {
+                min-height: 220px;
+                padding: 1.75rem;
+            }
+            main { max-width: 1400px !important; }
+        }
+
+        /* Touch-friendly interactions for mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .product-card:hover {
+                transform: none;
+            }
+            .product-card:active {
+                transform: scale(0.98);
+            }
+            button:active {
+                transform: scale(0.95);
+            }
+        }
+
+        /* Safe area for mobile devices with notches */
+        @supports (padding: max(0px)) {
+            .cart-floating {
+                bottom: max(16px, env(safe-area-inset-bottom));
+                right: max(16px, env(safe-area-inset-right));
+            }
+        }
+
+        .cart-floating {
+            position: fixed;
+            z-index: 50;
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+
+        .cart-floating:hover {
+            transform: scale(1.05);
+        }
+
+        /* Improved backdrop blur support */
+        @supports (backdrop-filter: blur(10px)) {
+            .product-card,
+            .notification,
+            .bg-white\/90 {
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 60;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            font-weight: 600;
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <header class="w-full bg-green-500 shadow-sm p-1 sticky top-0 z-10">
-        <div class="max-w-2xl mx-auto flex justify-center items-center">
-            <div class="text-center bg-blue-500 glass-effect rounded-2xl p-3 text-white">
-                <h1 class="text-xl font-bold mb-1">🛒 Raza Wholesale and Retail</h1>
-                <p class="text-sm">Fresh Products • Best Prices • Fast Delivery</p>
-                <p class="text-sm"><strong>📞 +91 7075210801</strong></p>
-            </div>
-        </div>
-    </header>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
 
-    <div class="gradient-bg">
-        <main class="w-full max-w-6xl mx-auto p-4 space-y-6">
-            <h2 class="text-3xl font-semibold text-center text-white mb-8">🍎 Place Your Order Online</h2>
-
-            <!-- Filter Section -->
-            <div class="bg-white p-4 rounded-lg shadow-sm">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
-                <select id="category-filter" class="w-full p-3 border border-gray-300 rounded-lg">
-                    <option value="">All Categories</option>
-                </select>
-            </div>
-
-            <!-- Products Grid -->
-            <div id="products-grid" class="grid gap-4 md:gap-6">
-                <div class="text-center py-12 col-span-full">
-                    <p class="text-gray-500 text-lg">Loading products...</p>
-                </div>
-            </div>
-
-            <!-- Always visible cart button -->
-            <div class="fixed bottom-6 right-6 z-30">
-                <button id="cart-button" class="bg-green-500 text-white p-4 rounded-full shadow-xl hover:bg-green-600 transition-all hover:scale-110">
-                    🛒 <span id="cart-count" class="font-bold">0</span>
-                </button>
-                <div class="text-center mt-2">
-                    <span class="text-sm text-white bg-black bg-opacity-50 px-3 py-1 rounded-full">View Cart</span>
-                </div>
-            </div>
-
-            <!-- Quick Order Section -->
-            <div class="bg-white p-6 rounded-lg shadow-lg quick-order-grid grid-cols-1 md:grid-cols-3">
-                <h3 class="md:col-span-3 text-xl font-semibold text-gray-800 mb-4">🚀 Quick Order Suggestions</h3>
-                <button id="quick-order-fruits" class="bg-orange-500 text-white py-3 px-6 rounded-lg hover:bg-orange-600 text-base font-medium transition-all hover:scale-105">
-                    🍎 Order Fruits
-                </button>
-                <button id="quick-order-dairy" class="bg-blue-500 text-white py-3 px-6 rounded-lg hover:bg-blue-600 text-base font-medium transition-all hover:scale-105">
-                    🥛 Order Dairy
-                </button>
-                <button id="quick-order-groceries" class="bg-purple-500 text-white py-3 px-6 rounded-lg hover:bg-purple-600 text-base font-medium transition-all hover:scale-105">
-                    🛒 Order Groceries
-                </button>
-            </div>
-
-            <div id="cart-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center p-4 z-20">
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-semibold">🛒 Your Order Summary</h3>
-                        <button id="close-cart" class="text-2xl">&times;</button>
-                    </div>
-                    <div id="cart-items" class="space-y-3"></div>
-                    <div class="pt-4 border-t">
-                        <div class="flex justify-between font-bold text-lg mb-4">
-                            <span>Total Amount:</span>
-                            <span id="cart-total">₹0.00</span>
-                        </div>
-
-                        <div class="space-y-3 mb-4">
-                            <input id="customer-name" placeholder="Your Full Name *" class="w-full p-2 border rounded" required>
-                            <input id="customer-phone" placeholder="Phone Number *" class="w-full p-2 border rounded" required>
-                            <textarea id="customer-address" placeholder="Delivery Address *" class="w-full p-2 border rounded" rows="2" required></textarea>
-                            <textarea id="customer-notes" placeholder="Special Instructions (Optional)" class="w-full p-2 border rounded" rows="2"></textarea>
-                        </div>
-
-                        <button id="whatsapp-checkout-button" class="w-full bg-green-500 text-white py-3 px-4 rounded-lg shadow hover:bg-green-600 font-semibold text-lg">
-                            📱 Send Order to WhatsApp
-                        </button>
-
-                        <p class="text-xs text-gray-500 text-center mt-2">
-                            We'll confirm your order and deliver to your doorstep!
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <div id="notification" class="fixed top-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg hidden"></div>
-
-    <script>
+        // Constants
         const BACKEND_URL = "https://web-production-9d240.up.railway.app";
         const SHOPKEEPER_NUMBER = "917075210801";
 
-        let products = [];
-        let cart = {};
+        // Custom Hooks
+        const useLocalState = (key, defaultValue) => {
+            const [state, setState] = useState(() => {
+                const stored = localStorage.getItem(key);
+                return stored ? JSON.parse(stored) : defaultValue;
+            });
 
-        const productsGrid = document.getElementById('products-grid');
-        const cartButton = document.getElementById('cart-button');
-        const cartModal = document.getElementById('cart-modal');
-        const cartItems = document.getElementById('cart-items');
-        const cartTotal = document.getElementById('cart-total');
-        const cartCount = document.getElementById('cart-count');
-        const whatsappButton = document.getElementById('whatsapp-checkout-button');
+            useEffect(() => {
+                localStorage.setItem(key, JSON.stringify(state));
+            }, [key, state]);
 
-        async function init() {
-            try {
-                loadCategories();
-                await loadProducts();
-                console.log('✅ Products loaded successfully');
-            } catch (error) {
-                console.error('Failed to load:', error);
-                productsGrid.innerHTML = '<p class="text-red-500 text-center">Unable to load products. Please refresh the page.</p>';
-            }
-            setupEvents();
-        }
+            return [state, setState];
+        };
 
-        function loadCategories() {
-            fetch(`${BACKEND_URL}/categories`)
-                .then(res => res.json())
-                .then(categories => {
-                    const select = document.getElementById('category-filter');
-                    categories.forEach(cat => {
-                        select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
-                    });
-                    select.onchange = filterProducts;
-                })
-                .catch(() => console.log('Categories not available'));
-        }
+        // Notification Component
+        const Notification = ({ message, type = 'success', onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 4000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
 
-        async function loadProducts() {
-            const response = await fetch(`${BACKEND_URL}/products`);
-            if (!response.ok) throw new Error('Failed to load products');
+            const bgColors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
 
-            products = await response.json();
-            displayProducts(products);
-        }
+            return (
+                <div className={`notification ${bgColors[type]} text-white fade-in`}>
+                    <div className="flex items-center gap-2">
+                        <i className={`fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
+                        <span>{message}</span>
+                        <button
+                            onClick={onClose}
+                            className="ml-2 hover:bg-black hover:bg-opacity-20 rounded-full p-1"
+                        >
+                            <i className="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            );
+        };
 
-        function displayProducts(productList) {
-            productsGrid.innerHTML = productList.map(product => {
-                // Check if product has multiple proportions
-                if (product.proportions && Array.isArray(product.proportions) && product.proportions.length > 0) {
-                    // Product with multiple proportions - show proportion selection
-                    // Use total stock for all proportions since we don't track stock per proportion
-                    const isOutOfStock = product.stock <= 0;
-                    const proportionButtons = product.proportions.map(proportion => {
-                        const proportionButtonClass = isOutOfStock
-                            ? "bg-gray-400 text-white text-xs font-bold py-1 px-2 rounded cursor-not-allowed"
-                            : "bg-blue-500 text-white text-xs font-bold py-1 px-2 rounded hover:bg-blue-600 transition-colors";
+        // Loading Spinner Component
+        const LoadingSpinner = ({ size = 'md', color = 'blue' }) => {
+            const sizes = {
+                sm: 'w-4 h-4',
+                md: 'w-6 h-6',
+                lg: 'w-8 h-8'
+            };
 
-                        return `
-                            <button class="add-to-cart ${proportionButtonClass}"
-                                    data-id="${product.id}_${proportion}"
-                                    data-price="${product.price}"
-                                    ${isOutOfStock ? 'disabled' : ''}>
-                                ${proportion} ${isOutOfStock ? '(Out)' : ''}
-                            </button>
-                        `;
-                    }).join('');
+            return (
+                <div className={`loading-spinner ${sizes[size]}`}></div>
+            );
+        };
 
-                    return `
-                        <div class="bg-white p-4 rounded-lg shadow card-hover">
-                            <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
-                            <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
-                            <div class="grid grid-cols-3 gap-1">
-                                ${proportionButtons}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Single product without proportions
-                    const isOutOfStock = product.stock <= 0;
-                    const btnClass = isOutOfStock ?
-                        'w-full bg-gray-400 text-white py-2 px-3 rounded cursor-not-allowed text-sm' :
-                        'w-full bg-blue-500 text-white py-2 px-3 rounded hover:bg-blue-600 text-sm font-medium';
+        // Main App Component
+        function SalesApp() {
+            const [products, setProducts] = useState([]);
+            const [filteredProducts, setFilteredProducts] = useState([]);
+            const [categories, setCategories] = useState([]);
+            const [cart, setCart] = useState({});
+            const [selectedCategory, setSelectedCategory] = useState('');
+            const [loading, setLoading] = useState(true);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [showCart, setShowCart] = useState(false);
+            const [notifications, setNotifications] = useState([]);
 
-                    return `
-                        <div class="bg-white p-4 rounded-lg shadow card-hover">
-                            <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
-                            <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
-                            <button class="add-to-cart ${btnClass}" data-id="${product.id}" ${isOutOfStock ? 'disabled' : ''}>
-                                ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                            </button>
-                        </div>
-                    `;
+            // Load data on mount
+            useEffect(() => {
+                initData();
+            }, []);
+
+            // Filter products based on category and search
+            useEffect(() => {
+                let filtered = products;
+
+                if (selectedCategory) {
+                    filtered = filtered.filter(p => p.category === selectedCategory);
                 }
-            }).join('');
-        }
 
-        function filterProducts() {
-            const category = this.value;
-            if (!category) {
-                displayProducts(products);
-                return;
-            }
-
-            fetch(`${BACKEND_URL}/products?category=${category}`)
-                .then(res => res.json())
-                .then(filtered => displayProducts(filtered))
-                .catch(() => displayProducts(products.filter(p => p.category_name === category)));
-        }
-
-        async function addToCart(cartKey) {
-            // Parse cart key to get product ID and proportion
-            let productId, proportion = null;
-            if (cartKey.includes('_')) {
-                [productId, proportion] = cartKey.split('_');
-                productId = parseInt(productId);
-            } else {
-                productId = parseInt(cartKey);
-            }
-
-            const product = products.find(p => p.id == productId);
-            if (!product) {
-                showNotification("Product not found!");
-                return;
-            }
-
-            // Check stock based on proportion or overall stock
-            let availableStock = product.stock || 0;
-            let displayName = product.name;
-            let itemPrice = product.price; // Default to base price
-
-            if (proportion) {
-                // For products with proportions, check proportion-specific stock
-                if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
-                    availableStock = product.proportion_stocks[proportion];
+                if (searchTerm) {
+                    filtered = filtered.filter(p =>
+                        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
                 }
-                displayName = `${product.name} (${proportion})`;
 
-                // Fetch the correct proportion-specific price from API
+                setFilteredProducts(filtered);
+            }, [products, selectedCategory, searchTerm]);
+
+            const initData = async () => {
                 try {
-                    const priceResponse = await fetch(`${BACKEND_URL}/products/${productId}/price/${proportion}`);
-                    if (priceResponse.ok) {
-                        const priceData = await priceResponse.json();
-                        itemPrice = priceData.price; // Use the correct proportion price
-                        console.log(`✅ Using proportion price for ${displayName}: ₹${itemPrice}`);
-                    } else {
-                        console.warn(`⚠️ Could not fetch proportion price for ${displayName}, using base price`);
+                    await Promise.all([loadProducts(), loadCategories()]);
+                } catch (error) {
+                    console.error('Failed to load data:', error);
+                    showNotification('Failed to load data. Please refresh the page.', 'error');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const loadProducts = async () => {
+                const response = await fetch(`${BACKEND_URL}/products`);
+                if (!response.ok) throw new Error('Failed to load products');
+                const data = await response.json();
+                setProducts(data);
+                setFilteredProducts(data);
+            };
+
+            const loadCategories = async () => {
+                try {
+                    const response = await fetch(`${BACKEND_URL}/categories`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        setCategories(data);
                     }
                 } catch (error) {
-                    console.warn(`⚠️ Error fetching proportion price for ${displayName}:`, error);
-                    // Continue with base price as fallback
+                    console.log('Categories not available');
                 }
-            }
+            };
 
-            if (availableStock <= 0) {
-                showNotification(`Sorry, ${displayName} is out of stock!`);
-                return;
-            }
+            const showNotification = useCallback((message, type = 'success') => {
+                const id = Date.now();
+                setNotifications(prev => [...prev, { id, message, type }]);
 
-            const currentQty = cart[cartKey] ? parseFloat(cart[cartKey].quantity) || 0 : 0;
-            if (currentQty + 1 > availableStock) {
-                showNotification(`Sorry, only ${availableStock} units of ${displayName} are available!`);
-                return;
-            }
+                setTimeout(() => {
+                    setNotifications(prev => prev.filter(n => n.id !== id));
+                }, 4000);
+            }, []);
 
-            // Store the price in cart for this item (for future use in cart display)
-            if (!cart[cartKey]) {
-                cart[cartKey] = { quantity: 0, price: itemPrice };
-            }
-            cart[cartKey].quantity += 1;
+            const closeNotification = useCallback((id) => {
+                setNotifications(prev => prev.filter(n => n.id !== id));
+            }, []);
 
-            updateCart();
-            showNotification(`Added ${displayName} to your order`);
-        }
-
-        function updateCart() {
-            const items = Object.keys(cart).filter(cartKey => cart[cartKey] && cart[cartKey].quantity > 0);
-            cartItems.innerHTML = '';
-            let total = 0;
-            let count = 0;
-
-            items.forEach(cartKey => {
-                // Parse cart key to get product ID and proportion
+            const addToCart = useCallback(async (cartKey) => {
                 let productId, proportion = null;
                 if (cartKey.includes('_')) {
                     [productId, proportion] = cartKey.split('_');
@@ -342,104 +379,62 @@
                     productId = parseInt(cartKey);
                 }
 
-                const product = products.find(p => p.id == productId);
-                if (!product) return;
-
-                const cartItem = cart[cartKey];
-                const qty = cartItem.quantity;
-                const itemPrice = cartItem.price;
-                const subtotal = qty * itemPrice;
-                total += subtotal;
-                count += qty;
-
-                // Build display name with proportion if available
-                let displayName = product.name;
-                if (proportion) {
-                    displayName += ` (${proportion})`;
+                const product = products.find(p => p.id === productId);
+                if (!product) {
+                    showNotification("Product not found!", 'error');
+                    return;
                 }
 
-                cartItems.innerHTML += `
-                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded">
-                        <div class="flex-1">
-                            <div class="font-medium text-sm">${displayName}</div>
-                            <div class="text-sm text-gray-600">₹${itemPrice.toFixed(2)} each</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button class="decrease w-6 h-6 rounded bg-red-500 text-white text-xs" data-id="${cartKey}">-</button>
-                            <span class="w-6 text-center text-sm">${qty}</span>
-                            <button class="increase w-6 h-6 rounded bg-green-500 text-white text-xs" data-id="${cartKey}">+</button>
-                        </div>
-                        <div class="text-right ml-4">
-                            <div class="font-medium text-sm">₹${subtotal.toFixed(2)}</div>
-                            <button class="text-red-500 text-xs remove" data-id="${cartKey}">Remove</button>
-                        </div>
-                    </div>
-                `;
-            });
+                let availableStock = product.stock || 0;
+                let displayName = product.name;
+                let itemPrice = product.price;
 
-            cartTotal.textContent = `₹${total.toFixed(2)}`;
-            cartCount.textContent = count;
-            cartButton.classList.toggle('hidden', count === 0);
-        }
+                if (proportion) {
+                    if (product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
+                        availableStock = product.proportion_stocks[proportion];
+                    }
+                    displayName = `${product.name} (${proportion})`;
 
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.classList.remove('hidden');
-            setTimeout(() => notification.classList.add('hidden'), 3000);
-        }
+                    try {
+                        const priceResponse = await fetch(`${BACKEND_URL}/products/${productId}/price/${proportion}`);
+                        if (priceResponse.ok) {
+                            const priceData = await priceResponse.json();
+                            itemPrice = priceData.price;
+                        }
+                    } catch (error) {
+                        console.warn(`Error fetching proportion price for ${displayName}:`, error);
+                    }
+                }
 
-        function generateWhatsAppOrder() {
-            console.log('🎯 WhatsApp order button clicked');
+                if (availableStock <= 0) {
+                    showNotification(`Sorry, ${displayName} is out of stock!`, 'warning');
+                    return;
+                }
 
-            const name = document.getElementById('customer-name').value.trim();
-            const phone = document.getElementById('customer-phone').value.trim();
-            const address = document.getElementById('customer-address').value.trim();
-            const notes = document.getElementById('customer-notes').value.trim();
+                setCart(prev => {
+                    const currentQty = prev[cartKey] ? prev[cartKey].quantity : 0;
+                    if (currentQty + 1 > availableStock) {
+                        showNotification(`Sorry, only ${availableStock} units available!`, 'warning');
+                        return prev;
+                    }
 
-            console.log('📋 Form data:', { name, phone, address, notes, cart });
+                    return {
+                        ...prev,
+                        [cartKey]: {
+                            quantity: (prev[cartKey]?.quantity || 0) + 1,
+                            price: itemPrice
+                        }
+                    };
+                });
 
-            if (!name) {
-                alert('Please enter your full name');
-                return;
-            }
+                showNotification(`Added ${displayName} to your cart`);
+            }, [products, showNotification]);
 
-            if (!phone || !/^[6-9]\d{9}$/.test(phone.replace(/\s+/g, ''))) {
-                alert('Please enter a valid 10-digit phone number');
-                return;
-            }
+            const updateCartItem = useCallback((cartKey, change) => {
+                setCart(prev => {
+                    const current = prev[cartKey];
+                    if (!current) return prev;
 
-            if (!address) {
-                alert('Please enter your delivery address');
-                return;
-            }
-
-            const cartItems = Object.keys(cart).filter(cartKey => cart[cartKey] && cart[cartKey].quantity > 0);
-            console.log('🛒 Cart items:', cartItems);
-
-            if (cartItems.length === 0) {
-                showNotification('Your cart is empty. Please add some products.');
-                return;
-            }
-
-            // Calculate total
-            let total = 0;
-            cartItems.forEach(cartKey => {
-                const cartItem = cart[cartKey];
-                const qty = cartItem.quantity;
-                const itemPrice = cartItem.price;
-                const subtotal = qty * itemPrice;
-                total += subtotal;
-            });
-
-            // Prepare order data for payment page
-            const orderData = {
-                customer_name: name,
-                customer_phone: '+91' + phone,
-                customer_address: address,
-                customer_notes: notes,
-                items: cartItems.map(cartKey => {
-                    // Parse cart key to get product info
                     let productId, proportion = null;
                     if (cartKey.includes('_')) {
                         [productId, proportion] = cartKey.split('_');
@@ -448,83 +443,105 @@
                         productId = parseInt(cartKey);
                     }
 
-                    const product = products.find(p => p.id == productId);
-                    const cartItem = cart[cartKey];
+                    const product = products.find(p => p.id === productId);
+                    let availableStock = product ? product.stock || 0 : 0;
 
-                    // Build display name with proportion if available
-                    let displayName = product.name;
-                    if (proportion) {
-                        displayName += ` (${proportion})`;
+                    if (proportion && product?.proportion_stocks?.[proportion] !== undefined) {
+                        availableStock = product.proportion_stocks[proportion];
+                    }
+
+                    const newQty = current.quantity + change;
+
+                    if (newQty <= 0) {
+                        const { [cartKey]: removed, ...rest } = prev;
+                        return rest;
+                    }
+
+                    if (newQty > availableStock) {
+                        showNotification('Maximum stock available', 'warning');
+                        return prev;
                     }
 
                     return {
-                        id: product.id,
-                        name: displayName,
-                        quantity: cartItem.quantity,
-                        price: cartItem.price,
-                        unit_type: product.unit_type
+                        ...prev,
+                        [cartKey]: { ...current, quantity: newQty }
                     };
-                }),
-                total: total,
-                order_date: new Date().toISOString()
-            };
+                });
+            }, [products, showNotification]);
 
-            // Store order data for payment page (both sessionStorage and URL params for cross-domain compatibility)
-            sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+            const removeFromCart = useCallback((cartKey) => {
+                setCart(prev => {
+                    const { [cartKey]: removed, ...rest } = prev;
+                    return rest;
+                });
+                showNotification('Item removed from cart');
+            }, [showNotification]);
 
-            // Disable the button to prevent double submission
-            const checkoutButton = document.getElementById('whatsapp-checkout-button');
-            checkoutButton.disabled = true;
-            checkoutButton.textContent = 'Processing...';
+            // Calculate cart summary
+            const cartSummary = useMemo(() => {
+                let total = 0;
+                let count = 0;
 
-            // Create order message for shopkeeper (order details only)
-            let shopkeeperMessage = `*NEW CUSTOMER ORDER*\n\n`;
-            shopkeeperMessage += `👤 Customer: ${name}\n`;
-            shopkeeperMessage += `📞 Phone: +91${phone}\n`;
-            shopkeeperMessage += `💳 Payment Method: Cash on Delivery\n\n`;
+                Object.entries(cart).forEach(([cartKey, { quantity, price }]) => {
+                    total += quantity * price;
+                    count += quantity;
+                });
 
-            shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
+                return { total, count };
+            }, [cart]);
 
-            cartItems.forEach(cartKey => {
-                // Parse cart key to get product info
-                let productId, proportion = null;
-                if (cartKey.includes('_')) {
-                    [productId, proportion] = cartKey.split('_');
-                    productId = parseInt(productId);
-                } else {
-                    productId = parseInt(cartKey);
+            const handleCheckout = useCallback(async () => {
+                console.log('🎯 WhatsApp order button clicked');
+
+                // Get form inputs
+                const nameInput = document.querySelector('input[placeholder*="Your Full Name"]');
+                const phoneInput = document.querySelector('input[placeholder*="Phone Number"]');
+                const addressInput = document.querySelector('textarea[placeholder*="Delivery Address"]');
+                const notesInput = document.querySelector('textarea[placeholder*="Special Instructions"]');
+
+                const name = nameInput?.value?.trim() || '';
+                const phone = phoneInput?.value?.trim() || '';
+                const address = addressInput?.value?.trim() || '';
+                const notes = notesInput?.value?.trim() || '';
+
+                console.log('📋 Form data:', { name, phone, address, notes, cart });
+
+                if (!name) {
+                    showNotification('Please enter your full name', 'error');
+                    nameInput?.focus();
+                    return;
                 }
 
-                const product = products.find(p => p.id == productId);
-                const cartItem = cart[cartKey];
-                const qty = cartItem.quantity;
-                const itemPrice = cartItem.price;
-                const subtotal = qty * itemPrice;
-
-                // Build display name with proportion if available
-                let displayName = product.name;
-                if (proportion) {
-                    displayName += ` (${proportion})`;
+                if (!phone || !/^[6-9]\d{9}$/.test(phone.replace(/\s+/g, ''))) {
+                    showNotification('Please enter a valid 10-digit phone number', 'error');
+                    phoneInput?.focus();
+                    return;
                 }
 
-                shopkeeperMessage += `${displayName} - ${qty} × ₹${itemPrice.toFixed(2)} = ₹${subtotal.toFixed(2)}\n`;
-            });
+                if (!address) {
+                    showNotification('Please enter your delivery address', 'error');
+                    addressInput?.focus();
+                    return;
+                }
 
-            shopkeeperMessage += `────────────────────\n*TOTAL: ₹${total.toFixed(2)}*\n\n`;
+                const cartItems = Object.keys(cart).filter(cartKey => cart[cartKey]?.quantity > 0);
+                console.log('🛒 Cart items:', cartItems);
 
-            shopkeeperMessage += `✅ Please confirm and process this order.\n`;
-            shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            shopkeeperMessage += `🏪 Raza Wholesale and Retail Store\n`;
+                if (cartItems.length === 0) {
+                    showNotification('Your cart is empty. Please add some products.', 'warning');
+                    return;
+                }
 
-            // Send order to backend first
-            fetch(`${BACKEND_URL}/whatsapp-order/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+                // Calculate total
+                let total = cartSummary.total;
+
+                // Prepare order data for payment page
+                const orderData = {
                     customer_name: name,
-                    phone_number: '+91' + phone,
+                    customer_phone: '+91' + phone,
+                    customer_address: address,
+                    customer_notes: notes,
                     items: cartItems.map(cartKey => {
-                        // Parse cart key to get product info
                         let productId, proportion = null;
                         if (cartKey.includes('_')) {
                             [productId, proportion] = cartKey.split('_');
@@ -533,654 +550,581 @@
                             productId = parseInt(cartKey);
                         }
 
-                        const product = products.find(p => p.id == productId);
+                        const product = products.find(p => p.id === productId);
                         const cartItem = cart[cartKey];
 
-                        // Send base product name with proportion information for backend lookup
-                        let productNameToSend = product.name;
+                        let displayName = product?.name || 'Unknown Product';
                         if (proportion) {
-                            // Include proportion in the product name for backend processing
-                            productNameToSend = `${product.name} (${proportion})`;
+                            displayName += ` (${proportion})`;
                         }
 
                         return {
-                            product_name: productNameToSend,  // Include proportion in name for backend processing
-                            quantity: cartItem.quantity
+                            id: product?.id || productId,
+                            name: displayName,
+                            quantity: cartItem.quantity,
+                            price: cartItem.price,
+                            unit_type: product?.unit_type || 'unit'
                         };
-                    })
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log('Order processed:', data);
-                if (data.status === 'success') {
-                    // Order placed successfully - now send notifications
-                    showNotification('✅ Order placed! Sending WhatsApp notifications...');
+                    }),
+                    total: total,
+                    order_date: new Date().toISOString()
+                };
 
-                    // Small delay to show order placed message, then send shopkeeper notification
-                    setTimeout(() => {
-                        sendShopkeeperNotificationAutomatically(data, orderData);
-                    }, 800); // 0.8 second delay
-                } else {
-                    showNotification('❌ Order failed: ' + (data.message || 'Unknown error'));
+                // Store order data for payment page
+                sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+
+                // Show processing state
+                const checkoutButton = document.querySelector('.checkout-button');
+                if (checkoutButton) {
+                    checkoutButton.disabled = true;
+                    checkoutButton.textContent = 'Processing...';
                 }
-            })
-            .catch(error => {
-                console.error('Order submission error:', error);
-                showNotification('❌ Failed to place order. Please try again.');
-            })
-            .finally(() => {
-                // Re-enable the button
-                checkoutButton.disabled = false;
-                checkoutButton.textContent = '📱 Send Order to WhatsApp';
-            });
+
+                try {
+                    // Send order to backend first
+                    const backendResponse = await fetch(`${BACKEND_URL}/whatsapp-order/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customer_name: name,
+                            phone_number: '+91' + phone,
+                            items: cartItems.map(cartKey => {
+                                let productId, proportion = null;
+                                if (cartKey.includes('_')) {
+                                    [productId, proportion] = cartKey.split('_');
+                                    productId = parseInt(productId);
+                                } else {
+                                    productId = parseInt(cartKey);
+                                }
+
+                                const product = products.find(p => p.id === productId);
+                                const cartItem = cart[cartKey];
+
+                                let productNameToSend = product?.name || 'Unknown Product';
+                                if (proportion) {
+                                    productNameToSend = `${product.name} (${proportion})`;
+                                }
+
+                                return {
+                                    product_name: productNameToSend,
+                                    quantity: cartItem.quantity
+                                };
+                            })
+                        })
+                    });
+
+                    const data = await backendResponse.json();
+                    console.log('Order processed:', data);
+
+                    if (data.status === 'success') {
+                        showNotification('✅ Order placed! Sending WhatsApp notifications...');
+
+                        // Send notifications
+                        await sendShopkeeperNotification(orderData, data);
+                        showNotification('✅ Order sent to shopkeeper! Thanks message prepared.');
+                    } else {
+                        showNotification('❌ Order failed: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Order submission error:', error);
+                    showNotification('❌ Failed to place order. Please try again.', 'error');
+                } finally {
+                    // Re-enable the button
+                    if (checkoutButton) {
+                        checkoutButton.disabled = false;
+                        checkoutButton.textContent = '📱 Send Order to WhatsApp';
+                    }
+                }
+            }, [cart, cartSummary, products, showNotification]);
+
+            const sendShopkeeperNotification = useCallback(async (orderData, backendData) => {
+                let shopkeeperMessage = `*NEW CUSTOMER ORDER*\n\n`;
+                shopkeeperMessage += `👤 Customer: ${orderData.customer_name}\n`;
+                shopkeeperMessage += `📞 Phone: ${orderData.customer_phone}\n`;
+                shopkeeperMessage += `💳 Payment Method: Cash on Delivery\n\n`;
+
+                shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
+
+                orderData.items.forEach(item => {
+                    shopkeeperMessage += `${item.name} - ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${(item.quantity * item.price).toFixed(2)}\n`;
+                });
+
+                shopkeeperMessage += `────────────────────\n*TOTAL: ₹${orderData.total.toFixed(2)}*\n\n`;
+
+                shopkeeperMessage += `✅ Please confirm and process this order.\n`;
+                shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
+                shopkeeperMessage += `🏪 Raza Wholesale and Retail Store\n`;
+
+                const shopkeeperWhatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
+                console.log('📱 Shopkeeper WhatsApp URL:', shopkeeperWhatsappUrl);
+
+                try {
+                    const shopkeeperWindow = window.open(shopkeeperWhatsappUrl, '_blank', 'noopener,noreferrer');
+                    if (!shopkeeperWindow) {
+                        console.warn('⚠️ Shopkeeper WhatsApp popup blocked');
+                        showNotification('⚠️ Please allow popups to send WhatsApp messages', 'warning');
+                    }
+                } catch (error) {
+                    console.error('❌ Error opening shopkeeper WhatsApp:', error);
+                    showNotification('❌ Failed to open WhatsApp. Please check popup settings.', 'error');
+                }
+
+                // Prepare thanks message for clipboard
+                const orderId = backendData?.order_id || 'ORDER_UNKNOWN';
+                const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
+
+                const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
+
+                // Copy to clipboard
+                try {
+                    await navigator.clipboard.writeText(thanksMessage);
+                    showNotification('✅ Thanks message copied to clipboard!');
+                } catch (error) {
+                    console.warn('Could not copy to clipboard:', error);
+                    // Fallback method
+                    const textArea = document.createElement('textarea');
+                    textArea.value = thanksMessage;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showNotification('✅ Thanks message copied to clipboard!');
+                    } catch (fallbackError) {
+                        console.warn('Fallback copy also failed:', fallbackError);
+                    } finally {
+                        document.body.removeChild(textArea);
+                    }
+                }
+
+                // Reset cart and close modal after a delay
+                setTimeout(() => {
+                    setCart({});
+                    setShowCart(false);
+
+                    // Reset form fields
+                    const nameInput = document.querySelector('input[placeholder*="Your Full Name"]');
+                    const phoneInput = document.querySelector('input[placeholder*="Phone Number"]');
+                    const addressInput = document.querySelector('textarea[placeholder*="Delivery Address"]');
+                    const notesInput = document.querySelector('textarea[placeholder*="Special Instructions"]');
+
+                    if (nameInput) nameInput.value = '';
+                    if (phoneInput) phoneInput.value = '';
+                    if (addressInput) addressInput.value = '';
+                    if (notesInput) notesInput.value = '';
+                }, 2000);
+            }, [setCart, setShowCart, showNotification]);
+
+            return (
+                <>
+                    <Header />
+                    <main className="gradient-bg">
+                        <div className="w-full max-w-7xl mx-auto p-4 space-y-8">
+                            <SearchAndFilter
+                                categories={categories}
+                                selectedCategory={selectedCategory}
+                                onCategoryChange={setSelectedCategory}
+                                searchTerm={searchTerm}
+                                onSearchChange={setSearchTerm}
+                            />
+
+
+
+                            <ProductsGrid
+                                products={filteredProducts}
+                                loading={loading}
+                                addToCart={addToCart}
+                            />
+
+                            <CartButton
+                                count={cartSummary.count}
+                                onClick={() => setShowCart(true)}
+                            />
+                        </div>
+                    </main>
+
+                    <CartModal
+                        isOpen={showCart}
+                        cart={cart}
+                        products={products}
+                        cartSummary={cartSummary}
+                        onClose={() => setShowCart(false)}
+                        onUpdateItem={updateCartItem}
+                        onRemoveItem={removeFromCart}
+                        onCheckout={handleCheckout}
+                    />
+
+                    <Notifications
+                        notifications={notifications}
+                        onClose={closeNotification}
+                    />
+                </>
+            );
         }
 
-        function showOrderConfirmation(orderData) {
-            // Create a thank you modal
-            const existingModal = document.querySelector('.order-confirmation-modal');
-            if (existingModal) existingModal.remove();
-
-            const modal = document.createElement('div');
-            modal.className = 'order-confirmation-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
-            modal.innerHTML = `
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md text-center">
-                    <div class="text-6xl mb-4">🎉</div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Thank You for Your Order!</h2>
-                    <p class="text-gray-600 mb-4">Your order has been received successfully.</p>
-
-                    <div class="bg-gray-50 p-4 rounded-lg mb-6">
-                        <div class="text-sm text-gray-600 mb-2">Order Total: <strong class="text-green-600">₹${orderData.total.toFixed(2)}</strong></div>
-                        <div class="text-sm text-gray-600">Items: ${orderData.items.length} product${orderData.items.length > 1 ? 's' : ''}</div>
+        // Header Component
+        const Header = () => (
+            <header className="w-full bg-gradient-to-r from-green-500 to-green-600 shadow-xl p-4 sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto flex justify-between items-center">
+                    <div className="text-center">
+                        <h1 className="text-xl md:text-2xl font-bold mb-1 text-white">
+                            🛒 Raza Wholesale and Retail
+                        </h1>
+                        <p className="text-sm md:text-base text-green-100">
+                            Fresh Products • Best Prices • Fast Delivery
+                        </p>
+                        <p className="text-sm text-green-200 font-medium">
+                            📞 +91 7075210801
+                        </p>
                     </div>
 
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                        <h3 class="text-lg font-semibold text-blue-800 mb-2">💳 Complete Your Payment</h3>
-                        <p class="text-sm text-blue-700 mb-3">Click the link below to proceed with payment:</p>
-                        <button onclick="goToPayment()" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg shadow hover:bg-blue-600 font-semibold text-lg transition-colors">
-                            🔗 Proceed to Payment
+                    <div className="text-white text-right hidden sm:block">
+                        <div className="text-sm opacity-90">Contact us:</div>
+                        <div className="font-semibold">+91 7075210801</div>
+                    </div>
+                </div>
+            </header>
+        );
+
+        // Search and Filter Component
+        const SearchAndFilter = ({ categories, selectedCategory, onCategoryChange, searchTerm, onSearchChange }) => (
+            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-xl slide-up">
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <i className="fas fa-filter mr-2"></i>Filter by Category
+                        </label>
+                        <select
+                            value={selectedCategory}
+                            onChange={(e) => onCategoryChange(e.target.value)}
+                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                        >
+                            <option value="">All Categories</option>
+                            {categories.map(cat => (
+                                <option key={cat.name} value={cat.name}>{cat.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <i className="fas fa-search mr-2"></i>Search Products
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => onSearchChange(e.target.value)}
+                                placeholder="Search for products..."
+                                className="w-full p-3 pl-10 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                            />
+                            <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // Quick Order Section Component
+        const QuickOrderSection = ({ onQuickOrder }) => (
+            <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-xl slide-up">
+                <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+                    <i className="fas fa-bolt mr-2 text-yellow-500"></i>Quick Order Suggestions
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[
+                        { name: 'Fruits', icon: '🍎', color: 'orange' },
+                        { name: 'Dairy', icon: '🥛', color: 'blue' },
+                        { name: 'Groceries', icon: '🛒', color: 'purple' }
+                    ].map(({ name, icon, color }) => (
+                        <button
+                            key={name}
+                            onClick={() => onQuickOrder(name)}
+                            className={`bg-gradient-to-r from-${color}-500 to-${color}-600 text-white py-4 px-6 rounded-xl hover:from-${color}-600 hover:to-${color}-700 text-lg font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-xl`}
+                        >
+                            <div className="flex items-center justify-center gap-3">
+                                <span className="text-2xl">{icon}</span>
+                                <span>Order {name}</span>
+                                <i className="fas fa-arrow-right"></i>
+                            </div>
                         </button>
-                    </div>
+                    ))}
+                </div>
+            </div>
+        );
 
-                    <button onclick="closeOrderConfirmation()" class="text-gray-500 hover:text-gray-700 text-sm">
-                        Close
+        // Products Grid Component
+        const ProductsGrid = ({ products, loading, addToCart }) => {
+            if (loading) {
+                return (
+                    <div className="grid product-grid fade-in">
+                        {[...Array(8)].map((_, i) => (
+                            <div key={i} className="product-card p-6 rounded-xl animate-pulse">
+                                <div className="h-4 bg-gray-300 rounded mb-3"></div>
+                                <div className="h-6 bg-gray-300 rounded mb-4 w-1/2"></div>
+                                <div className="h-10 bg-gray-300 rounded"></div>
+                            </div>
+                        ))}
+                    </div>
+                );
+            }
+
+            if (products.length === 0) {
+                return (
+                    <div className="text-center py-16 fade-in">
+                        <i className="fas fa-shopping-basket text-6xl text-gray-300 mb-4"></i>
+                        <h3 className="text-2xl font-semibold text-gray-500 mb-2">No products found</h3>
+                        <p className="text-gray-400">Try adjusting your search or category filter</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="grid product-grid fade-in">
+                    {products.map(product => (
+                        <ProductCard
+                            key={product.id}
+                            product={product}
+                            onAddToCart={addToCart}
+                        />
+                    ))}
+                </div>
+            );
+        };
+
+        // Product Card Component
+        const ProductCard = ({ product, onAddToCart }) => {
+            const isOutOfStock = product.stock <= 0;
+
+            if (product.proportions?.length > 0) {
+                return (
+                    <div className="product-card p-6 rounded-2xl text-center bounce-in">
+                        <h4 className="font-bold text-lg text-gray-800 mb-3 line-clamp-2">
+                            {product.name}
+                        </h4>
+                        <p className="text-2xl font-bold text-green-600 mb-4">
+                            ₹{product.price}
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                            {product.proportions.map(proportion => (
+                                <button
+                                    key={proportion}
+                                    onClick={() => !isOutOfStock && onAddToCart(`${product.id}_${proportion}`)}
+                                    disabled={isOutOfStock}
+                                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                                        isOutOfStock
+                                            ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                            : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-md'
+                                    }`}
+                                >
+                                    {proportion} {isOutOfStock && '(Out)'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="product-card p-6 rounded-2xl text-center bounce-in">
+                    <h4 className="font-bold text-lg text-gray-800 mb-3 line-clamp-2">
+                        {product.name}
+                    </h4>
+                    <p className="text-2xl font-bold text-green-600 mb-4">
+                        ₹{product.price}
+                    </p>
+                    <button
+                        onClick={() => !isOutOfStock && onAddToCart(product.id.toString())}
+                        disabled={isOutOfStock}
+                        className={`w-full py-3 px-4 rounded-xl font-semibold text-lg transition-all ${
+                            isOutOfStock
+                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105'
+                        }`}
+                    >
+                        {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                     </button>
                 </div>
-            `;
+            );
+        };
 
-            document.body.appendChild(modal);
-        }
-
-        function goToPayment() {
-            // Get the stored order data and pass it via URL parameters for reliability
-            const storedOrder = sessionStorage.getItem('pendingOrder');
-            if (storedOrder) {
-                const orderParam = encodeURIComponent(storedOrder);
-                window.location.href = `payment.html?order=${orderParam}`;
-            } else {
-                // Fallback if no stored order
-                window.location.href = 'payment.html';
-            }
-        }
-
-        function closeOrderConfirmation() {
-            const modal = document.querySelector('.order-confirmation-modal');
-            if (modal) modal.remove();
-        }
-
-        function showThanksMessageModal(thanksMessage) {
-            // Create a modal to display the thanks message for copying
-            const existingModal = document.querySelector('.thanks-message-modal');
-            if (existingModal) existingModal.remove();
-
-            const modal = document.createElement('div');
-            modal.className = 'thanks-message-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
-            modal.innerHTML = `
-                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-semibold text-green-600">📝 Thanks Message Ready!</h3>
-                        <button onclick="closeThanksMessageModal()" class="text-2xl text-gray-500 hover:text-gray-700">&times;</button>
+        // Cart Button Component
+        const CartButton = ({ count, onClick }) => (
+            <div className="cart-floating">
+                <button
+                    onClick={onClick}
+                    className={`bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all transform ${
+                        count > 0 ? 'pulse-cart scale-110' : 'scale-100'
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <i className="fas fa-shopping-cart text-xl"></i>
+                        {count > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center absolute -top-1 -right-1">
+                                {count}
+                            </span>
+                        )}
                     </div>
+                </button>
+            </div>
+        );
 
-                    <div class="mb-4">
-                        <p class="text-sm text-gray-600 mb-3">Copy this message and send it to the customer:</p>
-                        <div class="bg-gray-50 border rounded-lg p-3 max-h-60 overflow-y-auto">
-                            <pre id="thanks-message-text" class="text-sm whitespace-pre-wrap font-mono">${thanksMessage}</pre>
+        // Cart Modal Component
+        const CartModal = ({ isOpen, cart, products, cartSummary, onClose, onUpdateItem, onRemoveItem, onCheckout }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[95vh] overflow-hidden slide-up">
+                        {/* Header - Fixed */}
+                        <div className="flex justify-between items-center p-6 border-b flex-shrink-0">
+                            <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                                <i className="fas fa-shopping-cart text-green-500"></i>
+                                Your Order
+                            </h3>
+                            <button
+                                onClick={onClose}
+                                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                            >
+                                <i className="fas fa-times text-xl"></i>
+                            </button>
                         </div>
-                    </div>
 
-                    <div class="flex gap-3">
-                        <button onclick="copyThanksMessage()" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 font-semibold">
-                            📋 Copy Message
-                        </button>
-                        <button onclick="openWhatsAppWithThanks()" class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 font-semibold">
-                            📱 Open WhatsApp
-                        </button>
-                    </div>
+                        {/* Scrollable Content Area */}
+                        <div className="flex-1 overflow-y-auto">
+                            {/* Cart Items */}
+                            <div className="p-6 space-y-4">
+                                {Object.keys(cart).length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <i className="fas fa-shopping-basket text-6xl text-gray-300 mb-4"></i>
+                                        <p className="text-gray-500 text-lg">Your cart is empty</p>
+                                    </div>
+                                ) : (
+                                    Object.entries(cart).map(([cartKey, { quantity, price }]) => {
+                                        let productId, proportion = null;
+                                        if (cartKey.includes('_')) {
+                                            [productId, proportion] = cartKey.split('_');
+                                            productId = parseInt(productId);
+                                        } else {
+                                            productId = parseInt(cartKey);
+                                        }
 
-                    <p class="text-xs text-gray-500 text-center mt-3">
-                        Send this message to confirm the order and provide payment instructions.
-                    </p>
-                </div>
-            `;
+                                        const product = products.find(p => p.id === productId);
+                                        if (!product) return null;
 
-            document.body.appendChild(modal);
-        }
+                                        const displayName = proportion ? `${product.name} (${proportion})` : product.name;
+                                        const subtotal = quantity * price;
 
-        function closeThanksMessageModal() {
-            const modal = document.querySelector('.thanks-message-modal');
-            if (modal) modal.remove();
-        }
+                                        return (
+                                            <div key={cartKey} className="grid grid-cols-[2fr_140px_100px] gap-4 items-center bg-gray-50 p-4 rounded-xl">
+                                                <div className="min-w-0">
+                                                    <div className="font-semibold text-gray-800 mb-1 break-words">{displayName}</div>
+                                                    <div className="text-sm text-gray-600">₹{price.toFixed(2)} each</div>
+                                                </div>
 
-        function copyThanksMessage() {
-            const textElement = document.getElementById('thanks-message-text');
-            if (textElement) {
-                navigator.clipboard.writeText(textElement.textContent).then(() => {
-                    showNotification('✅ Thanks message copied to clipboard!');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const textArea = document.createElement('textarea');
-                    textArea.value = textElement.textContent;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    showNotification('✅ Thanks message copied to clipboard!');
-                });
-            }
-        }
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <div className="flex items-center justify-center gap-3">
+                                                        <button
+                                                            onClick={() => onUpdateItem(cartKey, -1)}
+                                                            className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors active:scale-95 shadow-sm"
+                                                        >
+                                                            <i className="fas fa-minus text-xs font-bold"></i>
+                                                        </button>
+                                                        <span className="w-8 text-center font-bold text-lg tabular-nums">{quantity}</span>
+                                                        <button
+                                                            onClick={() => onUpdateItem(cartKey, 1)}
+                                                            className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors active:scale-95 shadow-sm"
+                                                        >
+                                                            <i className="fas fa-plus text-xs font-bold"></i>
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => onRemoveItem(cartKey)}
+                                                        className="text-red-500 text-xs hover:text-red-700 active:scale-95 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
 
-        function openWhatsAppWithThanks() {
-            const textElement = document.getElementById('thanks-message-text');
-            if (textElement) {
-                const customerPhone = document.getElementById('customer-phone').value.trim();
-                if (customerPhone) {
-                    const whatsappUrl = `https://wa.me/91${customerPhone}?text=${encodeURIComponent(textElement.textContent)}`;
-                    window.open(whatsappUrl, '_blank');
-                    closeThanksMessageModal();
-                } else {
-                    showNotification('❌ Customer phone number not found');
-                }
-            }
-        }
-
-        function showShopkeeperNotificationModal(orderData) {
-            // Create a modal to display the shopkeeper notification message
-            const existingModal = document.querySelector('.shopkeeper-notification-modal');
-            if (existingModal) existingModal.remove();
-
-            // Calculate total amount from cart
-            let totalAmount = 0;
-            Object.keys(cart).filter(id => cart[id] > 0).forEach(productId => {
-                const product = products.find(p => p.id == productId);
-                const qty = cart[productId];
-                totalAmount += qty * product.price;
-            });
-
-            // Get order ID from the backend response
-            const orderId = backendData.order_id ? backendData.order_id.replace('ORDER_', '') : '0';
-
-            // Get shopkeeper notification data from backend
-            fetch(`${BACKEND_URL}/send-shopkeeper-notification/?total_bill=${totalAmount}&order_id=${orderId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customer_name: document.getElementById('customer-name').value.trim(),
-                    phone_number: '+91' + document.getElementById('customer-phone').value.trim(),
-                    items: Object.keys(cart).filter(id => cart[id] > 0).map(productId => ({
-                        product_name: products.find(p => p.id == productId).name,
-                        quantity: cart[productId]
-                    }))
-                })
-            })
-            .then(res => res.json())
-            .then(notificationData => {
-                if (notificationData.status === 'ready') {
-                    const modal = document.createElement('div');
-                    modal.className = 'shopkeeper-notification-modal fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50';
-                    modal.innerHTML = `
-                        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                            <div class="flex justify-between items-center mb-4">
-                                <h3 class="text-xl font-semibold text-blue-600">📢 Shopkeeper Notification</h3>
-                                <button onclick="closeShopkeeperNotificationModal()" class="text-2xl text-gray-500 hover:text-gray-700">&times;</button>
+                                                <div className="text-right">
+                                                    <div className="font-bold text-gray-800 text-lg">₹{subtotal.toFixed(2)}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
 
-                            <div class="mb-4">
-                                <p class="text-sm text-gray-600 mb-3">Send this order notification to the shopkeeper:</p>
-                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 max-h-60 overflow-y-auto">
-                                    <pre id="shopkeeper-message-text" class="text-sm whitespace-pre-wrap font-mono">${notificationData.notification_message}</pre>
+                            {/* Checkout Form - Only show when cart has items */}
+                            {Object.keys(cart).length > 0 && (
+                                <div className="border-t p-6 space-y-4">
+                                    <div className="flex justify-between text-xl font-bold">
+                                        <span>Total Amount:</span>
+                                        <span className="text-green-600">₹{cartSummary.total.toFixed(2)}</span>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Your Full Name *"
+                                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                                        />
+                                        <input
+                                            type="tel"
+                                            placeholder="Phone Number *"
+                                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                                        />
+                                        <textarea
+                                            placeholder="Delivery Address *"
+                                            rows="2"
+                                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all resize-vertical"
+                                        ></textarea>
+                                        <textarea
+                                            placeholder="Special Instructions (Optional)"
+                                            rows="2"
+                                            className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all resize-vertical"
+                                        ></textarea>
+                                    </div>
+
+                                    <button
+                                        onClick={onCheckout}
+                                        className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-4 px-6 rounded-xl shadow-xl hover:shadow-2xl font-bold text-lg transition-all transform hover:scale-105 active:scale-95 checkout-button"
+                                    >
+                                        <i className="fab fa-whatsapp mr-2"></i>
+                                        Send Order to WhatsApp
+                                    </button>
+
+                                    <p className="text-xs text-gray-500 text-center">
+                                        We'll confirm your order and deliver to your doorstep!
+                                    </p>
                                 </div>
-                            </div>
-
-                            <div class="flex gap-3 mb-4">
-                                <button onclick="copyShopkeeperMessage()" class="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 font-semibold">
-                                    📋 Copy Message
-                                </button>
-                                <button onclick="openWhatsAppWithShopkeeperNotification()" class="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 font-semibold">
-                                    📱 Send to Shopkeeper
-                                </button>
-                            </div>
-
-                            <div class="border-t pt-4">
-                                <p class="text-sm text-gray-600 mb-3">After sending to shopkeeper, send thanks message to customer:</p>
-                                <button onclick="showCustomerThanksMessage('${orderData.whatsapp_message}')" class="w-full bg-purple-500 text-white py-2 px-4 rounded-lg hover:bg-purple-600 font-semibold">
-                                    📝 Show Customer Thanks Message
-                                </button>
-                            </div>
-
-                            <p class="text-xs text-gray-500 text-center mt-3">
-                                Order has been saved. Send notifications to complete the process.
-                            </p>
+                            )}
                         </div>
-                    `;
-
-                    document.body.appendChild(modal);
-                } else {
-                    showNotification('❌ Failed to prepare shopkeeper notification');
-                }
-            })
-            .catch(error => {
-                console.error('Shopkeeper notification error:', error);
-                showNotification('❌ Failed to prepare shopkeeper notification');
-            });
-        }
-
-        function closeShopkeeperNotificationModal() {
-            const modal = document.querySelector('.shopkeeper-notification-modal');
-            if (modal) modal.remove();
-        }
-
-        function copyShopkeeperMessage() {
-            const textElement = document.getElementById('shopkeeper-message-text');
-            if (textElement) {
-                navigator.clipboard.writeText(textElement.textContent).then(() => {
-                    showNotification('✅ Shopkeeper message copied to clipboard!');
-                }).catch(() => {
-                    // Fallback for older browsers
-                    const textArea = document.createElement('textarea');
-                    textArea.value = textElement.textContent;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    showNotification('✅ Shopkeeper message copied to clipboard!');
-                });
-            }
-        }
-
-        function openWhatsAppWithShopkeeperNotification() {
-            const textElement = document.getElementById('shopkeeper-message-text');
-            if (textElement) {
-                const whatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(textElement.textContent)}`;
-                window.open(whatsappUrl, '_blank');
-                showNotification('📱 WhatsApp opened with shopkeeper notification!');
-            }
-        }
-
-        function sendShopkeeperNotificationAutomatically(backendData, orderData) {
-            // Send order details to shopkeeper WhatsApp and copy thanks message to clipboard
-
-            // Create the WhatsApp URL directly using the shopkeeper message
-            let shopkeeperMessage = `*NEW CUSTOMER ORDER*\n\n`;
-            shopkeeperMessage += `👤 Customer: ${orderData.customer_name}\n`;
-            shopkeeperMessage += `📞 Phone: ${orderData.customer_phone}\n`;
-            shopkeeperMessage += `💳 Payment Method: Cash on Delivery\n\n`;
-
-            shopkeeperMessage += `📦 ORDER DETAILS:\n────────────────────\n`;
-
-            orderData.items.forEach(item => {
-                shopkeeperMessage += `${item.name} - ${item.quantity} × ₹${item.price.toFixed(2)} = ₹${(item.quantity * item.price).toFixed(2)}\n`;
-            });
-
-            shopkeeperMessage += `────────────────────\n*TOTAL: ₹${orderData.total.toFixed(2)}*\n\n`;
-
-            shopkeeperMessage += `✅ Please confirm and process this order.\n`;
-            shopkeeperMessage += `📅 Order placed on: ${new Date().toLocaleString('en-IN')}\n`;
-            shopkeeperMessage += `🏪 Raza Wholesale and Retail Store\n`;
-
-            const shopkeeperWhatsappUrl = `https://wa.me/${SHOPKEEPER_NUMBER}?text=${encodeURIComponent(shopkeeperMessage)}`;
-            console.log('📱 Opening WhatsApp for shopkeeper with order details:', shopkeeperWhatsappUrl);
-
-            // Copy thanks message to clipboard for shopkeeper
-            copyThanksMessageToShopkeeperClipboard(orderData, backendData);
-
-            // Try to open WhatsApp for shopkeeper with order details
-            try {
-                const shopkeeperWindow = window.open(shopkeeperWhatsappUrl, '_blank', 'noopener,noreferrer');
-                if (!shopkeeperWindow) {
-                    console.warn('⚠️ Popup blocked - Shopkeeper WhatsApp could not be opened');
-                    showNotification('⚠️ Please allow popups to send WhatsApp messages');
-                } else {
-                    console.log('✅ WhatsApp window opened successfully for shopkeeper');
-                }
-            } catch (error) {
-                console.error('❌ Error opening shopkeeper WhatsApp window:', error);
-                showNotification('❌ Failed to open WhatsApp. Please check popup settings.');
-            }
-
-            // Show success message to customer
-            setTimeout(() => {
-                showNotification('✅ Order sent to shopkeeper! Thanks message copied to clipboard.');
-                // Reset cart and close modal
-                cart = {};
-                updateCart();
-                cartModal.classList.add('hidden');
-
-                // Reset form
-                document.getElementById('customer-name').value = '';
-                document.getElementById('customer-phone').value = '';
-                document.getElementById('customer-address').value = '';
-                document.getElementById('customer-notes').value = '';
-            }, 1000);
-        }
-
-        function copyCompleteMessageToClipboard(orderData, backendData) {
-            // Copy only the thanks message (order details are already in WhatsApp)
-            // Use the production payment link with order_id from backend
-            const orderId = backendData && backendData.order_id ? backendData.order_id : 'ORDER_UNKNOWN';
-            const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
-
-            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
-
-            console.log('🔄 Copying thanks message to clipboard (only thanks message)...');
-            console.log('Thanks message:', thanksMessage);
-
-            // Use fallback method for better compatibility
-            const textArea = document.createElement('textarea');
-            textArea.value = thanksMessage;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                const success = document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (success) {
-                    console.log('✅ Thanks message copied to clipboard successfully');
-                } else {
-                    console.error('❌ Copy command failed');
-                }
-            } catch (error) {
-                document.body.removeChild(textArea);
-                console.error('❌ Copy command error:', error);
-            }
-        }
-
-        function copyThanksMessageToShopkeeperClipboard(orderData, backendData) {
-            // Copy thanks message to clipboard for shopkeeper
-            // Use the production payment link with order_id from backend
-            const orderId = backendData && backendData.order_id ? backendData.order_id : 'ORDER_UNKNOWN';
-            const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
-
-            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
-
-            console.log('🔄 Copying thanks message to shopkeeper clipboard...');
-            console.log('Thanks message:', thanksMessage);
-
-            // Use fallback method for better compatibility
-            const textArea = document.createElement('textarea');
-            textArea.value = thanksMessage;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                const success = document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (success) {
-                    console.log('✅ Thanks message copied to shopkeeper clipboard successfully');
-                    showNotification('✅ Thanks message copied to clipboard for shopkeeper!');
-                } else {
-                    console.error('❌ Copy command failed');
-                }
-            } catch (error) {
-                document.body.removeChild(textArea);
-                console.error('❌ Copy command error:', error);
-            }
-        }
-
-        function copyThanksMessageToClipboard(orderData) {
-            // Always create a professional thanks message
-            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
-
-            console.log('🔄 Copying thanks message to clipboard (no notifications)...');
-            console.log('Thanks message content:', thanksMessage);
-
-            // Use fallback method for better compatibility
-            const textArea = document.createElement('textarea');
-            textArea.value = thanksMessage;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-999999px';
-            textArea.style.top = '-999999px';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                const success = document.execCommand('copy');
-                document.body.removeChild(textArea);
-
-                if (success) {
-                    console.log('✅ Thanks message copied to clipboard successfully (silent)');
-                } else {
-                    console.error('❌ Copy command failed');
-                }
-            } catch (error) {
-                document.body.removeChild(textArea);
-                console.error('❌ Copy command error:', error);
-            }
-        }
-
-        function openThanksMessageForCustomer(orderData, backendData) {
-            // Open WhatsApp with thanks message pre-filled for customer (so shopkeeper can send it)
-            const orderId = backendData && backendData.order_id ? backendData.order_id : 'ORDER_UNKNOWN';
-            const paymentLink = `https://general-store-kappa.vercel.app/payment?order_id=${orderId}`;
-
-            const thanksMessage = `🙏 *Thank You for Your Order!*\n\nDear ${orderData.customer_name},\n\n✅ Your order has been received successfully!\n\n📦 Order Summary:\n${orderData.items.map(item => `• ${item.name} (${item.quantity} ${item.unit_type})`).join('\n')}\n\n💰 Total Amount: ₹${orderData.total.toFixed(2)}\n\n🏠 Delivery Address: ${orderData.customer_address}\n\n📞 Contact: ${orderData.customer_phone}\n\n💳 *Payment Options:*\n• Cash on Delivery\n• Online Payment (UPI/Google Pay/PhonePe)\n• Bank Transfer\n\n💳 *Pay Online:*\n${paymentLink}\n\n📅 We will deliver your fresh products within 1-2 hours.\n\n🏪 *Raza Wholesale and Retail Store*\n🚚 *Fresh Products • Best Prices • Fast Delivery*\n📞 +91 7075210801`;
-
-            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
-
-            if (thanksMessage && customerPhone) {
-                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
-                console.log('📱 Opening WhatsApp with thanks message for customer (shopkeeper to send):', whatsappUrl);
-
-                try {
-                    const customerWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                    if (!customerWindow) {
-                        console.warn('⚠️ Popup blocked - Thanks message WhatsApp could not be opened');
-                        showNotification('⚠️ Please allow popups for WhatsApp messages');
-                    } else {
-                        console.log('✅ Thanks message WhatsApp opened successfully for shopkeeper');
-                    }
-                } catch (error) {
-                    console.error('❌ Error opening thanks message WhatsApp:', error);
-                    showNotification('❌ Failed to open thanks message WhatsApp');
-                }
-            }
-        }
-
-        function openThanksMessageForShopkeeper(orderData) {
-            // Open WhatsApp with thanks message pre-filled for customer
-            const thanksMessage = orderData.whatsapp_message;
-            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
-
-            if (thanksMessage && customerPhone) {
-                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
-                console.log('📱 Opening WhatsApp with thanks message for customer:', whatsappUrl);
-
-                try {
-                    const newWindow = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                    if (!newWindow) {
-                        console.warn('⚠️ Popup blocked - Thanks message WhatsApp could not be opened');
-                        showNotification('⚠️ Please allow popups for WhatsApp messages');
-                    } else {
-                        console.log('✅ Thanks message WhatsApp opened successfully');
-                    }
-                } catch (error) {
-                    console.error('❌ Error opening thanks message WhatsApp:', error);
-                    showNotification('❌ Failed to open thanks message WhatsApp');
-                }
-            }
-        }
-
-        function openCustomerThanksAutomatically(orderData) {
-            // Automatically open WhatsApp with customer thanks message
-            const thanksMessage = orderData.whatsapp_message;
-            const customerPhone = '+91' + document.getElementById('customer-phone').value.trim();
-
-            if (thanksMessage && customerPhone) {
-                const whatsappUrl = `https://wa.me/${customerPhone.replace('+', '')}?text=${encodeURIComponent(thanksMessage)}`;
-                console.log('Opening WhatsApp for customer:', whatsappUrl);
-                window.open(whatsappUrl, '_blank');
-
-                // Reset cart and close modal after sending
-                setTimeout(() => {
-                    cart = {};
-                    updateCart();
-                    cartModal.classList.add('hidden');
-
-                    // Reset form
-                    document.getElementById('customer-name').value = '';
-                    document.getElementById('customer-phone').value = '';
-                    document.getElementById('customer-address').value = '';
-                    document.getElementById('customer-notes').value = '';
-                }, 500);
-            }
-        }
-
-        function showCustomerThanksMessage(thanksMessage) {
-            // Close shopkeeper modal and show customer thanks modal
-            closeShopkeeperNotificationModal();
-            showThanksMessageModal(thanksMessage);
-        }
-
-        function setupEvents() {
-            // WhatsApp checkout button - direct event listener like index.html
-            const whatsappCheckoutButton = document.getElementById('whatsapp-checkout-button');
-            if (whatsappCheckoutButton) {
-                whatsappCheckoutButton.addEventListener('click', generateWhatsAppOrder);
-            }
-
-            // Add to cart buttons
-            document.addEventListener('click', (e) => {
-                if (e.target.classList.contains('add-to-cart')) {
-                    addToCart(e.target.getAttribute('data-id'));
-                }
-
-                if (e.target.classList.contains('decrease')) {
-                    const cartKey = e.target.getAttribute('data-id');
-                    if (cart[cartKey] && parseFloat(cart[cartKey].quantity) > 1) {
-                        cart[cartKey].quantity = parseFloat(cart[cartKey].quantity) - 1;
-                        updateCart();
-                    }
-                }
-
-                if (e.target.classList.contains('increase')) {
-                    const cartKey = e.target.getAttribute('data-id');
-                    if (cart[cartKey]) {
-                        // Parse cart key to get product ID and check stock
-                        let productId, proportion = null;
-                        if (cartKey.includes('_')) {
-                            [productId, proportion] = cartKey.split('_');
-                            productId = parseInt(productId);
-                        } else {
-                            productId = parseInt(cartKey);
-                        }
-
-                        const product = products.find(p => p.id == productId);
-                        let availableStock = product ? product.stock || 0 : 0;
-
-                        if (proportion && product && product.proportion_stocks && product.proportion_stocks[proportion] !== undefined) {
-                            availableStock = product.proportion_stocks[proportion];
-                        }
-
-                        if (parseFloat(cart[cartKey].quantity) < availableStock) {
-                            cart[cartKey].quantity = parseFloat(cart[cartKey].quantity) + 1;
-                            updateCart();
-                        } else {
-                            showNotification('Maximum stock available');
-                        }
-                    }
-                }
-
-                if (e.target.classList.contains('remove')) {
-                    const cartKey = e.target.getAttribute('data-id');
-                    delete cart[cartKey];
-                    updateCart();
-                    showNotification('Item removed from cart');
-                }
-
-                if (e.target.id === 'close-cart') {
-                    cartModal.classList.add('hidden');
-                }
-
-                if (e.target.id === 'cart-button') {
-                    cartModal.classList.remove('hidden');
-                    cartModal.classList.add('flex');
-                }
-
-                // Quick order buttons
-                if (e.target.id === 'quick-order-fruits') {
-                    quickOrderByCategory('Fruits');
-                }
-
-                if (e.target.id === 'quick-order-dairy') {
-                    quickOrderByCategory('Dairy');
-                }
-
-                if (e.target.id === 'quick-order-groceries') {
-                    quickOrderByCategory('Groceries');
-                }
-            });
-        }
-
-        function quickOrderByCategory(categoryName) {
-            // Filter products by category
-            const categoryProducts = products.filter(p => p.category === categoryName && p.stock > 0);
-
-            if (categoryProducts.length === 0) {
-                showNotification(`No ${categoryName.toLowerCase()} available right now`);
-                return;
-            }
-
-            // Add first 2-3 available products to cart
-            const productsToAdd = categoryProducts.slice(0, 3);
-            let addedCount = 0;
-
-            productsToAdd.forEach(product => {
-                if (parseFloat(product.stock) > 0) {
-                    const currentQty = cart[product.id] ? parseFloat(cart[product.id].quantity) || 0 : 0;
-                    if (currentQty < parseFloat(product.stock)) {
-                        if (!cart[product.id]) {
-                            cart[product.id] = { quantity: 0, price: product.price };
-                        }
-                        cart[product.id].quantity = parseFloat(cart[product.id].quantity) + 1;
-                        addedCount++;
-                    }
-                }
-            });
-
-            if (addedCount > 0) {
-                updateCart();
-                showNotification(`Added ${addedCount} ${categoryName.toLowerCase()} items to your cart!`);
-                // Auto-open cart modal
-                cartModal.classList.remove('hidden');
-                cartModal.classList.add('flex');
-            } else {
-                showNotification(`All ${categoryName.toLowerCase()} items are out of stock`);
-            }
-        }
-
-        // Start app
-        document.addEventListener('DOMContentLoaded', init);
+                    </div>
+                </div>
+            );
+        };
+
+        // Notifications Container Component
+        const Notifications = ({ notifications, onClose }) => (
+            <>
+                {notifications.map(notification => (
+                    <Notification
+                        key={notification.id}
+                        message={notification.message}
+                        type={notification.type}
+                        onClose={() => onClose(notification.id)}
+                    />
+                ))}
+            </>
+        );
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SalesApp />);
     </script>
 </body>
 </html>
