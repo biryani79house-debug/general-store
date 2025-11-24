@@ -223,7 +223,6 @@
                         <div class="bg-white p-4 rounded-lg shadow card-hover">
                             <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
                             <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
-                            <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
                             <div class="grid grid-cols-3 gap-1">
                                 ${proportionButtons}
                             </div>
@@ -240,7 +239,6 @@
                         <div class="bg-white p-4 rounded-lg shadow card-hover">
                             <h4 class="font-semibold text-center text-gray-800 mb-2 text-sm">${product.name}</h4>
                             <p class="text-lg font-bold text-center mb-2 text-green-600">₹${product.price}</p>
-                            <p class="text-xs text-center text-gray-500 mb-3">Stock: ${product.stock} ${product.unit_type}</p>
                             <button class="add-to-cart ${btnClass}" data-id="${product.id}" ${isOutOfStock ? 'disabled' : ''}>
                                 ${isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                             </button>
