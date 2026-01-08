@@ -6603,17 +6603,6 @@
                 }
 
                 if (isAuthenticated) {
-                    // User is authenticated - show main app
-                    console.log('👤 Showing authenticated main page');
-                    if (loginPage) loginPage.classList.remove('active');
-                    if (homePage) homePage.classList.add('active');
-
-                    // Start session tracking for authenticated users
-                    startSessionTracking();
-                } else {
-                    // User is not authenticated - show login page
-                    console.log('🔒 Showing login page');
-                    if (homePage) homePage.classList.remove('active');
                     if (loginPage) loginPage.classList.add('active');
                 }
             } catch (error) {
